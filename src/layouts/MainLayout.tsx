@@ -2,7 +2,7 @@ import { Outlet, Link, useLocation } from 'react-router-dom';
 
 const MainLayout = () => {
   const location = useLocation();
-  const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/register');
+  const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
 
   return (
     <div className="min-h-screen flex flex-col bg-[#F5F5F7]">
@@ -12,7 +12,7 @@ const MainLayout = () => {
           <Link to="/" className="text-2xl font-black text-[#C9111E] tracking-tighter uppercase">
             Editorial Aviation
           </Link>
-          
+
           {!isAuthPage && (
             <nav className="hidden md:flex items-center gap-8">
               <Link to="/search" className="text-sm font-semibold text-[#C9111E] border-b-2 border-[#C9111E] py-1">Search</Link>

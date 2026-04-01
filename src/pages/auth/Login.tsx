@@ -48,7 +48,7 @@ export const Login = () => {
 
         <div className="mt-8 border-t border-gray-100 pt-6 text-center">
           <p className="text-xs font-medium text-gray-500">
-            New traveler? <Link to="/register" className="text-[#C9111E] font-bold hover:underline">Create account</Link>
+            New traveler? <Link to="/signup" className="text-[#C9111E] font-bold hover:underline">Create account</Link>
           </p>
         </div>
       </div>
