@@ -7,7 +7,7 @@ export const FlightDetail = () => {
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors uppercase tracking-widest mb-8">
-        <ArrowLeft className="w-4 h-4 text-[#C9111E]" />
+        <ArrowLeft className="w-4 h-4 text-red" />
         Back to search results
       </button>
 
@@ -20,7 +20,7 @@ export const FlightDetail = () => {
           <div className="bg-[#fcfcfc] rounded-[2rem] p-8 border border-gray-100 flex flex-col md:flex-row shadow-sm">
             <div className="flex-1 flex flex-col relative pb-8 md:pb-0 md:pr-8 md:border-r border-gray-200 border-dashed">
               <div className="flex items-center gap-6 mb-12">
-                <div className="w-16 h-16 rounded-2xl bg-[#C9111E] text-white flex items-center justify-center flex-shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-red text-white flex items-center justify-center flex-shrink-0">
                   <PlaneTakeoff className="w-8 h-8" />
                 </div>
                 <div>
@@ -31,7 +31,7 @@ export const FlightDetail = () => {
 
               {/* Vertical connecting line on mobile, decorative plane mostly */}
               <div className="absolute left-8 top-16 bottom-16 w-0.5 bg-gray-200 hidden md:block">
-                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 bg-white flex items-center justify-center text-[#b48721]">
+                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 bg-white flex items-center justify-center text-gold">
                   <PlaneTakeoff className="w-4 h-4" />
                 </div>
               </div>
@@ -49,7 +49,7 @@ export const FlightDetail = () => {
 
             <div className="md:w-64 pt-8 md:pt-0 md:pl-8 flex flex-col justify-center relative justify-between py-4">
               <div className="absolute top-0 right-0 bg-white rounded-full px-3 py-1 text-[10px] font-bold text-gray-900 shadow-sm border border-gray-100 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-[#b48721]"></div>
+                <div className="w-2 h-2 rounded-full bg-gold"></div>
                 FLIGHT EA-402
               </div>
 
@@ -68,7 +68,7 @@ export const FlightDetail = () => {
                 <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
                   <span className="text-xl">⏱</span> 7h 10m
                 </div>
-                <div className="bg-[#f0e6d2] text-[#b48721] text-[10px] font-bold px-3 py-1 rounded">
+                <div className="bg-[#f0e6d2] text-gold text-[10px] font-bold px-3 py-1 rounded">
                   NON-STOP
                 </div>
               </div>
@@ -78,7 +78,7 @@ export const FlightDetail = () => {
           {/* Amenities Features */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-[#C9111E]">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
                 <Utensils className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-sm text-gray-900 mb-2">Premium Dining</h3>
@@ -86,7 +86,7 @@ export const FlightDetail = () => {
             </div>
 
             <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-[#C9111E]">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
                 <Wifi className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-sm text-gray-900 mb-2">SkyHigh Wi-Fi</h3>
@@ -94,7 +94,7 @@ export const FlightDetail = () => {
             </div>
 
             <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-[#C9111E]">
+              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
                 <Sofa className="w-5 h-5" />
               </div>
               <h3 className="font-bold text-sm text-gray-900 mb-2">Flatbed Comfort</h3>
@@ -105,7 +105,7 @@ export const FlightDetail = () => {
           {/* Baggage Policy */}
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
             <h3 className="text-xl font-bold flex items-center gap-3 text-gray-900 mb-6">
-              <Briefcase className="w-6 h-6 text-[#C9111E]" />
+              <Briefcase className="w-6 h-6 text-red" />
               Baggage Policy
             </h3>
 
@@ -118,7 +118,7 @@ export const FlightDetail = () => {
                     <p className="text-[11px] text-gray-500">2 pieces x 23kg each (50lbs) per passenger.</p>
                   </div>
                 </div>
-                <div className="text-[10px] font-black tracking-widest text-[#b48721]">INCLUDED</div>
+                <div className="text-[10px] font-black tracking-widest text-gold">INCLUDED</div>
               </div>
 
               <div className="flex justify-between items-center bg-[#fcfcfc] border border-gray-100 p-4 rounded-xl">
@@ -129,7 +129,7 @@ export const FlightDetail = () => {
                     <p className="text-[11px] text-gray-500">Max 12kg total. Fits in overhead bin or under seat.</p>
                   </div>
                 </div>
-                <div className="text-[10px] font-black tracking-widest text-[#b48721]">INCLUDED</div>
+                <div className="text-[10px] font-black tracking-widest text-gold">INCLUDED</div>
               </div>
             </div>
           </div>
@@ -140,7 +140,7 @@ export const FlightDetail = () => {
         <aside className="w-full lg:w-[400px] flex-shrink-0 space-y-6">
 
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-black/5 overflow-hidden">
-            <div className="bg-[#C9111E] p-8 text-white relative overflow-hidden">
+            <div className="bg-red p-8 text-white relative overflow-hidden">
               {/* Decorative background shape */}
               <div className="absolute -right-20 -top-20 w-64 h-64 bg-white opacity-5 rounded-full blur-2xl pointer-events-none"></div>
 
@@ -165,13 +165,13 @@ export const FlightDetail = () => {
               </div>
 
               <div className="flex justify-between items-center py-6 border-b border-gray-100">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-[#C9111E]">Seat Selection</span>
+                <span className="text-[11px] font-bold uppercase tracking-widest text-red">Seat Selection</span>
                 <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded">Free Choice</span>
               </div>
 
               <button
                 onClick={() => navigate('/booking/seat')}
-                className="w-full mt-6 bg-[#C9111E] text-white hover:bg-[#A50D17] transition-colors rounded-xl h-14 font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 shadow-lg shadow-[#C9111E]/30"
+                className="w-full mt-6 bg-red text-white hover:bg-reddark transition-colors rounded-xl h-14 font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 shadow-lg shadow-red/30"
               >
                 Book This Flight
                 <ArrowRight className="w-4 h-4" />
@@ -204,7 +204,7 @@ export const FlightDetail = () => {
             </div>
           </div>
 
-          <div className="rounded-[2rem] overflow-hidden relative shadow-lg group cursor-pointer border border-transparent hover:border-[#121212]/10 transition-colors">
+          <div className="rounded-[2rem] overflow-hidden relative shadow-lg group cursor-pointer border border-transparent hover:border-dark/10 transition-colors">
             <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/90 to-transparent z-10"></div>
             <img src="https://images.unsplash.com/photo-1517400508447-f8dd518b86db?auto=format&fit=crop&q=80" alt="Wing" className="w-full h-[200px] object-cover transition-transform duration-700 group-hover:scale-105" />
             <div className="absolute bottom-6 left-6 right-6 z-20">

@@ -1,6 +1,13 @@
 import { CalendarDays } from 'lucide-react';
 
-const DateInput = () => {
+type DateInputProps = {
+  departureDate: string;
+  returnDate: string;
+  onDepartureDateChange: (value: string) => void;
+  onReturnDateChange: (value: string) => void;
+};
+
+const DateInput = ({ departureDate, returnDate, onDepartureDateChange, onReturnDateChange }: DateInputProps) => {
   return (
     <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
       <div>
@@ -8,7 +15,9 @@ const DateInput = () => {
         <div className="relative">
           <input
             type="date"
-            className="w-full bg-[#f6f6f6] rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
+            value={departureDate}
+            onChange={(e) => onDepartureDateChange(e.target.value)}
+            className="w-full bg-surface rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
           />
           <CalendarDays className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800 pointer-events-none" />
         </div>
@@ -18,7 +27,9 @@ const DateInput = () => {
         <div className="relative">
           <input
             type="date"
-            className="w-full bg-[#f6f6f6] rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-dark focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
+            value={returnDate}
+            onChange={(e) => onReturnDateChange(e.target.value)}
+            className="w-full bg-surface rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-dark focus:outline-none focus:ring-2 focus:ring-red/20 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
           />
           <CalendarDays className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-dark pointer-events-none" />
         </div>

@@ -1,36 +1,52 @@
-import { useState } from 'react';
-import { Plane, ArrowRight, Check, ChevronDown, CheckCircle2 } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Plane, ArrowRight, Check, ChevronDown } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 
 export const FlightResults = () => {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const originResult = searchParams.get('from') || 'London (LHR)';
+  const destinationResult = searchParams.get('to') || 'Tokyo (HND)';
+  const departureDateParam = searchParams.get('date') || '';
+
+  const formatDate = (value: string) => {
+    if (!value) return 'Select date';
+    const parsed = new Date(value);
+    if (Number.isNaN(parsed.getTime())) return 'Select date';
+    return parsed.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  };
+
+  const departureDate = formatDate(departureDateParam);
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
-      
+
       {/* Search Query Summary / Change Search Pill */}
       <div className="bg-white rounded-2xl p-4 flex flex-col md:flex-row items-center justify-between mb-8 shadow-sm">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-3">
-            <Plane className="w-5 h-5 text-[#C9111E]" />
+            <Plane className="w-5 h-5 text-red" />
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Origin</p>
-              <p className="font-bold text-gray-900">London (LHR)</p>
+              <p className="font-bold text-gray-900">{originResult}</p>
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-gray-400" />
           <div className="flex items-center gap-3">
-            <Plane className="w-5 h-5 text-gray-500" />
+            <Plane className="w-5 h-5 text-gold" />
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Destination</p>
-              <p className="font-bold text-gray-900">Tokyo (HND)</p>
+              <p className="font-bold text-gray-900">{destinationResult}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-6 mt-4 md:mt-0">
           <div className="text-right">
-            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Departure</p>
-            <p className="font-bold text-gray-900">Oct 24, 2024</p>
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Departure From</p>
+            <p className="font-bold text-gray-900">{departureDate}</p>
           </div>
           <button onClick={() => navigate('/search')} className="w-10 h-10 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200 transition-colors">
             <span className="text-gray-600 text-sm">✎</span>
@@ -39,12 +55,12 @@ export const FlightResults = () => {
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        
+
         {/* Sidebar Filters */}
         <aside className="w-full lg:w-64 flex-shrink-0">
           <div className="bg-white rounded-[2rem] p-6 shadow-sm sticky top-[100px]">
             <h2 className="text-xl font-bold mb-6 text-gray-900">Filters</h2>
-            
+
             <div className="mb-8">
               <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Stops</h3>
               <div className="space-y-3">
@@ -90,26 +106,26 @@ export const FlightResults = () => {
           </div>
 
           <div className="space-y-5">
-            <FlightCard 
-              airline="Editorial Air" 
+            <FlightCard
+              airline="Editorial Air"
               flightCode="EA 702"
-              departure="11:20" 
-              arrival="09:05" 
-              origin="London (LHR)" 
+              departure="11:20"
+              arrival="09:05"
+              origin="London (LHR)"
               destination="Tokyo (HND)"
               duration="13H 45M"
               stops="1 Stop (DXB)"
               price="£842"
               tag="BEST PRICE"
-              logo="text-[#C9111E] bg-red-50"
+              logo="text-red bg-red-50"
             />
-            
-            <FlightCard 
-              airline="Kinetic Global" 
+
+            <FlightCard
+              airline="Kinetic Global"
               flightCode="KG 88"
-              departure="14:00" 
-              arrival="08:50" 
-              origin="London (LHR)" 
+              departure="14:00"
+              arrival="08:50"
+              origin="London (LHR)"
               destination="Tokyo (HND)"
               duration="11H 50M"
               stops="NON-STOP"
@@ -121,33 +137,33 @@ export const FlightResults = () => {
 
             {/* Stepper Divider */}
             <div className="flex items-center justify-between w-full relative py-6 my-2">
-               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
-               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[35%] h-0.5 bg-[#C9111E]"></div>
-               
-               <div className="w-6 h-6 rounded-full bg-[#C9111E] text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3"/></div>
-               <div className="w-6 h-6 rounded-full bg-white border-2 border-[#C9111E] text-[#C9111E] text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">02</div>
-               <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">03</div>
-               <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
-               
-               <span className="relative z-10 bg-[#f6f6f6] pl-4 text-[10px] font-bold uppercase tracking-widest text-[#121212]">Step 2: Selection</span>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[35%] h-0.5 bg-red"></div>
+
+              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
+              <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">02</div>
+              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">03</div>
+              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
+
+              <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 2: Selection</span>
             </div>
 
-            <FlightCard 
-              airline="Editorial Air" 
+            <FlightCard
+              airline="Editorial Air"
               flightCode="EA 705"
-              departure="18:45" 
-              arrival="17:05" 
-              origin="London (LHR)" 
+              departure="18:45"
+              arrival="17:05"
+              origin="London (LHR)"
               destination="Tokyo (HND)"
               duration="15H 20M"
               stops="1 Stop (DXB)"
               price="£715"
               tag="ECONOMY SAVER"
-              logo="text-[#C9111E] bg-red-50"
+              logo="text-red bg-red-50"
             />
 
             <div className="flex justify-center pt-8">
-              <button className="text-[#C9111E] font-bold text-sm tracking-wider flex items-center gap-2 hover:opacity-80 transition-opacity">
+              <button className="text-red font-bold text-sm tracking-wider flex items-center gap-2 hover:opacity-80 transition-opacity">
                 View More Flights <ChevronDown className="w-4 h-4" />
               </button>
             </div>
@@ -161,21 +177,36 @@ export const FlightResults = () => {
 
 const Checkbox = ({ id, label, checked = false }: { id: string, label: string, checked?: boolean }) => (
   <div className="flex items-center gap-3">
-    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors cursor-pointer ${checked ? 'bg-[#C9111E] border-[#C9111E]' : 'border-gray-300 bg-white'}`}>
+    <div className={`w-5 h-5 rounded border flex items-center justify-center transition-colors cursor-pointer ${checked ? 'bg-red border-red' : 'border-gray-300 bg-white'}`}>
       {checked && <Check className="w-3 h-3 text-white" />}
     </div>
     <label htmlFor={id} className={`text-sm cursor-pointer ${checked ? 'font-bold text-gray-900' : 'font-medium text-gray-600'}`}>{label}</label>
   </div>
 );
 
-const FlightCard = ({ airline, flightCode, departure, arrival, origin, destination, duration, stops, price, tag, tagColor = "text-gray-500", logo }: any) => {
+type FlightCardProps = {
+  airline: string;
+  flightCode: string;
+  departure: string;
+  arrival: string;
+  origin: string;
+  destination: string;
+  duration: string;
+  stops: string;
+  price: string;
+  tag: string;
+  tagColor?: string;
+  logo: string;
+};
+
+const FlightCard = ({ airline, flightCode, departure, arrival, origin, destination, duration, stops, price, tag, tagColor = "text-gray-500", logo }: FlightCardProps) => {
   const navigate = useNavigate();
-  
+
   return (
-    <div className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-lg transition-shadow border border-transparent hover:border-[#C9111E]/10 flex flex-col md:flex-row items-center relative overflow-hidden group">
+    <div className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-lg transition-shadow border border-transparent hover:border-red/10 flex flex-col md:flex-row items-center relative overflow-hidden group">
       {/* Flight info */}
       <div className="flex items-center flex-1 w-full flex-wrap gap-6 md:gap-0">
-        
+
         {/* Airline Logo & Name */}
         <div className="w-[120px] flex flex-col justify-center items-center text-center">
           <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${logo}`}>
@@ -193,17 +224,17 @@ const FlightCard = ({ airline, flightCode, departure, arrival, origin, destinati
 
         {/* Visual Line */}
         <div className="flex-1 min-w-[140px] px-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] font-bold text-[#b48721] mb-1">{duration}</span>
+          <span className="text-[10px] font-bold text-gold mb-1">{duration}</span>
           <div className="w-full h-0.5 bg-gray-200 relative flex items-center justify-center">
-            {stops !== 'NON-STOP' && <div className="w-1.5 h-1.5 rounded-full bg-[#C9111E] absolute"></div>}
-            {stops === 'NON-STOP' && <div className="w-full h-0.5 bg-[#C9111E] absolute"></div>}
+            {stops !== 'NON-STOP' && <div className="w-1.5 h-1.5 rounded-full bg-red absolute"></div>}
+            {stops === 'NON-STOP' && <div className="w-full h-0.5 bg-red absolute"></div>}
           </div>
-          <span className={`text-[10px] font-bold mt-1 ${stops === 'NON-STOP' ? 'text-[#C9111E]' : 'text-gray-400'}`}>{stops}</span>
+          <span className={`text-[10px] font-bold mt-1 ${stops === 'NON-STOP' ? 'text-red' : 'text-gray-400'}`}>{stops}</span>
         </div>
 
         {/* Arrival */}
         <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-4 relative">
-          <div className="text-2xl font-black text-gray-900">{arrival} <sup className="text-xs text-[#C9111E] font-bold">+1</sup></div>
+          <div className="text-2xl font-black text-gray-900">{arrival} <sup className="text-xs text-red font-bold">+1</sup></div>
           <div className="text-sm text-gray-500 font-medium">{destination}</div>
         </div>
       </div>
@@ -213,17 +244,17 @@ const FlightCard = ({ airline, flightCode, departure, arrival, origin, destinati
         <div className="absolute top-4 right-6 text-[10px] font-bold uppercase tracking-widest text-right">
           <span className={tagColor === "text-gray-500" && tag === "BEST PRICE" ? "text-gray-500" : tagColor}>{tag}</span>
         </div>
-        
+
         <div className="text-right mt-2">
           <div className="text-3xl font-black text-gray-900">{price}</div>
         </div>
-        
+
         <div className="flex items-center gap-4 mt-3">
           <label className="flex items-center gap-2 cursor-pointer">
             <div className="w-4 h-4 rounded border border-gray-300"></div>
             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Compare</span>
           </label>
-          <button onClick={() => navigate('/detail/ea-702')} className="bg-[#C9111E] text-white hover:bg-[#A50D17] transition-colors rounded-full px-6 py-2.5 font-bold text-sm">
+          <button onClick={() => navigate('/detail/ea-702')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-6 py-2.5 font-bold text-sm">
             Select Flight
           </button>
         </div>

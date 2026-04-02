@@ -6,10 +6,20 @@ const airports = [
   "Da Nang (DAD)",
   "Nha Trang (CXR)",
 ];
+interface Props {
+  value?: string;
+  onChange?: (val: string) => void;
+}
 
-export default function DropdownInputLanding() {
+export default function DropdownInputLanding({ value: extValue, onChange }: Props) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
+  const [intValue, setIntValue] = useState("");
+
+  const value = extValue !== undefined ? extValue : intValue;
+  const setValue = (val: string) => {
+    setIntValue(val);
+    onChange?.(val);
+  };
 
   return (
     <div className="relative">
@@ -19,7 +29,7 @@ export default function DropdownInputLanding() {
         onFocus={() => setOpen(true)}
         onChange={(e) => setValue(e.target.value)}
         placeholder="Where are you heading?"
-        className="w-full bg-[#f6f6f6] rounded-xl h-14 pl-12 pr-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20"
+        className="w-full bg-surface rounded-xl h-14 pl-12 pr-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
       />
 
       {open && (

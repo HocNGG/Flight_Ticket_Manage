@@ -6,20 +6,30 @@ const airports = [
   "Da Nang (DAD)",
   "Nha Trang (CXR)",
 ];
+interface Props {
+  value?: string;
+  onChange?: (val: string) => void;
+}
 
-export default function DropdownInputOff() {
+export default function DropdownInputOff({ value: extValue, onChange }: Props) {
   const [open, setOpen] = useState(false);
-  const [value, setValue] = useState("");
+  const [intValue, setIntValue] = useState("");
+
+  const value = extValue !== undefined ? extValue : intValue;
+  const setValue = (val: string) => {
+    setIntValue(val);
+    onChange?.(val);
+  };
 
   return (
     <div className="relative">
-    <PlaneTakeoff className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-[#C9111E]" />
+    <PlaneTakeoff className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red" />
       <input
         value={value}
         onFocus={() => setOpen(true)}
         onChange={(e) => setValue(e.target.value)}
         placeholder="City or Airport"
-        className="w-full bg-[#f6f6f6] rounded-xl h-14 pl-12 pr-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20"
+        className="w-full bg-surface rounded-xl h-14 pl-12 pr-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
       />
 
       {open && (

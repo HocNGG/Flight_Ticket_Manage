@@ -10,14 +10,14 @@ export const SeatSelection = () => {
       {/* Header */}
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between">
         <div>
-          <p className="text-[#b48721] text-[10px] font-bold uppercase tracking-widest mb-1">Step 02 of 06</p>
+          <p className="text-gold text-[10px] font-bold uppercase tracking-widest mb-1">Step 02 of 06</p>
           <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase">SEAT SELECTION</h1>
         </div>
         
         {/* Visual Stepper */}
         <div className="flex gap-2 mt-4 md:mt-0">
           <div className="w-12 h-1 bg-gray-200"></div>
-          <div className="w-12 h-1 bg-[#C9111E]"></div>
+          <div className="w-12 h-1 bg-red"></div>
           <div className="w-12 h-1 bg-gray-200"></div>
           <div className="w-12 h-1 bg-gray-200"></div>
           <div className="w-12 h-1 bg-gray-200"></div>
@@ -40,7 +40,7 @@ export const SeatSelection = () => {
                
                <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> AVAILABLE</div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-[#C9111E] rounded-sm"></div> SELECTED</div>
+                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red rounded-sm"></div> SELECTED</div>
                   <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> OCCUPIED</div>
                </div>
              </div>
@@ -63,7 +63,7 @@ export const SeatSelection = () => {
                        <div className="flex gap-2 items-center">
                          <span className="w-6 text-right text-gray-300 mr-2 text-xs">13</span>
                          <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-[#C9111E] rounded-lg text-white flex items-center justify-center text-xs">✓</div>
+                         <div className="w-10 h-10 bg-red rounded-lg text-white flex items-center justify-center text-xs">✓</div>
                          <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
                        </div>
                        <div className="flex gap-2 items-center">
@@ -105,14 +105,14 @@ export const SeatSelection = () => {
                <ArrowLeft className="w-4 h-4" /> Previous: Passenger Info
              </button>
              
-             <button onClick={() => navigate('/booking/baggage')} className="bg-[#C9111E] text-white hover:bg-[#A50D17] transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
+             <button onClick={() => navigate('/booking/baggage')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
                Next: Baggage Selection
              </button>
           </div>
 
           {/* PASSENGER DETAILS FORM */}
           <div className="mb-16">
-            <p className="text-[#C9111E] text-[10px] font-bold uppercase tracking-widest mb-1">Information Checklist</p>
+            <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Information Checklist</p>
             <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Passenger Details Required</h2>
 
             <div className="flex flex-col md:flex-row gap-8">
@@ -122,14 +122,14 @@ export const SeatSelection = () => {
                   </p>
 
                   <div className="bg-white rounded-xl p-4 flex gap-4 border border-gray-100 shadow-sm">
-                    <Plane className="w-5 h-5 text-[#C9111E] flex-shrink-0" />
+                    <Plane className="w-5 h-5 text-red flex-shrink-0" />
                     <div>
                       <p className="font-bold text-sm text-gray-900">Passport Validity</p>
                       <p className="text-[10px] text-gray-500">Must be valid for at least 6 months after arrival.</p>
                     </div>
                   </div>
                   <div className="bg-white rounded-xl p-4 flex gap-4 border border-gray-100 shadow-sm">
-                    <ShieldCheck className="w-5 h-5 text-[#C9111E] flex-shrink-0" />
+                    <ShieldCheck className="w-5 h-5 text-red flex-shrink-0" />
                     <div>
                       <p className="font-bold text-sm text-gray-900">Official Documentation</p>
                       <p className="text-[10px] text-gray-500">All names must match government issued IDs.</p>
@@ -141,30 +141,30 @@ export const SeatSelection = () => {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
                     <div className="md:col-span-2">
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Full Legal Name</label>
-                      <input type="text" defaultValue="Johnathan Doe" className="w-full bg-[#f6f6f6] rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20" />
+                      <input type="text" defaultValue="Johnathan Doe" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Date of Birth</label>
-                      <input type="text" defaultValue="mm/dd/yyyy" className="w-full bg-[#f6f6f6] rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20" />
+                      <input type="text" defaultValue="mm/dd/yyyy" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Phone Number</label>
-                      <input type="text" defaultValue="+1 (555) 000-0000" className="w-full bg-[#f6f6f6] rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20" />
+                      <input type="text" defaultValue="+1 (555) 000-0000" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Email Address</label>
-                      <input type="email" defaultValue="john.doe@example.com" className="w-full bg-[#f6f6f6] rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20" />
+                      <input type="email" defaultValue="john.doe@example.com" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
                     </div>
                     <div>
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Nationality</label>
-                      <select className="w-full bg-[#f6f6f6] rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none appearance-none">
+                      <select className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none appearance-none">
                         <option>United Kingdom</option>
                         <option>United States</option>
                       </select>
                     </div>
                     <div className="md:col-span-2">
                       <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Passport Number</label>
-                      <input type="text" defaultValue="P12345678" className="w-full bg-[#f6f6f6] rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20" />
+                      <input type="text" defaultValue="P12345678" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
                     </div>
                   </div>
                </div>
@@ -176,18 +176,18 @@ export const SeatSelection = () => {
             <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Enhance Your Journey</h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
-                 <div className="text-[#b48721] mb-4"><Utensils className="w-6 h-6" /></div>
+                 <div className="text-gold mb-4"><Utensils className="w-6 h-6" /></div>
                  <h3 className="font-bold text-sm text-gray-900 mb-2">Premium Dining</h3>
                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Upgrade to our Chef's Selection featuring seasonal local ingredients.</p>
-                 <button className="mt-auto w-full py-2.5 rounded-full border border-[#b48721] text-[#b48721] text-[10px] font-bold tracking-widest uppercase hover:bg-[#b48721] hover:text-white transition-colors">Add for $24</button>
+                 <button className="mt-auto w-full py-2.5 rounded-full border border-gold text-gold text-[10px] font-bold tracking-widest uppercase hover:bg-gold hover:text-white transition-colors">Add for $24</button>
                </div>
                
-               <div className="bg-white rounded-[2rem] p-6 text-center border border-[#C9111E]/30 shadow-md flex flex-col items-center relative overflow-hidden">
-                 <div className="absolute top-0 left-0 w-full h-1 bg-[#C9111E]"></div>
-                 <div className="text-[#C9111E] mb-4"><ShieldCheck className="w-6 h-6" /></div>
+               <div className="bg-white rounded-[2rem] p-6 text-center border border-red/30 shadow-md flex flex-col items-center relative overflow-hidden">
+                 <div className="absolute top-0 left-0 w-full h-1 bg-red"></div>
+                 <div className="text-red mb-4"><ShieldCheck className="w-6 h-6" /></div>
                  <h3 className="font-bold text-sm text-gray-900 mb-2">Travel Protection</h3>
                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Comprehensive coverage for cancellations, medical, and baggage loss.</p>
-                 <button className="mt-auto w-full py-2.5 rounded-full border border-[#C9111E] text-[#C9111E] text-[10px] font-bold tracking-widest uppercase hover:bg-[#C9111E] hover:text-white transition-colors">Add for $38</button>
+                 <button className="mt-auto w-full py-2.5 rounded-full border border-red text-red text-[10px] font-bold tracking-widest uppercase hover:bg-red hover:text-white transition-colors">Add for $38</button>
                </div>
 
                <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
@@ -207,12 +207,12 @@ export const SeatSelection = () => {
            {/* Timer Card */}
            <div className="bg-[#fdf8ed] border border-[#f0e6d2] rounded-2xl p-6 shadow-sm">
              <div className="flex items-start gap-4 mb-3">
-               <div className="w-8 h-8 rounded-full bg-[#b48721] text-white flex items-center justify-center flex-shrink-0">
+               <div className="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center flex-shrink-0">
                  <Clock className="w-4 h-4" />
                </div>
                <div>
                  <h3 className="font-bold text-gray-900 leading-tight">HOLDING YOUR SEAT</h3>
-                 <p className="text-[#b48721] font-black tracking-widest text-[10px] uppercase mt-1">14:59 REMAINING</p>
+                 <p className="text-gold font-black tracking-widest text-[10px] uppercase mt-1">14:59 REMAINING</p>
                </div>
              </div>
              <p className="text-xs text-gray-600 font-medium">We've reserved Seat 13B for you. Complete your booking within the time limit to secure this price.</p>
@@ -230,7 +230,7 @@ export const SeatSelection = () => {
                  </div>
                  <div className="flex justify-between">
                    <span className="text-gray-500">Preferred Seat (13B)</span>
-                   <span className="text-[#C9111E] font-bold">+$45.00</span>
+                   <span className="text-red font-bold">+$45.00</span>
                  </div>
                  <div className="flex justify-between">
                    <span className="text-gray-500">Taxes & Fees</span>
