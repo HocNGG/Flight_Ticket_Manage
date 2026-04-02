@@ -1,6 +1,8 @@
-import { PlaneTakeoff, PlaneLanding, CalendarDays, Users, ChevronDown, ArrowRight } from 'lucide-react';
+import { PlaneTakeoff, PlaneLanding, Users, ChevronDown, ArrowRight } from 'lucide-react';
 import DropdownInputOff from '../../../components/customer/search/DropdownInputOff';
 import DropdownInputLanding from '../../../components/customer/search/DropdownInputHeading';
+import DateInput from '../../../components/customer/search/DateInput';
+
 export const FlightSearch = () => {
   return (
     <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center">
@@ -31,30 +33,7 @@ export const FlightSearch = () => {
             </div>
 
             {/* Dates */}
-            <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
-              <div>
-                <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Date</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="mm/dd/yyyy"
-                    className="w-full bg-[#f6f6f6] rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20"
-                  />
-                  <CalendarDays className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-800" />
-                </div>
-              </div>
-              <div>
-                <label className="text-[11px] font-bold text-gray-300 uppercase tracking-widest block mb-2 px-1 italic">Return</label>
-                <div className="relative">
-                  <input
-                    type="text"
-                    placeholder="mm/dd/yyyy"
-                    className="w-full bg-[#f6f6f6] rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-gray-400 focus:outline-none focus:ring-2 focus:ring-[#C9111E]/20"
-                  />
-                  <CalendarDays className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                </div>
-              </div>
-            </div>
+            <DateInput />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
