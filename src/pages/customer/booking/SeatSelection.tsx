@@ -1,4 +1,4 @@
-import { Clock, ArrowLeft, Plane, ShieldCheck, Utensils, Briefcase } from 'lucide-react';
+import { Clock, ArrowLeft, Plane, ShieldCheck, Utensils, Briefcase, Check, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const SeatSelection = () => {
@@ -10,21 +10,21 @@ export const SeatSelection = () => {
       {/* Header */}
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between">
         <div>
-          <p className="text-gold text-[10px] font-bold uppercase tracking-widest mb-1">Step 02 of 06</p>
           <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase">SEAT SELECTION</h1>
         </div>
-        
-        {/* Visual Stepper */}
-        <div className="flex gap-2 mt-4 md:mt-0">
-          <div className="w-12 h-1 bg-gray-200"></div>
-          <div className="w-12 h-1 bg-red"></div>
-          <div className="w-12 h-1 bg-gray-200"></div>
-          <div className="w-12 h-1 bg-gray-200"></div>
-          <div className="w-12 h-1 bg-gray-200"></div>
-          <div className="w-12 h-1 bg-gray-200"></div>
-        </div>
       </div>
+ {/* Stepper Divider */}
+            <div className="flex items-center justify-between w-full relative py-6 my-2">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[55%] h-0.5 bg-red"></div>
 
+              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
+              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
+              <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">03</div>
+              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
+
+              <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 3: Selection & information</span>
+            </div>
       <div className="flex flex-col lg:flex-row gap-8">
         
         {/* Left Column - Main Content */}
@@ -105,8 +105,8 @@ export const SeatSelection = () => {
                <ArrowLeft className="w-4 h-4" /> Previous: Passenger Info
              </button>
              
-             <button onClick={() => navigate('/booking/baggage')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
-               Next: Baggage Selection
+             <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
+               Payment & Extras 
              </button>
           </div>
 

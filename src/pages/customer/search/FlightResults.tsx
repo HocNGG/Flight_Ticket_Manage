@@ -92,6 +92,18 @@ export const FlightResults = () => {
 
         {/* Main Flight List */}
         <main className="flex-1">
+           {/* Stepper Divider */}
+            <div className="flex items-center justify-between w-full relative py-6 my-2">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[35%] h-0.5 bg-red"></div>
+
+              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
+              <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">02</div>
+              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">03</div>
+              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
+
+              <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 2: Selection</span>
+            </div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6">
             <div>
               <h1 className="text-3xl font-black tracking-tight text-gray-900">Available Journeys</h1>
@@ -134,20 +146,7 @@ export const FlightResults = () => {
               tagColor="bg-[#e2b868]/20 text-[#9e7622]"
               logo="text-yellow-600 bg-yellow-50"
             />
-
-            {/* Stepper Divider */}
-            <div className="flex items-center justify-between w-full relative py-6 my-2">
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[35%] h-0.5 bg-red"></div>
-
-              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
-              <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">02</div>
-              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">03</div>
-              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
-
-              <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 2: Selection</span>
-            </div>
-
+            
             <FlightCard
               airline="Editorial Air"
               flightCode="EA 705"

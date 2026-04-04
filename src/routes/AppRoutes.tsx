@@ -9,6 +9,7 @@ import { FlightSearch } from '../pages/customer/search/FlightSearch';
 import { FlightResults } from '../pages/customer/search/FlightResults';
 import { FlightDetail } from '../pages/customer/search/FlightDetail';
 import { SeatSelection } from '../pages/customer/booking/SeatSelection';
+import { Payment } from '../pages/customer/payment/Payment';
 
 const AppRoutes = () => {
   return (
@@ -27,6 +28,7 @@ const AppRoutes = () => {
 
         {/* Booking Journey */}
         <Route path="/booking/seat" element={<SeatSelection />} />
+        <Route path="/booking/payment" element={<Payment />} />
 
       </Route>
     </Routes>

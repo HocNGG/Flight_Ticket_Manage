@@ -1,4 +1,4 @@
-import { ArrowLeft, PlaneTakeoff, PlaneLanding, Utensils, Wifi, Sofa, Briefcase, Backpack, ShieldCheck, ArrowRight } from 'lucide-react';
+import { ArrowLeft, PlaneTakeoff, PlaneLanding, Utensils, Wifi, Sofa, Briefcase, Backpack, ShieldCheck, ArrowRight, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export const FlightDetail = () => {
@@ -10,6 +10,19 @@ export const FlightDetail = () => {
         <ArrowLeft className="w-4 h-4 text-red" />
         Back to search results
       </button>
+
+       {/* Stepper Divider */}
+            <div className="flex items-center justify-between w-full relative py-6 my-2">
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
+              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[35%] h-0.5 bg-red"></div>
+
+              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
+              <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">02</div>
+              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">03</div>
+              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
+
+              <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 2: Selection</span>
+            </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
 
