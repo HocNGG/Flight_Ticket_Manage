@@ -1,8 +1,57 @@
-import { Clock, ArrowLeft, Plane, ShieldCheck, Utensils, Briefcase, Check, ArrowRight } from 'lucide-react';
+import { useMemo, useState } from 'react';
+import { Clock, ArrowLeft, Plane, ShieldCheck, Utensils, Briefcase, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { SeatButton, type Seat, type SeatStatus } from '../../../components/customer/booking/Seat';
+
+const seatLayout = ['A', 'B', 'C', '_', 'D', 'E', 'F'] as const;
+const rows = 30;
+
+const initialSeats: Array<Pick<Seat, 'id' | 'status' | 'price'>> = [
+  { id: '1A', status: 'occupied', price: 0 },
+  { id: '1B', status: 'booked', price: 0 },
+  { id: '1C', status: 'available', price: 20 },
+];
+
+const buildSeat = (id: string, status: SeatStatus, price: number): Seat => ({
+  id,
+  status,
+  price,
+  occupied: status === 'booked' || status === 'occupied',
+});
 
 export const SeatSelection = () => {
   const navigate = useNavigate();
+  const [selectedSeat, setSelectedSeat] = useState<string>('1C');
+
+  const seatRows = useMemo(() => {
+    const seatMap: Array<Array<Seat | null>> = [];
+
+    for (let row = 1; row <= rows; row += 1) {
+      const rowSeats = seatLayout.map((letter) => {
+        if (letter === '_') {
+          return null;
+        }
+
+        const id = `${row}${letter}`;
+        const sample = initialSeats.find((seat) => seat.id === id);
+        const status = (sample?.status as SeatStatus) ?? 'available';
+        const price = sample?.price ?? 0;
+
+        return buildSeat(id, status, price);
+      });
+
+      seatMap.push(rowSeats);
+    }
+
+    return seatMap;
+  }, []);
+
+  const handleSelectSeat = (seat: Seat) => {
+    if (seat.status !== 'available') return;
+    setSelectedSeat(seat.id);
+  };
+
+  const seatStatusLabel = selectedSeat ? `Selected seat ${selectedSeat}` : 'Select a seat';
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-32">
@@ -46,68 +95,38 @@ export const SeatSelection = () => {
              </div>
 
              {/* Mock Seat Map Container */}
-             <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px] flex items-center justify-center">
-                 <div className="flex gap-12 font-mono text-sm">
-                    {/* Left block (ABC) */}
-                    <div className="space-y-4">
-                       <div className="flex gap-2 text-center text-gray-400 mb-2">
-                         <span className="w-10">A</span><span className="w-10">B</span><span className="w-10">C</span>
-                       </div>
-                       
-                       <div className="flex gap-2 items-center">
-                         <span className="w-6 text-right text-gray-300 mr-2 text-xs">12</span>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                       </div>
-                       <div className="flex gap-2 items-center">
-                         <span className="w-6 text-right text-gray-300 mr-2 text-xs">13</span>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-red rounded-lg text-white flex items-center justify-center text-xs">✓</div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                       </div>
-                       <div className="flex gap-2 items-center">
-                         <span className="w-6 text-right text-gray-300 mr-2 text-xs">14</span>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                       </div>
-                    </div>
-                    
-                    {/* Right block (DEF) */}
-                    <div className="space-y-4">
-                       <div className="flex gap-2 text-center text-gray-400 mb-2">
-                         <span className="w-10">D</span><span className="w-10">E</span><span className="w-10">F</span>
-                       </div>
-                       
-                       <div className="flex gap-2 items-center">
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-300 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                       </div>
-                       <div className="flex gap-2 items-center">
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                       </div>
-                       <div className="flex gap-2 items-center">
-                         <div className="w-10 h-10 bg-gray-300 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                         <div className="w-10 h-10 bg-gray-100 rounded-lg"></div>
-                       </div>
-                    </div>
+             <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
+               <div className="space-y-4">
+                 <div className="flex gap-2 text-center text-gray-400 mb-2 px-4 sm:px-8">
+                   {seatLayout.map((letter) =>
+                     letter === '_' ? (
+                       <span key="aisle" className="w-10"></span>
+                     ) : (
+                       <span key={letter} className="w-10">
+                         {letter}
+                       </span>
+                     ),
+                   )}
                  </div>
-             </div>
-          </div>
 
-          <div className="flex items-center justify-between mb-16">
-             <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors">
-               <ArrowLeft className="w-4 h-4" /> Previous: Passenger Info
-             </button>
-             
-             <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
-               Payment & Extras 
-             </button>
+                 {seatRows.map((rowSeats, rowIndex) => (
+                   <div key={rowIndex} className="flex gap-2 items-center px-4">
+                     <span className="w-6 text-right text-gray-300 mr-2 text-xs">
+                       {rowIndex + 1}
+                     </span>
+                     {rowSeats.map((seat, seatIndex) => (
+                       <SeatButton
+                         key={seat ? seat.id : `aisle-${seatIndex}`}
+                         seat={seat}
+                         isSelected={seat?.id === selectedSeat}
+                         onSelect={handleSelectSeat}
+                       />
+                     ))}
+                   </div>
+                 ))}
+               </div>
+             </div>
+             <div className="mt-4 text-sm font-semibold text-gray-600">{seatStatusLabel}</div>
           </div>
 
           {/* PASSENGER DETAILS FORM */}
@@ -197,7 +216,13 @@ export const SeatSelection = () => {
                  <button className="mt-auto w-full py-2.5 rounded-full border border-gray-300 text-gray-500 text-[10px] font-bold tracking-widest uppercase hover:bg-gray-100 transition-colors">Add for $55</button>
                </div>
             </div>
+            <div className="flex justify-center md:justify-end mt-8">
+              <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
+                Payment & Extras 
+              </button>
+            </div>
           </div>
+          
 
         </div>
 

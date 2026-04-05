@@ -1,5 +1,6 @@
 import { Plane, ArrowRight, Check, ChevronDown } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { FlightCard, type FlightCardProps } from '../../../components/customer/search/FlightCard';
 
 export const FlightResults = () => {
   const navigate = useNavigate();
@@ -20,6 +21,52 @@ export const FlightResults = () => {
   };
 
   const departureDate = formatDate(departureDateParam);
+
+  const flights: FlightCardProps[] = [
+    {
+      airline: 'Editorial Air',
+      flightCode: 'EA 702',
+      departure: '11:20',
+      arrival: '09:05',
+      origin: originResult,
+      destination: destinationResult,
+      duration: '13H 45M',
+      stops: '1 Stop (DXB)',
+      price: '£842',
+      tag: 'BEST PRICE',
+      logo: 'text-red bg-red-50',
+      detailPath: '/detail/ea-702',
+    },
+    {
+      airline: 'Kinetic Global',
+      flightCode: 'KG 88',
+      departure: '14:00',
+      arrival: '08:50',
+      origin: originResult,
+      destination: destinationResult,
+      duration: '11H 50M',
+      stops: 'NON-STOP',
+      price: '£1,250',
+      tag: 'PREMIUM DIRECT',
+      tagColor: 'bg-[#e2b868]/20 text-[#9e7622]',
+      logo: 'text-yellow-600 bg-yellow-50',
+      detailPath: '/detail/kg-88',
+    },
+    {
+      airline: 'Editorial Air',
+      flightCode: 'EA 705',
+      departure: '18:45',
+      arrival: '17:05',
+      origin: originResult,
+      destination: destinationResult,
+      duration: '15H 20M',
+      stops: '1 Stop (DXB)',
+      price: '£715',
+      tag: 'ECONOMY SAVER',
+      logo: 'text-red bg-red-50',
+      detailPath: '/detail/ea-705',
+    },
+  ];
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
@@ -118,48 +165,9 @@ export const FlightResults = () => {
           </div>
 
           <div className="space-y-5">
-            <FlightCard
-              airline="Editorial Air"
-              flightCode="EA 702"
-              departure="11:20"
-              arrival="09:05"
-              origin="London (LHR)"
-              destination="Tokyo (HND)"
-              duration="13H 45M"
-              stops="1 Stop (DXB)"
-              price="£842"
-              tag="BEST PRICE"
-              logo="text-red bg-red-50"
-            />
-
-            <FlightCard
-              airline="Kinetic Global"
-              flightCode="KG 88"
-              departure="14:00"
-              arrival="08:50"
-              origin="London (LHR)"
-              destination="Tokyo (HND)"
-              duration="11H 50M"
-              stops="NON-STOP"
-              price="£1,250"
-              tag="PREMIUM DIRECT"
-              tagColor="bg-[#e2b868]/20 text-[#9e7622]"
-              logo="text-yellow-600 bg-yellow-50"
-            />
-            
-            <FlightCard
-              airline="Editorial Air"
-              flightCode="EA 705"
-              departure="18:45"
-              arrival="17:05"
-              origin="London (LHR)"
-              destination="Tokyo (HND)"
-              duration="15H 20M"
-              stops="1 Stop (DXB)"
-              price="£715"
-              tag="ECONOMY SAVER"
-              logo="text-red bg-red-50"
-            />
+            {flights.map((flight) => (
+              <FlightCard key={flight.flightCode} {...flight} />
+            ))}
 
             <div className="flex justify-center pt-8">
               <button className="text-red font-bold text-sm tracking-wider flex items-center gap-2 hover:opacity-80 transition-opacity">
@@ -182,82 +190,3 @@ const Checkbox = ({ id, label, checked = false }: { id: string, label: string, c
     <label htmlFor={id} className={`text-sm cursor-pointer ${checked ? 'font-bold text-gray-900' : 'font-medium text-gray-600'}`}>{label}</label>
   </div>
 );
-
-type FlightCardProps = {
-  airline: string;
-  flightCode: string;
-  departure: string;
-  arrival: string;
-  origin: string;
-  destination: string;
-  duration: string;
-  stops: string;
-  price: string;
-  tag: string;
-  tagColor?: string;
-  logo: string;
-};
-
-const FlightCard = ({ airline, flightCode, departure, arrival, origin, destination, duration, stops, price, tag, tagColor = "text-gray-500", logo }: FlightCardProps) => {
-  const navigate = useNavigate();
-
-  return (
-    <div className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-lg transition-shadow border border-transparent hover:border-red/10 flex flex-col md:flex-row items-center relative overflow-hidden group">
-      {/* Flight info */}
-      <div className="flex items-center flex-1 w-full flex-wrap gap-6 md:gap-0">
-
-        {/* Airline Logo & Name */}
-        <div className="w-[120px] flex flex-col justify-center items-center text-center">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${logo}`}>
-            <Plane className="w-5 h-5 -rotate-45" />
-          </div>
-          <span className="text-xs font-bold text-gray-900 leading-tight block">{airline}</span>
-          <span className="text-[10px] text-gray-400 font-medium block">{flightCode}</span>
-        </div>
-
-        {/* Departure */}
-        <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-8">
-          <div className="text-2xl font-black text-gray-900">{departure}</div>
-          <div className="text-sm text-gray-500 font-medium">{origin}</div>
-        </div>
-
-        {/* Visual Line */}
-        <div className="flex-1 min-w-[140px] px-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] font-bold text-gold mb-1">{duration}</span>
-          <div className="w-full h-0.5 bg-gray-200 relative flex items-center justify-center">
-            {stops !== 'NON-STOP' && <div className="w-1.5 h-1.5 rounded-full bg-red absolute"></div>}
-            {stops === 'NON-STOP' && <div className="w-full h-0.5 bg-red absolute"></div>}
-          </div>
-          <span className={`text-[10px] font-bold mt-1 ${stops === 'NON-STOP' ? 'text-red' : 'text-gray-400'}`}>{stops}</span>
-        </div>
-
-        {/* Arrival */}
-        <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-4 relative">
-          <div className="text-2xl font-black text-gray-900">{arrival} <sup className="text-xs text-red font-bold">+1</sup></div>
-          <div className="text-sm text-gray-500 font-medium">{destination}</div>
-        </div>
-      </div>
-
-      {/* Pricing and Action */}
-      <div className="w-full md:w-auto flex items-center justify-between md:flex-col md:items-end md:pl-8 md:border-l border-gray-100 mt-6 md:mt-0 pt-6 md:pt-0">
-        <div className="absolute top-4 right-6 text-[10px] font-bold uppercase tracking-widest text-right">
-          <span className={tagColor === "text-gray-500" && tag === "BEST PRICE" ? "text-gray-500" : tagColor}>{tag}</span>
-        </div>
-
-        <div className="text-right mt-2">
-          <div className="text-3xl font-black text-gray-900">{price}</div>
-        </div>
-
-        <div className="flex items-center gap-4 mt-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <div className="w-4 h-4 rounded border border-gray-300"></div>
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Compare</span>
-          </label>
-          <button onClick={() => navigate('/detail/ea-702')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-6 py-2.5 font-bold text-sm">
-            Select Flight
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};

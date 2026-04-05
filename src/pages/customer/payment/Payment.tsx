@@ -1,9 +1,7 @@
 import { CreditCard, Building2, Wallet, QrCode, Check, ShieldCheck, Lock } from 'lucide-react';
 import { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
 
 export const Payment = () => {
-  const navigate = useNavigate();
   const [selectedMethod, setSelectedMethod] = useState('card');
   const [cardDetails, setCardDetails] = useState({
     cardholderName: '',
