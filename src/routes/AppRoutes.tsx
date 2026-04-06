@@ -10,6 +10,7 @@ import { FlightResults } from '../pages/customer/search/FlightResults';
 import { FlightDetail } from '../pages/customer/search/FlightDetail';
 import { SeatSelection } from '../pages/customer/booking/SeatSelection';
 import { Payment } from '../pages/customer/payment/Payment';
+import { AirlineManagement } from '../pages/admin/airlines/AirlineManagement';
 
 const AppRoutes = () => {
   return (
@@ -30,6 +31,8 @@ const AppRoutes = () => {
         <Route path="/booking/seat" element={<SeatSelection />} />
         <Route path="/booking/payment" element={<Payment />} />
 
+        {/* Admin */}
+        <Route path="/admin/airlines" element={<AirlineManagement />} />
       </Route>
     </Routes>
   );
