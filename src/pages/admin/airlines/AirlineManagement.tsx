@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { Plane, BarChart3, Building2, DollarSign, Layers, LogOut, Plus, Pencil, Trash2, Upload } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
@@ -31,6 +32,35 @@ const airlines = [
 ];
 
 export const AirlineManagement = () => {
+  const [policyType, setPolicyType] = useState<'baggage' | 'refund' | ''>('');
+  const [policyTitle, setPolicyTitle] = useState('');
+  const [policyDescription, setPolicyDescription] = useState('');
+  const [policyStatus, setPolicyStatus] = useState<'INCLUDED' | 'EXCLUDED'>('INCLUDED');
+  const [policiesState, setPoliciesState] = useState<Array<{ type: 'baggage' | 'refund'; title: string; description: string; status: 'INCLUDED' | 'EXCLUDED' }>>([]);
+
+  const addPolicy = () => {
+    if (!policyType || !policyTitle.trim() || !policyDescription.trim()) return;
+
+    setPoliciesState((prev) => [
+      ...prev,
+      {
+        type: policyType as 'baggage' | 'refund',
+        title: policyTitle.trim(),
+        description: policyDescription.trim(),
+        status: policyStatus,
+      },
+    ]);
+
+    setPolicyType('');
+    setPolicyTitle('');
+    setPolicyDescription('');
+    setPolicyStatus('INCLUDED');
+  };
+
+  const removePolicy = (index: number) => {
+    setPoliciesState((prev) => prev.filter((_, idx) => idx !== index));
+  };
+
   return (
     <div className="min-h-screen bg-surface py-8">
       <div className="max-w-[1440px] mx-auto px-6">
@@ -123,14 +153,91 @@ export const AirlineManagement = () => {
                     </button>
                   </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Baggage Policy</label>
-                    <textarea rows={4} placeholder="Define weight limits and excess fees..." className="w-full rounded-[1.25rem] border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10" />
-                  </div>
+                  <div className="grid gap-5">
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Policy Type</label>
+                      <select
+                        value={policyType}
+                        onChange={(event) => setPolicyType(event.target.value as 'baggage' | 'refund' | '')}
+                        className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                      >
+                        <option value="">Select policy type</option>
+                        <option value="baggage">Baggage</option>
+                        <option value="refund">Refund</option>
+                      </select>
+                    </div>
 
-                  <div>
-                    <label className="block text-sm font-semibold text-gray-700 mb-2">Refund Policy</label>
-                    <textarea rows={4} placeholder="Cancellation windows and penalty rates..." className="w-full rounded-[1.25rem] border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10" />
+                    {policyType && (
+                      <>
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Policy Title</label>
+                          <input
+                            value={policyTitle}
+                            onChange={(event) => setPolicyTitle(event.target.value)}
+                            type="text"
+                            placeholder="e.g. Checked Baggage"
+                            className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                          <textarea
+                            value={policyDescription}
+                            onChange={(event) => setPolicyDescription(event.target.value)}
+                            rows={4}
+                            placeholder="e.g. 2 pieces x 23kg each..."
+                            className="w-full rounded-[1.25rem] border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
+                          <select
+                            value={policyStatus}
+                            onChange={(event) => setPolicyStatus(event.target.value as 'INCLUDED' | 'EXCLUDED')}
+                            className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                          >
+                            <option value="INCLUDED">INCLUDED</option>
+                            <option value="EXCLUDED">EXCLUDED</option>
+                          </select>
+                        </div>
+
+                        <button
+                          type="button"
+                          onClick={addPolicy}
+                          className="inline-flex items-center justify-center rounded-full bg-red px-6 py-3 text-sm font-semibold text-white shadow-sm hover:bg-reddark transition-colors"
+                        >
+                          Add Policy
+                        </button>
+                      </>
+                    )}
+
+                    {policiesState.length > 0 && (
+                      <div className="rounded-[1.5rem] border border-gray-200 bg-gray-50 p-4">
+                        <h3 className="text-sm font-bold text-gray-900 mb-3">Added Policies</h3>
+                        <div className="space-y-3">
+                          {policiesState.map((policy, index) => (
+                            <div key={`${policy.title}-${index}`} className="rounded-3xl border border-gray-200 bg-white p-4 flex flex-col gap-3">
+                              <div className="flex items-center justify-between gap-4">
+                                <div>
+                                  <p className="text-sm font-semibold text-gray-900">{policy.title}</p>
+                                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500">{policy.type} · {policy.status}</p>
+                                </div>
+                                <button
+                                  type="button"
+                                  onClick={() => removePolicy(index)}
+                                  className="text-red text-sm font-semibold hover:underline"
+                                >
+                                  Remove
+                                </button>
+                              </div>
+                              <p className="text-sm text-gray-600">{policy.description}</p>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 

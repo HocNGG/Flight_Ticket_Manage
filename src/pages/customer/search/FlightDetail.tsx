@@ -1,5 +1,8 @@
-import { ArrowLeft, PlaneTakeoff, PlaneLanding, Utensils, Wifi, Sofa, Briefcase, Backpack, ShieldCheck, ArrowRight, Check } from 'lucide-react';
+import { ArrowLeft, PlaneTakeoff, PlaneLanding, ShieldCheck, ArrowRight, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import { policies } from '../../../data/flightPolicies';
+import { Policies } from '../../../components/customer/detail/Policies';
+import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
 
 export const FlightDetail = () => {
   const navigate = useNavigate();
@@ -88,64 +91,8 @@ export const FlightDetail = () => {
             </div>
           </div>
 
-          {/* Amenities Features */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
-                <Utensils className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-sm text-gray-900 mb-2">Premium Dining</h3>
-              <p className="text-[11px] text-gray-500 leading-relaxed">Multi-course gourmet menu featuring local seasonal ingredients.</p>
-            </div>
-
-            <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
-                <Wifi className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-sm text-gray-900 mb-2">SkyHigh Wi-Fi</h3>
-              <p className="text-[11px] text-gray-500 leading-relaxed">Complimentary high-speed streaming for the entire duration.</p>
-            </div>
-
-            <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-              <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
-                <Sofa className="w-5 h-5" />
-              </div>
-              <h3 className="font-bold text-sm text-gray-900 mb-2">Flatbed Comfort</h3>
-              <p className="text-[11px] text-gray-500 leading-relaxed">Ergonomic 180-degree lie-flat seats with lumbar support.</p>
-            </div>
-          </div>
-
-          {/* Baggage Policy */}
-          <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-            <h3 className="text-xl font-bold flex items-center gap-3 text-gray-900 mb-6">
-              <Briefcase className="w-6 h-6 text-red" />
-              Baggage Policy
-            </h3>
-
-            <div className="space-y-4">
-              <div className="flex justify-between items-center bg-[#fcfcfc] border border-gray-100 p-4 rounded-xl">
-                <div className="flex items-center gap-4">
-                  <Briefcase className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-bold text-sm text-gray-900">Checked Baggage</p>
-                    <p className="text-[11px] text-gray-500">2 pieces x 23kg each (50lbs) per passenger.</p>
-                  </div>
-                </div>
-                <div className="text-[10px] font-black tracking-widest text-gold">INCLUDED</div>
-              </div>
-
-              <div className="flex justify-between items-center bg-[#fcfcfc] border border-gray-100 p-4 rounded-xl">
-                <div className="flex items-center gap-4">
-                  <Backpack className="w-5 h-5 text-gray-400" />
-                  <div>
-                    <p className="font-bold text-sm text-gray-900">Carry-on & Personal Item</p>
-                    <p className="text-[11px] text-gray-500">Max 12kg total. Fits in overhead bin or under seat.</p>
-                  </div>
-                </div>
-                <div className="text-[10px] font-black tracking-widest text-gold">INCLUDED</div>
-              </div>
-            </div>
-          </div>
+          <AmenitiesFeatures />
+          <Policies policies={policies} />
 
         </div>
 
