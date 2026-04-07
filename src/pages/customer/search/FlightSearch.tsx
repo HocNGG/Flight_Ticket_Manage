@@ -24,6 +24,8 @@ export const FlightSearch = () => {
     navigate(`/results?${query.toString()}`);
   };
 
+  const canSearch = from !== '' && to !== '' && departureDate !== '';
+
   return (
     <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center">
       {/* Hero Section */}
@@ -69,7 +71,12 @@ export const FlightSearch = () => {
             <div className="col-span-1 md:col-span-2 relative mt-4 md:mt-0">
               <button
                 onClick={handleSearch}
-                className="w-full bg-red text-white hover:bg-reddark transition-colors rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2"
+                disabled={!canSearch}
+                className={`w-full rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2 transition-colors ${
+                  canSearch
+                    ? 'bg-red text-white hover:bg-reddark'
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                }`}
               >
                 Search Flights
                 <ArrowRight className="w-4 h-4" />

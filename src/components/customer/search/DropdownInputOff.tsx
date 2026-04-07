@@ -6,18 +6,11 @@ const airports = [
   "Da Nang (DAD)",
   "Nha Trang (CXR)",
 ];
-interface Props {
-  value?: string;
-  onChange?: (val: string) => void;
-}
-
-export default function DropdownInputOff({ value: extValue, onChange }: Props) {
+export default function DropdownInputOff({ value: extValue, onChange }: { value?: string; onChange?: (val: string) => void }) {
   const [open, setOpen] = useState(false);
-  const [intValue, setIntValue] = useState("");
 
-  const value = extValue !== undefined ? extValue : intValue;
+  const value = extValue ?? '';
   const setValue = (val: string) => {
-    setIntValue(val);
     onChange?.(val);
   };
 
