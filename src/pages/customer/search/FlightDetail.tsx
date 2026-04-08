@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
+import { amenities } from '../../../data/flightAmen';
 
 export const FlightDetail = () => {
   const navigate = useNavigate();
@@ -91,7 +92,7 @@ export const FlightDetail = () => {
             </div>
           </div>
 
-          <AmenitiesFeatures />
+          <AmenitiesFeatures amenitiesList={amenities} />
           <Policies policies={policies} />
 
         </div>

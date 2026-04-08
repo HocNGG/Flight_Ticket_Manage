@@ -6,10 +6,10 @@ const airports = [
   "Da Nang (DAD)",
   "Nha Trang (CXR)",
 ];
-export default function DropdownInputLanding({ value: extValue, onChange }: { value?: string; onChange?: (val: string) => void }) {
+export default function DropdownInputLanding({ value, onChange }: { value?: string; onChange?: (val: string) => void }) {
   const [open, setOpen] = useState(false);
 
-  const value = extValue ?? '';
+  const valueC = value ?? '';
   const setValue = (val: string) => {
     onChange?.(val);
   };
@@ -29,7 +29,7 @@ export default function DropdownInputLanding({ value: extValue, onChange }: { va
         <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-100 z-50">
           {airports
             .filter((item) =>
-              item.toLowerCase().includes(value.toLowerCase())
+              item.toLowerCase().includes(valueC.toLowerCase())
             )
             .map((item, index) => (
               <div

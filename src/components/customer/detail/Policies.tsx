@@ -1,39 +1,20 @@
 import React from 'react';
-import { Luggage, Wallet, Wifi, Utensils } from 'lucide-react';
+import { policyConfig } from '../../../data/flightPolicies';
 import type { PolicyType } from '../../../data/flightPolicies';
-
-export const policyConfig = {
-  baggage: {
-    icon: Luggage,
-    title: "Baggage Policy"
-  },
-  refund: {
-    icon: Wallet,
-    title: "Refund Policy"
-  },
-  wifi: {
-    icon: Wifi,
-    title: "Wi-Fi"
-  },
-  meal: {
-    icon: Utensils,
-    title: "Meal"
-  }
-};
 
 interface PolicyItem {
   type: PolicyType;
   title: string;
   description: string;
-  status: string;
 }
 
 interface PoliciesProps {
   policies: PolicyItem[];
 }
-
+//
 export const Policies: React.FC<PoliciesProps> = ({ policies }) => {
   // Group policies by type
+  // This allows us to render each policy type in its own section with the appropriate icon and title.
   const groupedPolicies = policies.reduce((acc, policy) => {
     if (!acc[policy.type]) {
       acc[policy.type] = [];
@@ -67,7 +48,6 @@ export const Policies: React.FC<PoliciesProps> = ({ policies }) => {
                       <p className="text-[11px] text-gray-500">{policy.description}</p>
                     </div>
                   </div>
-                  <div className="text-[10px] font-black tracking-widest text-gold">{policy.status}</div>
                 </div>
               ))}
             </div>

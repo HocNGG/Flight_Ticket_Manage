@@ -6,10 +6,9 @@ const airports = [
   "Da Nang (DAD)",
   "Nha Trang (CXR)",
 ];
-export default function DropdownInputOff({ value: extValue, onChange }: { value?: string; onChange?: (val: string) => void }) {
+export default function DropdownInputOff({ value, onChange}: { value?: string, onChange?: (val:string) => void}) {
   const [open, setOpen] = useState(false);
-
-  const value = extValue ?? '';
+  const valueC = value ?? '';
   const setValue = (val: string) => {
     onChange?.(val);
   };
@@ -18,7 +17,7 @@ export default function DropdownInputOff({ value: extValue, onChange }: { value?
     <div className="relative">
     <PlaneTakeoff className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red" />
       <input
-        value={value}
+        value={valueC}
         onFocus={() => setOpen(true)}
         onChange={(e) => setValue(e.target.value)}
         placeholder="City or Airport"
@@ -29,7 +28,7 @@ export default function DropdownInputOff({ value: extValue, onChange }: { value?
         <div className="absolute top-full mt-2 w-full bg-white rounded-xl shadow-lg border border-gray-100 z-50">
           {airports
             .filter((item) =>
-              item.toLowerCase().includes(value.toLowerCase())
+              item.toLowerCase().includes(valueC.toLowerCase())
             )
             .map((item, index) => (
               <div

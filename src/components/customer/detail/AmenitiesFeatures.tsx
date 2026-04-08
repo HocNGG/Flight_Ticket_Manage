@@ -1,31 +1,36 @@
 import { Utensils, Wifi, Sofa } from 'lucide-react';
+import { amenities } from '../../../data/flightAmen';
+import { amenitiesConfig } from '../../../data/flightAmen';
+import type { AmenityType } from '../../../data/flightAmen';
+interface AmenityItem {
+  type: AmenityType;
+  title: string;
+  description: string;
+};
 
-export const AmenitiesFeatures = () => {
+interface AmenitiesFeaturesProps {
+  amenitiesList: AmenityItem[];
+}
+
+export const AmenitiesFeatures: React.FC<AmenitiesFeaturesProps> = ({ amenitiesList }) => {
   return (
-    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-      <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
-          <Utensils className="w-5 h-5" />
-        </div>
-        <h3 className="font-bold text-sm text-gray-900 mb-2">Premium Dining</h3>
-        <p className="text-[11px] text-gray-500 leading-relaxed">Multi-course gourmet menu featuring local seasonal ingredients.</p>
-      </div>
+    <div className="grid gap-4 grid-cols-1 md:grid-cols-3">
+      {amenitiesList.map((amenity, index) => {
+        const config = amenitiesConfig[amenity.type as keyof typeof amenitiesConfig];
+        if (!config) return null;
 
-      <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
-          <Wifi className="w-5 h-5" />
-        </div>
-        <h3 className="font-bold text-sm text-gray-900 mb-2">SkyHigh Wi-Fi</h3>
-        <p className="text-[11px] text-gray-500 leading-relaxed">Complimentary high-speed streaming for the entire duration.</p>
-      </div>
+        const IconComponent = config.icon;
 
-      <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm hover:shadow-md transition-shadow">
-        <div className="w-12 h-12 rounded-full bg-red-50 flex items-center justify-center mx-auto mb-4 text-red">
-          <Sofa className="w-5 h-5" />
-        </div>
-        <h3 className="font-bold text-sm text-gray-900 mb-2">Flatbed Comfort</h3>
-        <p className="text-[11px] text-gray-500 leading-relaxed">Ergonomic 180-degree lie-flat seats with lumbar support.</p>
-      </div>
+        return (
+          <div key={index} className=" flex items-center gap-4 bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm">
+            <IconComponent className="w-6 h-6 text-red" />
+            <div>
+              <p className="font-bold text-sm text-gray-900">{amenity.title}</p>
+              <p className="text-[11px] text-gray-500">{amenity.description}</p>
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
-};
+}

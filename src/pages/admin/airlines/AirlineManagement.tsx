@@ -35,8 +35,7 @@ export const AirlineManagement = () => {
   const [policyType, setPolicyType] = useState<'baggage' | 'refund' | ''>('');
   const [policyTitle, setPolicyTitle] = useState('');
   const [policyDescription, setPolicyDescription] = useState('');
-  const [policyStatus, setPolicyStatus] = useState<'INCLUDED' | 'EXCLUDED'>('INCLUDED');
-  const [policiesState, setPoliciesState] = useState<Array<{ type: 'baggage' | 'refund'; title: string; description: string; status: 'INCLUDED' | 'EXCLUDED' }>>([]);
+  const [policiesState, setPoliciesState] = useState<Array<{ type: 'baggage' | 'refund'; title: string; description: string}>>([]);
 
   const addPolicy = () => {
     if (!policyType || !policyTitle.trim() || !policyDescription.trim()) return;
@@ -47,14 +46,12 @@ export const AirlineManagement = () => {
         type: policyType as 'baggage' | 'refund',
         title: policyTitle.trim(),
         description: policyDescription.trim(),
-        status: policyStatus,
       },
     ]);
 
     setPolicyType('');
     setPolicyTitle('');
     setPolicyDescription('');
-    setPolicyStatus('INCLUDED');
   };
 
   const removePolicy = (index: number) => {
@@ -191,18 +188,6 @@ export const AirlineManagement = () => {
                           />
                         </div>
 
-                        <div>
-                          <label className="block text-sm font-semibold text-gray-700 mb-2">Status</label>
-                          <select
-                            value={policyStatus}
-                            onChange={(event) => setPolicyStatus(event.target.value as 'INCLUDED' | 'EXCLUDED')}
-                            className="w-full rounded-3xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
-                          >
-                            <option value="INCLUDED">INCLUDED</option>
-                            <option value="EXCLUDED">EXCLUDED</option>
-                          </select>
-                        </div>
-
                         <button
                           type="button"
                           onClick={addPolicy}
@@ -222,7 +207,7 @@ export const AirlineManagement = () => {
                               <div className="flex items-center justify-between gap-4">
                                 <div>
                                   <p className="text-sm font-semibold text-gray-900">{policy.title}</p>
-                                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500">{policy.type} · {policy.status}</p>
+                                  <p className="text-xs uppercase tracking-[0.2em] text-gray-500">{policy.type}</p>
                                 </div>
                                 <button
                                   type="button"
