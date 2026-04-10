@@ -1,4 +1,4 @@
-import { Luggage, Wallet, Wifi, Utensils } from "lucide-react";
+import { Luggage, Wallet } from "lucide-react";
 
 export const policyConfig = {
   baggage: {
@@ -33,6 +33,7 @@ export const policies: Array<{
     title: "Refundability",
     description: "Refundable with a fee of £150. Non-refundable within 24 hours of departure."
   },
+
 
  
 ];

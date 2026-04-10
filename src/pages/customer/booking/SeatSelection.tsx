@@ -1,57 +1,30 @@
-import { useMemo, useState } from 'react';
-import { Clock, ArrowLeft, Plane, ShieldCheck, Utensils, Briefcase, Check } from 'lucide-react';
+// SeatSelection.tsx
+// Component chính cho trang chọn ghế
+// Tập trung vào UI, logic được tách vào hook useSeatSelection
+
+import { Clock, Plane, ShieldCheck, Utensils, Briefcase, Check } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { SeatButton, type Seat, type SeatStatus } from '../../../components/customer/booking/Seat';
+import { SeatButton } from '../../../components/customer/booking/Seat';
+import { useSeatSelection } from '../../../hooks/useSeatSelection';
+import { seatLayout } from '../../../data/flightSeat';
+import { Enhance } from '../../../components/customer/booking/Enhance';
+import { enhanceList } from '../../../data/filghtEnhance';
 
-const seatLayout = ['A', 'B', 'C', '_', 'D', 'E', 'F'] as const;
-const rows = 30;
-
-const initialSeats: Array<Pick<Seat, 'id' | 'status' | 'price'>> = [
-  { id: '1A', status: 'occupied', price: 0 },
-  { id: '1B', status: 'booked', price: 0 },
-  { id: '1C', status: 'available', price: 20 },
-];
-
-const buildSeat = (id: string, status: SeatStatus, price: number): Seat => ({
-  id,
-  status,
-  price,
-  occupied: status === 'booked' || status === 'occupied',
-});
 
 export const SeatSelection = () => {
   const navigate = useNavigate();
-  const [selectedSeat, setSelectedSeat] = useState<string>('1C');
 
-  const seatRows = useMemo(() => {
-    const seatMap: Array<Array<Seat | null>> = [];
+  // Sử dụng hook tùy chỉnh để lấy logic chọn ghế
+  const { selectedSeat, seatRows, handleSelectSeat, seatStatusLabel } = useSeatSelection();
 
-    for (let row = 1; row <= rows; row += 1) {
-      const rowSeats = seatLayout.map((letter) => {
-        if (letter === '_') {
-          return null;
-        }
-
-        const id = `${row}${letter}`;
-        const sample = initialSeats.find((seat) => seat.id === id);
-        const status = (sample?.status as SeatStatus) ?? 'available';
-        const price = sample?.price ?? 0;
-
-        return buildSeat(id, status, price);
-      });
-
-      seatMap.push(rowSeats);
-    }
-
-    return seatMap;
-  }, []);
-
-  const handleSelectSeat = (seat: Seat) => {
-    if (seat.status !== 'available') return;
-    setSelectedSeat(seat.id);
-  };
-
-  const seatStatusLabel = selectedSeat ? `Selected seat ${selectedSeat}` : 'Select a seat';
+  // Luồng xử lý:
+  // 1. Hook useSeatSelection cung cấp:
+  //    - selectedSeat: ghế đang được chọn
+  //    - seatRows: mảng 2 chiều chứa thông tin tất cả ghế
+  //    - handleSelectSeat: hàm xử lý khi click chọn ghế
+  //    - seatStatusLabel: text hiển thị ghế đã chọn
+  // 2. Render UI với seat map, form passenger details, và sidebar summary
+  // 3. Khi user click ghế available -> gọi handleSelectSeat -> cập nhật selectedSeat
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-32">
@@ -190,39 +163,40 @@ export const SeatSelection = () => {
             </div>
           </div>
 
-          {/* ENHANCE YOUR JOURNEY */}
-          <div>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Enhance Your Journey</h2>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-               <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
-                 <div className="text-gold mb-4"><Utensils className="w-6 h-6" /></div>
-                 <h3 className="font-bold text-sm text-gray-900 mb-2">Premium Dining</h3>
-                 <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Upgrade to our Chef's Selection featuring seasonal local ingredients.</p>
-                 <button className="mt-auto w-full py-2.5 rounded-full border border-gold text-gold text-[10px] font-bold tracking-widest uppercase hover:bg-gold hover:text-white transition-colors">Add for $24</button>
-               </div>
-               
-               <div className="bg-white rounded-[2rem] p-6 text-center border border-red/30 shadow-md flex flex-col items-center relative overflow-hidden">
-                 <div className="absolute top-0 left-0 w-full h-1 bg-red"></div>
-                 <div className="text-red mb-4"><ShieldCheck className="w-6 h-6" /></div>
-                 <h3 className="font-bold text-sm text-gray-900 mb-2">Travel Protection</h3>
-                 <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Comprehensive coverage for cancellations, medical, and baggage loss.</p>
-                 <button className="mt-auto w-full py-2.5 rounded-full border border-red text-red text-[10px] font-bold tracking-widest uppercase hover:bg-red hover:text-white transition-colors">Add for $38</button>
-               </div>
+            {/* ENHANCE YOUR JOURNEY
+            <div>
+              <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Enhance Your Journey</h2>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
+                  <div className="text-gold mb-4"><Utensils className="w-6 h-6" /></div>
+                  <h3 className="font-bold text-sm text-gray-900 mb-2">Premium Dining</h3>
+                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Upgrade to our Chef's Selection featuring seasonal local ingredients.</p>
+                  <button className="mt-auto w-full py-2.5 rounded-full border border-gold text-gold text-[10px] font-bold tracking-widest uppercase hover:bg-gold hover:text-white transition-colors">Add for $24</button>
+                </div>
+                
+                <div className="bg-white rounded-[2rem] p-6 text-center border border-red/30 shadow-md flex flex-col items-center relative overflow-hidden">
+                  <div className="absolute top-0 left-0 w-full h-1 bg-red"></div>
+                  <div className="text-red mb-4"><ShieldCheck className="w-6 h-6" /></div>
+                  <h3 className="font-bold text-sm text-gray-900 mb-2">Travel Protection</h3>
+                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Comprehensive coverage for cancellations, medical, and baggage loss.</p>
+                  <button className="mt-auto w-full py-2.5 rounded-full border border-red text-red text-[10px] font-bold tracking-widest uppercase hover:bg-red hover:text-white transition-colors">Add for $38</button>
+                </div>
 
-               <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
-                 <div className="text-gray-500 mb-4"><Briefcase className="w-6 h-6" /></div>
-                 <h3 className="font-bold text-sm text-gray-900 mb-2">Extra Luggage</h3>
-                 <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Need more space? Add an additional 23kg checked bag to your booking.</p>
-                 <button className="mt-auto w-full py-2.5 rounded-full border border-gray-300 text-gray-500 text-[10px] font-bold tracking-widest uppercase hover:bg-gray-100 transition-colors">Add for $55</button>
-               </div>
-            </div>
-            <div className="flex justify-center md:justify-end mt-8">
-              <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
-                Payment & Extras 
-              </button>
-            </div>
-          </div>
+                <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
+                  <div className="text-gray-500 mb-4"><Briefcase className="w-6 h-6" /></div>
+                  <h3 className="font-bold text-sm text-gray-900 mb-2">Extra Luggage</h3>
+                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Need more space? Add an additional 23kg checked bag to your booking.</p>
+                  <button className="mt-auto w-full py-2.5 rounded-full border border-gray-300 text-gray-500 text-[10px] font-bold tracking-widest uppercase hover:bg-gray-100 transition-colors">Add for $55</button>
+                </div>
+              </div>
+              <div className="flex justify-center md:justify-end mt-8">
+                <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
+                  Payment & Extras 
+                </button>
+              </div>
+            </div> */}
           
+          <Enhance enhanceList={enhanceList} />
 
         </div>
 
@@ -287,3 +261,4 @@ export const SeatSelection = () => {
     </div>
   );
 };
+

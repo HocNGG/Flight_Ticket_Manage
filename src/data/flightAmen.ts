@@ -10,7 +10,11 @@ export const amenitiesConfig = {
 };
 export type AmenityType = keyof typeof amenitiesConfig;
 
-export const amenities = [
+export const amenities: Array<{
+  type: AmenityType;
+  title: string;
+  description: string;
+}> = [
     {
         type: "dining",
         title: "Premium Dining",
@@ -23,8 +27,8 @@ export const amenities = [
     },
     {
         type: "comfort",
-        title: "Premium Comfort",
-        description: "Spacious seating with enhanced legroom and ergonomic design."
-
+        title: "CloudSoft Comfort",
+        description: "Ergonomic seats with 180-degree recline and plush bedding."
     },
+    
 ];
