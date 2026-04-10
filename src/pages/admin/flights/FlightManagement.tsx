@@ -1,7 +1,8 @@
 import { useState } from 'react';
 import { Plane, BarChart3, Building2, DollarSign, Layers, LogOut, Plus, Search, Bell, Settings, User } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-
+import { enhanceList } from '../../../data/filghtEnhance';
+import { amenities } from '../../../data/flightAmen';
 const navigation = [
   { label: 'Airline Management', icon: Building2, path: '/admin/airlines' },
   { label: 'Flight Management', icon: Plane, active: true, path: '/admin/flights' },
@@ -23,7 +24,9 @@ const flights = [
     capacity: 180,
     maxCapacity: 240,
     price: '$849.00',
-    status: 'available'
+    status: 'available',
+    enhancements: ['wifi', 'utensils'],
+    amenities: ['dining', 'wifi']
   },
   {
     id: 'EA-771',
@@ -37,7 +40,9 @@ const flights = [
     capacity: 85,
     maxCapacity: 320,
     price: '$1,299.00',
-    status: 'available'
+    status: 'available',
+    enhancements: ['utensils'],
+    amenities: ['comfort']
   },
   {
     id: 'EA-109',
@@ -51,7 +56,9 @@ const flights = [
     capacity: 320,
     maxCapacity: 320,
     price: '$620.00',
-    status: 'sold_out'
+    status: 'sold_out',
+    enhancements: ['wifi', 'shield'],
+    amenities: ['dining', 'comfort']
   }
 ];
 
@@ -78,9 +85,8 @@ export const FlightManagement = () => {
                       key={item.label}
                       type="button"
                       onClick={() => item.path && navigate(item.path)}
-                      className={`w-full flex items-center gap-3 rounded-3xl px-4 py-3 text-left transition ${
-                        item.active ? 'bg-red/10 text-red font-semibold' : 'text-gray-600 hover:bg-gray-100'
-                      }`}
+                      className={`w-full flex items-center gap-3 rounded-3xl px-4 py-3 text-left transition ${item.active ? 'bg-red/10 text-red font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                        }`}
                     >
                       <Icon className="w-4 h-4" />
                       <span>{item.label}</span>
@@ -150,6 +156,8 @@ export const FlightManagement = () => {
                           <th className="pb-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Schedule</th>
                           <th className="pb-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Capacity</th>
                           <th className="pb-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Base Price</th>
+                          <th className="pb-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Enhance</th>
+                          <th className="pb-4 font-semibold text-gray-500 uppercase tracking-wider text-xs">Amenity</th>
                         </tr>
                       </thead>
                       <tbody className="divide-y divide-gray-50">
@@ -186,6 +194,8 @@ export const FlightManagement = () => {
                               </div>
                             </td>
                             <td className="py-5 font-bold text-gray-900 text-base">{flight.price}</td>
+                            <td className="py-5 font-bold text-gray-600 text-sm">{flight.enhancements.length}</td>
+                            <td className="py-5 font-bold text-gray-600 text-sm">{flight.amenities.length}</td>
                           </tr>
                         ))}
                       </tbody>
@@ -262,6 +272,56 @@ export const FlightManagement = () => {
                     </div>
                   </div>
 
+
+
+                  <div className="pt-6 border-t border-gray-100">
+                    <h4 className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-4">Flight Enhancements</h4>
+                    <div className="space-y-4">
+                      {enhanceList.map((enhance, idx) => (
+                        <div key={idx} className="p-4 border border-gray-200 rounded-2xl bg-gray-50 flex flex-col gap-3">
+                          <div className="grid grid-cols-2 gap-3">
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Type</label>
+                              <input type="text" defaultValue={enhance.type} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase bg-white text-gray-600 outline-none focus:border-red focus:ring-2 focus:ring-red/10" disabled />
+                            </div>
+                            <div>
+                              <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Price</label>
+                              <input type="text" defaultValue={`$${enhance.price}`} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10" />
+                            </div>
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Title</label>
+                            <input type="text" defaultValue={enhance.title} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Description</label>
+                            <textarea defaultValue={enhance.description} rows={2} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  <div className="pt-6 border-t border-gray-100">
+                    <h4 className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-4">Flight Amenities</h4>
+                    <div className="space-y-4">
+                      {amenities.map((amenity, idx) => (
+                        <div key={idx} className="p-4 border border-gray-200 rounded-2xl bg-gray-50 flex flex-col gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Type</label>
+                            <input type="text" defaultValue={amenity.type} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm uppercase bg-white text-gray-600 outline-none focus:border-red focus:ring-2 focus:ring-red/10" disabled />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Title</label>
+                            <input type="text" defaultValue={amenity.title} className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10" />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">Description</label>
+                            <textarea defaultValue={amenity.description} rows={2} className="w-full rounded-xl border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10" />
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
                   <div className="flex gap-3 pt-4">
                     <button type="button" className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition">
                       Discard
