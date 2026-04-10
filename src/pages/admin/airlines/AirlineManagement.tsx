@@ -1,10 +1,10 @@
 import { useState } from 'react';
-import { Plane, BarChart3, Building2, DollarSign, Layers, LogOut, Plus, Pencil, Trash2, Upload } from 'lucide-react';
-import { Link } from 'react-router-dom';
-
+import { Plane, BarChart3, Building2, DollarSign, Layers, LogOut, Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { policies } from '../../../data/flightPolicies';
 const navigation = [
-  { label: 'Airline Management', icon: Building2, active: true },
-  { label: 'Flight Management', icon: Plane },
+  { label: 'Airline Management', icon: Building2, active: true, path: '/admin/airlines' },
+  { label: 'Flight Management', icon: Plane, path: '/admin/flights' },
   { label: 'Seat Class Management', icon: Layers },
   { label: 'Pricing Management', icon: DollarSign },
   { label: 'Reports', icon: BarChart3 },
@@ -32,10 +32,13 @@ const airlines = [
 ];
 
 export const AirlineManagement = () => {
+  const navigate = useNavigate();
   const [policyType, setPolicyType] = useState<'baggage' | 'refund' | ''>('');
   const [policyTitle, setPolicyTitle] = useState('');
   const [policyDescription, setPolicyDescription] = useState('');
-  const [policiesState, setPoliciesState] = useState<Array<{ type: 'baggage' | 'refund'; title: string; description: string}>>([]);
+  const [policiesState, setPoliciesState] = useState<Array<{ type: 'baggage' | 'refund'; title: string; description: string }>>([]);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
+  const [currentEditingAirline, setCurrentEditingAirline] = useState<any>(null);
 
   const addPolicy = () => {
     if (!policyType || !policyTitle.trim() || !policyDescription.trim()) return;
@@ -75,14 +78,15 @@ export const AirlineManagement = () => {
                   <button
                     key={item.label}
                     type="button"
-                    className={`w-full flex items-center gap-3 rounded-3xl px-4 py-3 text-left transition ${
-                      item.active ? 'bg-red/10 text-red font-semibold' : 'text-gray-600 hover:bg-gray-100'
-                    }`}>
+                    onClick={() => item.path && navigate(item.path)}
+                    className={`w-full flex items-center gap-3 rounded-3xl px-4 py-3 text-left transition ${item.active ? 'bg-red/10 text-red font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                      }`}>
                     <Icon className="w-4 h-4" />
                     <span>{item.label}</span>
                   </button>
                 );
               })}
+
             </nav>
 
             <div className="mt-10 pt-6 border-t border-gray-200">
@@ -271,14 +275,17 @@ export const AirlineManagement = () => {
                             <td className="py-4 text-gray-900">{item.name}</td>
                             <td className="py-4 text-gray-600">{item.country}</td>
                             <td className="py-4 space-x-2">
-                              {item.policies.map((policy) => (
-                                <span key={policy} className="inline-flex rounded-full bg-gray-100 px-3 py-1 text-[11px] font-semibold uppercase tracking-[0.2em] text-gray-600">
-                                  {policy}
-                                </span>
-                              ))}
+                              {item.policies.length}
                             </td>
                             <td className="py-4 flex items-center gap-2">
-                              <button type="button" className="rounded-full border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50">
+                              <button
+                                type="button"
+                                onClick={() => {
+                                  setCurrentEditingAirline(item);
+                                  setIsEditModalOpen(true);
+                                }}
+                                className="rounded-full border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50"
+                              >
                                 <Pencil className="w-4 h-4" />
                               </button>
                               <button type="button" className="rounded-full border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50">
@@ -308,6 +315,106 @@ export const AirlineManagement = () => {
           </section>
         </div>
       </div>
+
+      {isEditModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+          <div className="bg-white rounded-[2rem] p-8 w-full max-w-3xl max-h-[90vh] overflow-y-auto shadow-2xl">
+            <div className="flex items-center justify-between mb-6">
+              <div>
+                <h3 className="text-2xl font-black text-gray-900">Edit Airline</h3>
+                <p className="text-sm text-gray-500 mt-1">Editing details and policies for {currentEditingAirline?.name}</p>
+              </div>
+              <button
+                onClick={() => setIsEditModalOpen(false)}
+                className="p-3 hover:bg-gray-100 rounded-full text-gray-600 transition"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form className="space-y-6">
+              {/* Airline Details Section */}
+              <div className="p-5 border border-gray-200 rounded-3xl bg-gray-50 flex gap-4 flex-col mb-8">
+                <h4 className="text-lg font-bold text-gray-900">Airline Details</h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">ID</label>
+                    <input
+                      type="text"
+                      defaultValue={currentEditingAirline?.id}
+                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Name</label>
+                    <input
+                      type="text"
+                      defaultValue={currentEditingAirline?.name}
+                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                    />
+                  </div>
+                  <div className="sm:col-span-2">
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Country</label>
+                    <select
+                      defaultValue={currentEditingAirline?.country}
+                      className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                    >
+                      <option value="United Kingdom">United Kingdom</option>
+                      <option value="United Arab Emirates">United Arab Emirates</option>
+                      <option value="Norway">Norway</option>
+                      <option value="United States">United States</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <h4 className="text-lg font-bold text-gray-900">Policies</h4>
+              <div className="space-y-6">
+                {policies.map((policy, idx) => (
+                  <div key={idx} className="p-5 border border-gray-200 rounded-3xl bg-gray-50 flex gap-4 flex-col">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Type</label>
+                        <input
+                          type="text"
+                          defaultValue={policy.type}
+                          className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm uppercase bg-white text-gray-600 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                          disabled
+                        />
+                      </div>
+                      <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">Title</label>
+                        <input
+                          type="text"
+                          defaultValue={policy.title}
+                          className="w-full rounded-2xl border border-gray-300 px-4 py-3 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                        />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-semibold text-gray-700 mb-2">Description</label>
+                      <textarea
+                        defaultValue={policy.description}
+                        rows={2}
+                        className="w-full rounded-[1.25rem] border border-gray-300 px-4 py-3 text-sm bg-white text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              <div className="flex justify-end gap-3 mt-8 pt-4 border-t border-gray-200">
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="px-6 py-3 rounded-full border border-gray-300 text-gray-700 font-semibold hover:bg-gray-50 transition">
+                  Cancel
+                </button>
+                <button type="button" className="px-6 py-3 rounded-full bg-red text-white font-semibold hover:bg-reddark transition shadow-sm">
+                  Save Changes
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

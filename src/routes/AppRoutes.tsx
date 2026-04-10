@@ -11,6 +11,7 @@ import { FlightDetail } from '../pages/customer/search/FlightDetail';
 import { SeatSelection } from '../pages/customer/booking/SeatSelection';
 import { Payment } from '../pages/customer/payment/Payment';
 import { AirlineManagement } from '../pages/admin/airlines/AirlineManagement';
+import { FlightManagement } from '../pages/admin/flights/FlightManagement';
 
 const AppRoutes = () => {
   return (
@@ -33,6 +34,7 @@ const AppRoutes = () => {
 
         {/* Admin */}
         <Route path="/admin/airlines" element={<AirlineManagement />} />
+        <Route path="/admin/flights" element={<FlightManagement />} />
       </Route>
     </Routes>
   );
