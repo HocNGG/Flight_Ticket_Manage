@@ -197,6 +197,11 @@ export const SeatSelection = () => {
             </div> */}
           
           <Enhance enhanceList={enhanceList} />
+          <div className="flex justify-center md:justify-end mt-8">
+                <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
+                  Payment & Extras 
+                </button>
+              </div>
 
         </div>
 

@@ -33,7 +33,7 @@ export const Enhance: React.FC<EnhanceProps> = ({ enhanceList }) => {
                         <div className="text-center">
                             <p className="font-bold text-sm text-gray-900">{enhance.title}</p>
                             <p className="text-[11px] text-gray-500">{enhance.description}</p>
-                            <button className="mt-4 bg-red text-white hover:bg-reddark transition-colors rounded-full px-6 py-2 text-sm font-bold">
+                            <button className="mt-4 bg-gray-200 text-red hover:bg-reddark hover:text-white hover:scale-120 transition-colors rounded-full px-6 py-2 text-sm font-bold">
                                 Add for ${enhance.price?.toFixed(2)}
                             </button>
                         </div>
