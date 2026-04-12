@@ -59,15 +59,17 @@ axiosClient.interceptors.response.use(
         }
         break;
 
-      case 403:
-        toast.error('Bạn không có quyền thực hiện hành động này!');
-        break;
+        case 403:
+          toast.error(errorData.message);
+          break;
 
       case 404:
         console.warn('API Endpoint không tồn tại:', error.config?.url);
         toast.warning('Không tìm thấy dữ liệu');
         break;
-
+      case 409:
+        toast.error('Email này đã được sử dụng');
+        break;
       case 429: 
         toast.warning(errorData.message || 'Thao tác quá nhanh. Vui lòng đợi một lát!');
         break;

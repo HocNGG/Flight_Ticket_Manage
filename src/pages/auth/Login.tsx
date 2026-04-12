@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { ArrowRight, Loader2 } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { useNavigate } from 'react-router-dom';
+
 import { toast } from 'react-toastify';
 import authApi from '../../api/authApi';
 export const Login = () => {

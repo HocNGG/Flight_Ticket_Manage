@@ -11,6 +11,7 @@ import { FlightDetail } from '../pages/customer/search/FlightDetail';
 import { SeatSelection } from '../pages/customer/booking/SeatSelection';
 import { Payment } from '../pages/customer/payment/Payment';
 import { AirlineManagement } from '../pages/admin/airlines/AirlineManagement';
+import { VerifyEmail } from '../pages/auth/VerifyEmail';
 
 const AppRoutes = () => {
   return (
@@ -21,7 +22,7 @@ const AppRoutes = () => {
         {/* Auth */}
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
-
+        <Route path="/verify-email" element={<VerifyEmail />} />
         {/* Customer Search & Results */}
         <Route path="/search" element={<FlightSearch />} />
         <Route path="/results" element={<FlightResults />} />
