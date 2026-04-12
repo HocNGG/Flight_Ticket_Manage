@@ -1,14 +1,8 @@
 import { useState } from 'react';
-import { Plane, BarChart3, Building2, DollarSign, Layers, LogOut, Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Plus, Pencil, Trash2, Upload, X } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { policies } from '../../../data/flightPolicies';
-const navigation = [
-  { label: 'Airline Management', icon: Building2, active: true, path: '/admin/airlines' },
-  { label: 'Flight Management', icon: Plane, path: '/admin/flights' },
-  { label: 'Seat Class Management', icon: Layers },
-  { label: 'Pricing Management', icon: DollarSign },
-  { label: 'Reports', icon: BarChart3 },
-];
+import { AdminLayout } from '../../../layouts/AdminLayout';
 
 const airlines = [
   {
@@ -32,7 +26,6 @@ const airlines = [
 ];
 
 export const AirlineManagement = () => {
-  const navigate = useNavigate();
   const [policyType, setPolicyType] = useState<'baggage' | 'refund' | ''>('');
   const [policyTitle, setPolicyTitle] = useState('');
   const [policyDescription, setPolicyDescription] = useState('');
@@ -62,43 +55,9 @@ export const AirlineManagement = () => {
   };
 
   return (
-    <div className="min-h-screen bg-surface py-8">
-      <div className="max-w-[1440px] mx-auto px-6">
-        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
-          <aside className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-200 overflow-hidden">
-            <div className="mb-10">
-              <div className="text-sm font-semibold uppercase tracking-[0.28em] text-red mb-3">Editorial Aviation</div>
-              <h2 className="text-2xl font-black tracking-tight text-gray-900">Admin Console</h2>
-            </div>
-
-            <nav className="space-y-2">
-              {navigation.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <button
-                    key={item.label}
-                    type="button"
-                    onClick={() => item.path && navigate(item.path)}
-                    className={`w-full flex items-center gap-3 rounded-3xl px-4 py-3 text-left transition ${item.active ? 'bg-red/10 text-red font-semibold' : 'text-gray-600 hover:bg-gray-100'
-                      }`}>
-                    <Icon className="w-4 h-4" />
-                    <span>{item.label}</span>
-                  </button>
-                );
-              })}
-
-            </nav>
-
-            <div className="mt-10 pt-6 border-t border-gray-200">
-              <button type="button" className="w-full flex items-center gap-3 text-gray-600 hover:text-red transition-colors">
-                <LogOut className="w-4 h-4" />
-                Logout
-              </button>
-            </div>
-          </aside>
-
-          <section className="space-y-6">
-            <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
+    <>
+      <AdminLayout>
+        <div className="grid gap-6 xl:grid-cols-[1fr_300px]">
               <div className="rounded-[2rem] bg-white p-8 shadow-sm border border-gray-200">
                 <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
                   <div>
@@ -312,9 +271,7 @@ export const AirlineManagement = () => {
                 </div>
               </div>
             </div>
-          </section>
-        </div>
-      </div>
+      </AdminLayout>
 
       {isEditModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
@@ -415,6 +372,6 @@ export const AirlineManagement = () => {
           </div>
         </div>
       )}
-    </div>
+    </>
   );
 };

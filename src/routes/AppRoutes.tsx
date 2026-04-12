@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import MainLayout from '../layouts/MainLayout';
-// Auth
+ // Auth
 import { Login } from '../pages/auth/Login';
 import { Signup } from '../pages/auth/Signup';
 
@@ -31,11 +31,11 @@ const AppRoutes = () => {
         {/* Booking Journey */}
         <Route path="/booking/seat" element={<SeatSelection />} />
         <Route path="/booking/payment" element={<Payment />} />
-
-        {/* Admin */}
-        <Route path="/admin/airlines" element={<AirlineManagement />} />
-        <Route path="/admin/flights" element={<FlightManagement />} />
       </Route>
+
+      {/* Admin */}
+      <Route path="/admin/airlines" element={<AirlineManagement />} />
+      <Route path="/admin/flights" element={<FlightManagement />} />
     </Routes>
   );
 };
