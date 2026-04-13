@@ -1,15 +1,19 @@
 import { useState,useMemo,useRef,useEffect } from "react";
-import { PlaneTakeoff } from 'lucide-react';
 import type { AirportGeneral } from "../../../types/flight/airport";
-interface DropdownInputOffProps {
+import { ChevronDown } from "lucide-react";
+interface AirportDropdownProps {
   options?: AirportGeneral[];       
   value?: string;                   
   onChange?: (val: string) => void;  
+  placeholder?: string; 
+  icon?: React.ReactNode;
 }
-export default function DropdownInputOff({
+export default function AirportDropdown({
   options = [],  
   value = '', 
-  onChange }:DropdownInputOffProps) {
+  onChange,
+  placeholder = "City or Airport",
+  icon }:AirportDropdownProps) {
     const [open, setOpen] = useState(false);
     const [searchTerm, setSearchTerm] = useState("");
     const wrapperRef = useRef<HTMLDivElement>(null);
@@ -26,31 +30,32 @@ export default function DropdownInputOff({
     }, []);
 
     const filteredOptions = useMemo(() => {
-      const cleanSearch = searchTerm.trim().toLowerCase();
-      if (!cleanSearch) return options;
-      const isAlreadySelected = cleanSearch.includes('(') && cleanSearch.includes(')');
-      if (isAlreadySelected) return options;
+      if (!searchTerm) return options;
       return options.filter((item) => {
-        const city = item.city.toLowerCase();
-        const code = item.airportCode.toLowerCase();
-        return city.includes(cleanSearch) || code.includes(cleanSearch);
+        const searchString = `${item.city} ${item.airportCode}`.toLowerCase();
+        return searchString.includes(searchTerm.toLowerCase());
       });
     }, [options, searchTerm]);
 
   return (
     <div className="relative" ref={wrapperRef}>
-      <PlaneTakeoff className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-red" />
+      <div className="absolute left-4 top-1/2 -translate-y-1/2 ">
+        {icon}
+      </div>
       <input
         value={searchTerm}
-        onFocus={() => setOpen(true) }
+        onFocus={() => setOpen(true)}
         onChange={(e) => {
           setSearchTerm(e.target.value);
           setOpen(true);
           if (value) onChange?.(""); 
         }}
-        placeholder="City or Airport"
+        placeholder={placeholder}
         className="w-full bg-surface rounded-xl h-14 pl-12 pr-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20 transition-all"
       />
+      <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-400">
+        <ChevronDown className="w-4 h-4" />
+      </div>
       {/* DROPDOWN MENU */}
       {open && (
         <div className="absolute top-full left-0 mt-2 w-full max-h-60 overflow-y-auto bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200">

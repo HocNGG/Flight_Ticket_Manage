@@ -1,11 +1,12 @@
-import { ArrowRight } from 'lucide-react';
-import { useState } from 'react';
+import { ArrowRight, PlaneLanding, PlaneTakeoff } from 'lucide-react';
+import { useState,useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import DropdownInputOff from '../../../components/customer/search/DropdownInputOff';
-import DropdownInputLanding from '../../../components/customer/search/DropdownInputHeading';
 import DateInput from '../../../components/customer/search/DateInput';
 import PassengerInput from '../../../components/customer/search/PassengerInput';
 import CabinInput from '../../../components/customer/search/CabinInput';
+import type { AirportGeneral } from '../../../types/flight/airport';
+import airportApi from '../../../api/airportApi';
+import AirportDropdown from '../../../components/customer/search/AirportDropdownProp';
 
 export const FlightSearch = () => {
   const navigate = useNavigate();
@@ -13,6 +14,20 @@ export const FlightSearch = () => {
   const [to, setTo] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
+  const [airports, setAirports] = useState<AirportGeneral[]>([]);
+
+  useEffect(() => {
+    const fetchAirports = async () => {
+      try {
+        const response = await airportApi.getAirportsGeneral(); 
+        setAirports(response.data);
+      } catch (error) {
+        console.error("Lỗi khi tải danh sách sân bay:", error);
+      }
+    };
+
+    fetchAirports();
+  }, []);
 
   const handleSearch = () => {
     const query = new URLSearchParams({
@@ -43,15 +58,27 @@ export const FlightSearch = () => {
         <div className="bg-white rounded-[2rem] shadow-xl shadow-black/5 p-6 w-full max-w-5xl z-10 border border-gray-100">
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
             {/* Departure */}
-            <div className="col-span-1 md:col-span-1 relative">
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Departure</label>
-              <DropdownInputOff value={from} onChange={setFrom} />
+            <div className="col-span-1 md:col-span-1 relative ">
+              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1">Departure</label>
+              <AirportDropdown 
+                value={to} 
+                onChange={setTo} 
+                options={airports}
+                placeholder="City or Airport"
+                icon={<PlaneTakeoff className="w-5 h-5 text-red" />} 
+              />
             </div>
 
             {/* Destination */}
             <div className="col-span-1 md:col-span-1 relative">
-              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Destination</label>
-              <DropdownInputLanding value={to} onChange={setTo} />
+              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1">Destination</label>
+              <AirportDropdown 
+                value={to} 
+                onChange={setTo} 
+                options={airports}
+                placeholder="Where are you heading"
+                icon={<PlaneLanding className="w-5 h-5 text-gold1" />} 
+              />
             </div>
 
             {/* Dates */}
