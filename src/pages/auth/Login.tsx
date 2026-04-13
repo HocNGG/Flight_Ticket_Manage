@@ -1,39 +1,38 @@
-import React, { useState } from 'react';
 import { ArrowRight, Loader2 } from 'lucide-react';
-import { Link } from 'react-router-dom';
-import { useNavigate } from 'react-router-dom';
-
+import { Link, useNavigate } from 'react-router-dom';
+import { useForm } from 'react-hook-form';
 import { toast } from 'react-toastify';
 import authApi from '../../api/authApi';
+import userApi from '../../api/userApi';
+import type { LoginRequest } from '../../types/auth';
 export const Login = () => {
-  const [email, setEmail] = useState<string>('');
-  const [password, setPassword] = useState<string>('');
-  const [isLoading, setIsLoading] = useState<boolean>(false);
-
   const navigate = useNavigate();
-  const handleLogin = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault(); // Ngăn hành vi reload trang mặc định
-
-    if (!email || !password) {
-      toast.warning('Vui lòng nhập đầy đủ Email và Mật khẩu!');
-      return;
-    }
-
-    setIsLoading(true);
-
+  const { 
+    register, 
+    handleSubmit, 
+    formState: { errors, isSubmitting } 
+  } = useForm<LoginRequest>();
+  const onSubmit = async (data: LoginRequest) => {
     try {
-      // Gọi API (TypeScript sẽ tự hiểu response trả về nhờ authApi.ts)
-      const response = await authApi.login({ email, password });
+      const response = await authApi.login(data);
       
       if (response.success && response.data) {
-        toast.success(response.message); 
-        
-        // Lấy token và lưu vào localStorage (Tùy thuộc BE trả về accessToken hay token)
         const token = response.data.accessToken || response.data.token; 
-        
         if (token) {
           localStorage.setItem('access_token', token);
-          navigate('/'); // Chuyển hướng về trang chủ
+          try {
+            const profileResponse = await userApi.getprofile();
+            
+            if (profileResponse.success && profileResponse.data) {
+                localStorage.setItem('user_info', JSON.stringify(profileResponse.data))
+                window.dispatchEvent(new Event('auth-change'));
+                toast.success('Đăng nhập thành công!'); 
+                navigate('/');
+            }
+        } catch (profileError) {
+            console.error('Lỗi lấy thông tin:', profileError);
+            toast.error('Đăng nhập thành công nhưng không lấy được thông tin!');
+        }
         } else {
           toast.error('Lỗi: Không nhận được token từ hệ thống.');
         }
@@ -42,8 +41,6 @@ export const Login = () => {
       }
     } catch (error) {
       console.error('Lỗi đăng nhập:', error);
-    } finally {
-      setIsLoading(false);
     }
   };
   return (
@@ -57,18 +54,28 @@ export const Login = () => {
         <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Login</h1>
         <p className="text-sm font-medium text-gray-500 mb-10">Welcome back to the horizon.</p>
         
-        <form className="space-y-6" onSubmit={handleLogin}>
+        <form className="space-y-6" onSubmit={handleSubmit(onSubmit)}>
            <div>
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Email</label>
               <input 
                  type="email" 
                  placeholder="flyer@aviation.com"
-                 value={email} 
-                 disabled={isLoading}
-                 required
-                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setEmail(e.target.value)}
-                 className="w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" 
+                 disabled={isSubmitting}
+                 {...register('email', { 
+                   required: 'Vui lòng nhập Email',
+                   pattern: {
+                     value: /^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$/i,
+                     message: "Email không đúng định dạng"
+                   }
+                 })}
+                 className={`w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 transition-all ${
+                   errors.email ? 'ring-2 ring-red-500' : 'focus:ring-red/20'
+                 }`} 
               />
+              {/* Hiển thị lỗi nếu có */}
+              {errors.email && (
+                <span className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.email.message}</span>
+              )}
            </div>
 
            <div>
@@ -76,35 +83,46 @@ export const Login = () => {
               <input 
                  type="password" 
                  placeholder="••••••••" 
-                 value={password}
-                 onChange={(e: React.ChangeEvent<HTMLInputElement>) => setPassword(e.target.value)} 
-                 disabled={isLoading} 
-                 required
-                 className="w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" 
+                 disabled={isSubmitting} 
+                 {...register('password', { required: 'Vui lòng nhập Mật khẩu' })}
+                 className={`w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 transition-all ${
+                   errors.password ? 'ring-2 ring-red-500' : 'focus:ring-red/20'
+                 }`} 
               />
+              {/* Hiển thị lỗi nếu có */}
+              {errors.password && (
+                <span className="text-red-500 text-xs mt-1 ml-1 font-medium">{errors.password.message}</span>
+              )}
            </div>
 
            <div className="flex items-center gap-3">
-              <div className="w-5 h-5 rounded border border-gray-300 flex items-center justify-center cursor-pointer"></div>
-              <label className="text-xs font-semibold text-gray-600 cursor-pointer">Remember me</label>
+              <input 
+                type="checkbox" 
+                id="rememberMe"
+                className="w-5 h-5 rounded border-gray-300 text-red focus:ring-red cursor-pointer"
+                {...register('rememberMe' as any)}
+              />
+              <label htmlFor="rememberMe" className="text-xs font-semibold text-gray-600 cursor-pointer">Remember me</label>
            </div>
 
            <button 
              type="submit"
-             disabled={isLoading}
-             className="w-full bg-red text-white hover:bg-reddark transition-colors rounded-full h-14 font-bold text-sm tracking-wider flex items-center justify-center gap-2 mt-8 shadow-lg shadow-red/20"
+             disabled={isSubmitting}
+             className={`w-full text-white rounded-full h-14 font-bold text-sm tracking-wider flex items-center justify-center gap-2 mt-8 shadow-lg transition-colors ${
+               isSubmitting ? 'bg-red/70 cursor-not-allowed shadow-none' : 'bg-red hover:bg-reddark shadow-red/20'
+             }`}
            >
-             {isLoading ? (
+             {isSubmitting ? (
                 <>
                   Signing in...
-                  <Loader2 className="w-4 h-4 animate-spin" /> {/* Icon xoay */}
+                  <Loader2 className="w-4 h-4 animate-spin" />
                 </>
-              ) : (
+             ) : (
                 <>
                   Sign In
                   <ArrowRight className="w-4 h-4" />
                 </>
-              )}
+             )}
            </button>
         </form>
 
