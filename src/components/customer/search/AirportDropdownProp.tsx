@@ -30,10 +30,16 @@ export default function AirportDropdown({
     }, []);
 
     const filteredOptions = useMemo(() => {
-      if (!searchTerm) return options;
+      const cleanSearch = searchTerm.trim().toLowerCase();
+      if (!cleanSearch) return options;
+      const isSelectedValue = cleanSearch.includes('(') && cleanSearch.includes(')');
+      if (isSelectedValue) return options;
+
+      // 3. Logic tìm kiếm bình thường khi người dùng gõ
       return options.filter((item) => {
-        const searchString = `${item.city} ${item.airportCode}`.toLowerCase();
-        return searchString.includes(searchTerm.toLowerCase());
+        const city = item.city.toLowerCase();
+        const code = item.airportCode.toLowerCase();
+        return city.includes(cleanSearch) || code.includes(cleanSearch);
       });
     }, [options, searchTerm]);
 

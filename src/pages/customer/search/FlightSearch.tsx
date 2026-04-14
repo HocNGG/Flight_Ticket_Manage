@@ -5,7 +5,9 @@ import DateInput from '../../../components/customer/search/DateInput';
 import PassengerInput from '../../../components/customer/search/PassengerInput';
 import CabinInput from '../../../components/customer/search/CabinInput';
 import type { AirportGeneral } from '../../../types/flight/airport';
+import type { SeatClass } from '../../../types/flight/seatclass';
 import airportApi from '../../../api/airportApi';
+import seatClassApi from '../../../api/seatClassApi';
 import AirportDropdown from '../../../components/customer/search/AirportDropdownProp';
 
 export const FlightSearch = () => {
@@ -14,19 +16,30 @@ export const FlightSearch = () => {
   const [to, setTo] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
+  const [seatclass, setSeatClass] = useState('');
+
   const [airports, setAirports] = useState<AirportGeneral[]>([]);
+  const [classes, setClasses] = useState<SeatClass[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchAirports = async () => {
+    const fetchData = async () => {
+      setIsLoading(true);
       try {
-        const response = await airportApi.getAirportsGeneral(); 
-        setAirports(response.data);
+        const [airportRes, seatClassRes] = await Promise.all([
+          airportApi.getAirportsGeneral(),
+          seatClassApi.getAllClass()
+        ]);
+        setAirports(airportRes.data);
+        setClasses(seatClassRes.data);
       } catch (error) {
-        console.error("Lỗi khi tải danh sách sân bay:", error);
+        console.error("Lỗi khi tải dữ liệu:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
-    fetchAirports();
+    fetchData();
   }, []);
 
   const handleSearch = () => {
@@ -35,6 +48,7 @@ export const FlightSearch = () => {
       to,
       date: departureDate,
       return: returnDate,
+      seatClass : seatclass
     });
     navigate(`/results?${query.toString()}`);
   };
@@ -61,8 +75,8 @@ export const FlightSearch = () => {
             <div className="col-span-1 md:col-span-1 relative ">
               <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1">Departure</label>
               <AirportDropdown 
-                value={to} 
-                onChange={setTo} 
+                value={from} 
+                onChange={setFrom} 
                 options={airports}
                 placeholder="City or Airport"
                 icon={<PlaneTakeoff className="w-5 h-5 text-red" />} 
@@ -93,7 +107,12 @@ export const FlightSearch = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <PassengerInput />
 
-            <CabinInput />
+            <CabinInput 
+              value={seatclass} 
+              onChange={setSeatClass} 
+              options={classes} 
+              isLoading={isLoading} 
+            />
 
             <div className="col-span-1 md:col-span-2 relative mt-4 md:mt-0">
               <button
