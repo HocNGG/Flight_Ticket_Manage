@@ -3,11 +3,8 @@ import { useState,useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DateInput from '../../../components/customer/search/DateInput';
 import PassengerInput from '../../../components/customer/search/PassengerInput';
-import CabinInput from '../../../components/customer/search/CabinInput';
 import type { AirportGeneral } from '../../../types/flight/airport';
-import type { SeatClass } from '../../../types/flight/seatclass';
 import airportApi from '../../../api/airportApi';
-import seatClassApi from '../../../api/seatClassApi';
 import AirportDropdown from '../../../components/customer/search/AirportDropdownProp';
 
 export const FlightSearch = () => {
@@ -16,27 +13,17 @@ export const FlightSearch = () => {
   const [to, setTo] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
-  const [seatclass, setSeatClass] = useState('');
-
+  const [isRoundTrip, setIsRoundTrip] = useState(false);
   const [airports, setAirports] = useState<AirportGeneral[]>([]);
-  const [classes, setClasses] = useState<SeatClass[]>([]);
-  const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
-      setIsLoading(true);
       try {
-        const [airportRes, seatClassRes] = await Promise.all([
-          airportApi.getAirportsGeneral(),
-          seatClassApi.getAllClass()
-        ]);
+        const airportRes = await airportApi.getAirportsGeneral();
         setAirports(airportRes.data);
-        setClasses(seatClassRes.data);
       } catch (error) {
         console.error("Lỗi khi tải dữ liệu:", error);
-      } finally {
-        setIsLoading(false);
-      }
+      } 
     };
 
     fetchData();
@@ -46,13 +33,14 @@ export const FlightSearch = () => {
     const query = new URLSearchParams({
       from,
       to,
-      date: departureDate,
-      return: returnDate,
-      seatClass : seatclass
+      date: departureDate
     });
+    if (isRoundTrip && returnDate) {
+      query.append('return', returnDate);
+    }
     navigate(`/results?${query.toString()}`);
   };
-
+  
   const canSearch = from !== '' && to !== '' && departureDate !== '';
 
   return (
@@ -70,9 +58,9 @@ export const FlightSearch = () => {
 
         {/* Search Form Pill */}
         <div className="bg-white rounded-[2rem] shadow-xl shadow-black/5 p-6 w-full max-w-5xl z-10 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
             {/* Departure */}
-            <div className="col-span-1 md:col-span-1 relative ">
+            <div className="relative ">
               <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1">Departure</label>
               <AirportDropdown 
                 value={from} 
@@ -84,7 +72,7 @@ export const FlightSearch = () => {
             </div>
 
             {/* Destination */}
-            <div className="col-span-1 md:col-span-1 relative">
+            <div className="relative">
               <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1">Destination</label>
               <AirportDropdown 
                 value={to} 
@@ -94,34 +82,50 @@ export const FlightSearch = () => {
                 icon={<PlaneLanding className="w-5 h-5 text-gold1" />} 
               />
             </div>
-
-            {/* Dates */}
-            <DateInput
-              departureDate={departureDate}
-              returnDate={returnDate}
-              onDepartureDateChange={setDepartureDate}
-              onReturnDateChange={setReturnDate}
-            />
+            <div className="relative flex flex-col justify-end ">
+              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1 text-gray-400">Travelers</label>
+              <PassengerInput/>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-            <PassengerInput />
-
-            <CabinInput 
-              value={seatclass} 
-              onChange={setSeatClass} 
-              options={classes} 
-              isLoading={isLoading} 
-            />
-
-            <div className="col-span-1 md:col-span-2 relative mt-4 md:mt-0">
+          <div className="flex flex-col md:flex-row gap-6 items-end">
+            <div className="w-full md:w-32 shrink-0">
+              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1 text-gray-400 text-left">Type</label>
+              <button
+                type="button"
+                onClick={() => {
+                  const nextState = !isRoundTrip;
+                  setIsRoundTrip(nextState);
+                  if (!nextState) setReturnDate('');
+                }}
+                className={`w-full h-14 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${
+                  isRoundTrip ? 'border-red bg-red/5 text-red' : 'border-gray-100 bg-surface text-gray-400 hover:border-gray-200'
+                }`}
+              >
+                <span className="text-[9px] font-black uppercase leading-none">Round Trip</span>
+                <div className={`w-7 h-3.5 rounded-full relative transition-colors ${isRoundTrip ? 'bg-red' : 'bg-gray-300'}`}>
+                  <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-all ${isRoundTrip ? 'right-0.5' : 'left-0.5'}`} />
+                </div>
+              </button>
+            </div>
+            {/* Dates */}
+            <div className="flex-[2] w-full">
+              <DateInput
+                departureDate={departureDate}
+                returnDate={returnDate}
+                isRoundTrip={isRoundTrip}
+                onDepartureDateChange={setDepartureDate}
+                onReturnDateChange={setReturnDate}
+              />
+            </div>
+            <div className="flex-[1] w-full">
               <button
                 onClick={handleSearch}
                 disabled={!canSearch}
-                className={`w-full rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2 transition-colors ${
+                className={`w-full rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2 transition-all ${
                   canSearch
-                    ? 'bg-red text-white hover:bg-reddark'
-                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                    ? 'bg-red text-white hover:bg-red-700 shadow-lg shadow-red/20'
+                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
                 }`}
               >
                 Search Flights

@@ -1,4 +1,4 @@
-import { ChevronDown, Armchair, Loader2,Check } from 'lucide-react';
+import { ChevronDown, Armchair, Loader2 } from 'lucide-react';
 import { useState, useRef, useEffect } from 'react';
 import type { SeatClass } from '../../../types/flight/seatclass';
 interface CabinInputProps {
