@@ -5,7 +5,6 @@ import DropdownInputOff from '../../../components/customer/search/DropdownInputO
 import DropdownInputLanding from '../../../components/customer/search/DropdownInputHeading';
 import DateInput from '../../../components/customer/search/DateInput';
 import PassengerInput from '../../../components/customer/search/PassengerInput';
-import CabinInput from '../../../components/customer/search/CabinInput';
 
 export const FlightSearch = () => {
   const navigate = useNavigate();
@@ -66,9 +65,7 @@ export const FlightSearch = () => {
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <PassengerInput />
 
-            <CabinInput />
-
-            <div className="col-span-1 md:col-span-2 relative mt-4 md:mt-0">
+            <div className="col-span-1 md:col-span-3 relative mt-4 md:mt-0">
               <button
                 onClick={handleSearch}
                 disabled={!canSearch}

@@ -1,8 +1,15 @@
 import { useState } from 'react';
-import { Plane, Plus, Settings } from 'lucide-react';
+import { Plane, BarChart3, Building2, DollarSign, Layers, LogOut, Plus, Search, Bell, Settings } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { enhanceList } from '../../../data/filghtEnhance';
 import { amenities } from '../../../data/flightAmen';
-import { AdminLayout } from '../../../layouts/AdminLayout';
+const navigation = [
+  { label: 'Airline Management', icon: Building2, path: '/admin/airlines' },
+  { label: 'Flight Management', icon: Plane, active: true, path: '/admin/flights' },
+  { label: 'Seat Class Management', icon: Layers },
+  { label: 'Pricing Management', icon: DollarSign },
+  { label: 'Reports', icon: BarChart3 },
+];
 
 const flights = [
   {
@@ -56,11 +63,70 @@ const flights = [
 ];
 
 export const FlightManagement = () => {
+  const navigate = useNavigate();
   const [selectedFlight, setSelectedFlight] = useState(flights[0]);
 
   return (
-    <AdminLayout>
-      {/* Title & Action */}
+    <div className="min-h-screen bg-surface py-8">
+      <div className="max-w-[1440px] mx-auto px-6">
+        <div className="grid gap-6 lg:grid-cols-[280px_minmax(0,1fr)]">
+          <aside className="bg-white rounded-[2rem] p-6 shadow-sm border border-gray-200 overflow-hidden flex flex-col justify-between h-[calc(100vh-4rem)] sticky top-8">
+            <div>
+              <div className="mb-10">
+                <div className="text-sm font-semibold uppercase tracking-[0.28em] text-red mb-3">Editorial Aviation</div>
+                <h2 className="text-xl font-black tracking-tight text-gray-900">Admin Console</h2>
+              </div>
+
+              <nav className="space-y-2">
+                {navigation.map((item) => {
+                  const Icon = item.icon;
+                  return (
+                    <button
+                      key={item.label}
+                      type="button"
+                      onClick={() => item.path && navigate(item.path)}
+                      className={`w-full flex items-center gap-3 rounded-3xl px-4 py-3 text-left transition ${item.active ? 'bg-red/10 text-red font-semibold' : 'text-gray-600 hover:bg-gray-100'
+                        }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                      <span>{item.label}</span>
+                    </button>
+                  );
+                })}
+              </nav>
+            </div>
+
+            <div className="pt-6 border-t border-gray-200">
+              <button type="button" className="w-full flex items-center gap-3 text-gray-600 hover:text-red transition-colors">
+                <LogOut className="w-4 h-4" />
+                Logout
+              </button>
+            </div>
+          </aside>
+
+          <section className="space-y-6">
+            {/* Header */}
+            <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+              <h1 className="text-3xl font-bold text-red">Flight Management</h1>
+
+              <div className="flex items-center gap-4">
+                <div className="relative">
+                  <Search className="w-4 h-4 absolute left-4 top-1/2 -translate-y-1/2 text-gray-400" />
+                  <input
+                    type="text"
+                    placeholder="Search flights..."
+                    className="w-64 rounded-full border-none bg-gray-100 py-2.5 pl-10 pr-4 text-sm text-gray-900 outline-none focus:ring-2 focus:ring-red/20"
+                  />
+                </div>
+                <button className="text-gray-600 hover:text-gray-900"><Bell className="w-5 h-5" /></button>
+                <button className="text-gray-600 hover:text-gray-900"><Settings className="w-5 h-5" /></button>
+                <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white text-xs overflow-hidden">
+                  <img src="https://ui-avatars.com/api/?name=Admin&background=0D8ABC&color=fff" alt="User" />
+                </div>
+              </div>
+            </div>
+
+            {/* Title & Action */}
             <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-6">
               <div>
                 <h2 className="text-4xl font-black tracking-tight text-gray-900">Manage Fleet <span className="text-red">&</span> Routes</h2>
@@ -278,6 +344,9 @@ export const FlightManagement = () => {
                 </div>
               </div>
             </div>
-    </AdminLayout>
+          </section>
+        </div>
+      </div>
+    </div>
   );
 };
