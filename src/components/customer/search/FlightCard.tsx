@@ -19,7 +19,6 @@ export type FlightCardProps = {
 
 export const FlightCard = ({
   airline,
-  flightCode,
   departure,
   arrival,
   origin,
@@ -42,7 +41,6 @@ export const FlightCard = ({
             <Plane className="w-5 h-5 -rotate-45" />
           </div>
           <span className="text-xs font-bold text-gray-900 leading-tight block">{airline}</span>
-          <span className="text-[10px] text-gray-400 font-medium block">{flightCode}</span>
         </div>
 
         <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-8">

@@ -5,7 +5,9 @@ import DateInput from '../../../components/customer/search/DateInput';
 import PassengerInput from '../../../components/customer/search/PassengerInput';
 import type { AirportGeneral } from '../../../types/flight/airport';
 import airportApi from '../../../api/airportApi';
+import flightApi from '../../../api/flightApi';
 import AirportDropdown from '../../../components/customer/search/AirportDropdownProp';
+import type { FlightSearchRequest } from '../../../types/flight/flight';
 
 export const FlightSearch = () => {
   const navigate = useNavigate();
@@ -29,16 +31,26 @@ export const FlightSearch = () => {
     fetchData();
   }, []);
 
-  const handleSearch = () => {
-    const query = new URLSearchParams({
-      from,
-      to,
-      date: departureDate
-    });
-    if (isRoundTrip && returnDate) {
-      query.append('return', returnDate);
+  const handleSearch = async () => {
+    const searchData: FlightSearchRequest = {
+      departure: from,
+      arrival: to,
+      departureDate: departureDate, 
+      passengerCount: 1, 
+      isRoundTrip: isRoundTrip,
+      returnDate: isRoundTrip ? returnDate : undefined
+    };
+
+    const response = await flightApi.searchFlight(searchData);
+    if (response.data) {
+      const query = new URLSearchParams({
+        from,
+        to,
+        date: departureDate
+      });
+      if (isRoundTrip && returnDate) query.append('return', returnDate);
+      navigate(`/results?${query.toString()}`);
     }
-    navigate(`/results?${query.toString()}`);
   };
   
   const canSearch = from !== '' && to !== '' && departureDate !== '';

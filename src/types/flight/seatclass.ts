@@ -3,5 +3,4 @@ export interface SeatClass{
       className:string,
       description:string,
       basePrice:string
-      
 }

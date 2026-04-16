@@ -1,13 +1,49 @@
 import { Plane, ArrowRight, Check, ChevronDown } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FlightCard, type FlightCardProps } from '../../../components/customer/search/FlightCard';
+import type { FlightSearchResponse } from '../../../types/flight/flight';
+import { useEffect, useState } from 'react';
+import flightApi from '../../../api/flightApi';
 
 export const FlightResults = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
+
+  const [flightData, setFlightData] = useState<FlightSearchResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  // const passengers = searchParams.get('passengers') || '1 Passenger';
+  // const seatClass = searchParams.get('class') || 'Economy';
   const originResult = searchParams.get('from') || 'London (LHR)';
   const destinationResult = searchParams.get('to') || 'Tokyo (HND)';
   const departureDateParam = searchParams.get('date') || '';
+  const isRoundTrip = searchParams.get('roundTrip') === 'true';
+  const returnDateParam = searchParams.get('return') || '';
+
+  useEffect(() => {
+    const fetchFlights = async () => {
+      setLoading(true);
+      try {
+        const response = await flightApi.searchFlight({
+          departure: originResult,
+          arrival: destinationResult,
+          departureDate: departureDateParam,
+          passengerCount: 1,
+          isRoundTrip: isRoundTrip,
+          returnDate: returnDateParam || undefined
+        });
+        setFlightData(response.data);
+      } catch (error) {
+        console.error("Lỗi gọi API:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    if (originResult && destinationResult && departureDateParam) {
+      fetchFlights();
+    }
+  }, [originResult, destinationResult, departureDateParam, isRoundTrip, returnDateParam]);
 
   const formatDate = (value: string) => {
     if (!value) return 'Select date';
@@ -22,52 +58,24 @@ export const FlightResults = () => {
 
   const departureDate = formatDate(departureDateParam);
 
-  const flights: FlightCardProps[] = [
-    {
-      airline: 'Editorial Air',
-      flightCode: 'EA 702',
-      departure: '11:20',
-      arrival: '09:05',
+  const flights: FlightCardProps[] = flightData ? flightData.results.flatMap((group) => 
+    group.outboundFlights.map((f) => ({
+      airline: group.airlineName,
+      flightCode: f.flightNumber,
+      departure: new Date(f.departureTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      arrival: new Date(f.arrivalTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       origin: originResult,
       destination: destinationResult,
-      duration: '13H 45M',
-      stops: '1 Stop (DXB)',
-      price: '£842',
+      duration: f.duration || 'N/A',
+      stops: 'NON-STOP', 
+      price: f.seats?.seatsByClass?.['Economy'] 
+        ? `₫${f.seats.seatsByClass['Economy'].price.toLocaleString()}` 
+        : 'Contact',
       tag: 'BEST PRICE',
       logo: 'text-red bg-red-50',
-      detailPath: '/detail/ea-702',
-    },
-    {
-      airline: 'Kinetic Global',
-      flightCode: 'KG 88',
-      departure: '14:00',
-      arrival: '08:50',
-      origin: originResult,
-      destination: destinationResult,
-      duration: '11H 50M',
-      stops: 'NON-STOP',
-      price: '£1,250',
-      tag: 'PREMIUM DIRECT',
-      tagColor: 'bg-[#e2b868]/20 text-[#9e7622]',
-      logo: 'text-yellow-600 bg-yellow-50',
-      detailPath: '/detail/kg-88',
-    },
-    {
-      airline: 'Editorial Air',
-      flightCode: 'EA 705',
-      departure: '18:45',
-      arrival: '17:05',
-      origin: originResult,
-      destination: destinationResult,
-      duration: '15H 20M',
-      stops: '1 Stop (DXB)',
-      price: '£715',
-      tag: 'ECONOMY SAVER',
-      logo: 'text-red bg-red-50',
-      detailPath: '/detail/ea-705',
-    },
-  ];
-
+      detailPath: `/detail/${f.flightId}`,
+    }))
+  ) : [];
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
 
@@ -154,7 +162,7 @@ export const FlightResults = () => {
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6">
             <div>
               <h1 className="text-3xl font-black tracking-tight text-gray-900">Available Journeys</h1>
-              <p className="text-sm text-gray-500 font-medium mt-1">Showing 42 flight options for your selection.</p>
+              <p className="text-sm text-gray-500 font-medium mt-1">Showing {flightData?.totalResults} flight options for your selection.</p>
             </div>
             <div className="flex items-center gap-2 mt-4 sm:mt-0 text-sm font-semibold text-gray-600">
               <span className="uppercase text-[10px] font-bold text-gray-400 tracking-widest">Sort by:</span>
@@ -165,9 +173,18 @@ export const FlightResults = () => {
           </div>
 
           <div className="space-y-5">
-            {flights.map((flight) => (
-              <FlightCard key={flight.flightCode} {...flight} />
-            ))}
+           {loading ? (
+            // Hiển thị Spinner hoặc Skeleton tại đây
+            <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
+              <div className="w-12 h-12 border-4 border-red/20 border-t-red rounded-full animate-spin mb-4" />
+              <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Đang tìm chuyến bay tốt nhất...</p>
+            </div>
+          ) : (
+            // Khi hết loading mới hiển thị danh sách flights.map(...)
+            <div className="space-y-5">
+              {flights.map(f => <FlightCard {...f} />)}
+            </div>
+          )}
 
             <div className="flex justify-center pt-8">
               <button className="text-red font-bold text-sm tracking-wider flex items-center gap-2 hover:opacity-80 transition-opacity">

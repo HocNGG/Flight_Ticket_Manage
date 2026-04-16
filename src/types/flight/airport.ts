@@ -1,5 +1,5 @@
 //For admin
-export interface AirportAdmin{
+export interface AirportDTO{
       airportId:string,
       airportName:string,
       airportCode:string,
