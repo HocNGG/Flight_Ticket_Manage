@@ -11,21 +11,27 @@ import type { FlightSearchRequest } from '../../../types/flight/flight';
 
 export const FlightSearch = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(false);
   const [from, setFrom] = useState('');
   const [to, setTo] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [returnDate, setReturnDate] = useState('');
   const [isRoundTrip, setIsRoundTrip] = useState(false);
+  const [passengerCount,setPassengerCount]=useState(1);
   const [airports, setAirports] = useState<AirportGeneral[]>([]);
 
   useEffect(() => {
     const fetchData = async () => {
+      setLoading(true);
       try {
         const airportRes = await airportApi.getAirportsGeneral();
         setAirports(airportRes.data);
       } catch (error) {
         console.error("Lỗi khi tải dữ liệu:", error);
-      } 
+      } finally
+      {
+        setLoading(false);
+      }
     };
 
     fetchData();
@@ -36,7 +42,7 @@ export const FlightSearch = () => {
       departure: from,
       arrival: to,
       departureDate: departureDate, 
-      passengerCount: 1, 
+      passengerCount: passengerCount, 
       isRoundTrip: isRoundTrip,
       returnDate: isRoundTrip ? returnDate : undefined
     };
@@ -46,7 +52,8 @@ export const FlightSearch = () => {
       const query = new URLSearchParams({
         from,
         to,
-        date: departureDate
+        date: departureDate,
+        passengerCount:passengerCount.toString()
       });
       if (isRoundTrip && returnDate) query.append('return', returnDate);
       navigate(`/results?${query.toString()}`);
@@ -54,7 +61,18 @@ export const FlightSearch = () => {
   };
   
   const canSearch = from !== '' && to !== '' && departureDate !== '';
-
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center justify-center bg-[#f9fafb]">
+        {/* Vòng xoay Spinner */}
+        <div className="w-16 h-16 border-4 border-gray-200 border-t-red rounded-full animate-spin mb-4"></div>
+        {/* Chữ nhấp nháy */}
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-sm animate-pulse">
+          Đang chuẩn bị chuyến bay...
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center">
       {/* Hero Section */}
@@ -96,7 +114,10 @@ export const FlightSearch = () => {
             </div>
             <div className="relative flex flex-col justify-end ">
               <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1 text-gray-400">Travelers</label>
-              <PassengerInput/>
+              <PassengerInput 
+                value={passengerCount} 
+                onChange={setPassengerCount} 
+              />
             </div>
           </div>
 

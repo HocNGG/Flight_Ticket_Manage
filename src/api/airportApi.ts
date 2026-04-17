@@ -1,5 +1,5 @@
 import axiosClient from './axiosClient';
-import type { AirportAdmin,AirportGeneral } from '../types/flight/airport';
+import type { AirportDTO,AirportGeneral } from '../types/flight/airport';
 import type { ApiResponse } from '../types/api';
  
 const airportApi = {
@@ -8,9 +8,13 @@ const airportApi = {
             return axiosClient.get('airports/general');
       },
 
-      getAllAirports():Promise<ApiResponse<AirportAdmin>>
+      getAllAirports():Promise<ApiResponse<AirportDTO>>
       {
             return axiosClient.get('airports');
+      },
+      getAirportsByCode(airportCode:string):Promise<ApiResponse<AirportDTO>>
+      {
+            return axiosClient.get(`airports/code/${airportCode}`);
       }
 }
 export default airportApi;

@@ -4,16 +4,18 @@ import { FlightCard, type FlightCardProps } from '../../../components/customer/s
 import type { FlightSearchResponse } from '../../../types/flight/flight';
 import { useEffect, useState } from 'react';
 import flightApi from '../../../api/flightApi';
+import airportApi from '../../../api/airportApi';
 
 export const FlightResults = () => {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   const [flightData, setFlightData] = useState<FlightSearchResponse | null>(null);
+  const [departureCity, setDepartureCity] = useState('');
+  const [arrivalCity, setArrivalCity] = useState('');
   const [loading, setLoading] = useState(true);
 
-  // const passengers = searchParams.get('passengers') || '1 Passenger';
-  // const seatClass = searchParams.get('class') || 'Economy';
+  const passengerCount = searchParams.get('passengerCount') || '1 Passenger';
   const originResult = searchParams.get('from') || 'London (LHR)';
   const destinationResult = searchParams.get('to') || 'Tokyo (HND)';
   const departureDateParam = searchParams.get('date') || '';
@@ -24,15 +26,21 @@ export const FlightResults = () => {
     const fetchFlights = async () => {
       setLoading(true);
       try {
-        const response = await flightApi.searchFlight({
-          departure: originResult,
-          arrival: destinationResult,
-          departureDate: departureDateParam,
-          passengerCount: 1,
-          isRoundTrip: isRoundTrip,
-          returnDate: returnDateParam || undefined
-        });
-        setFlightData(response.data);
+        const [flightResponse, departureResponse,arrivalResponse] = await Promise.all([
+          flightApi.searchFlight({
+            departure: originResult,
+            arrival: destinationResult,
+            departureDate: departureDateParam,
+            passengerCount: parseInt(passengerCount), 
+            isRoundTrip: isRoundTrip,
+            returnDate: returnDateParam || undefined
+          }),
+          airportApi.getAirportsByCode(originResult),
+          airportApi.getAirportsByCode(destinationResult)
+        ]);
+        setFlightData(flightResponse.data);
+        setDepartureCity(departureResponse.data.city);
+        setArrivalCity(arrivalResponse.data.city);
       } catch (error) {
         console.error("Lỗi gọi API:", error);
       } finally {
@@ -43,7 +51,7 @@ export const FlightResults = () => {
     if (originResult && destinationResult && departureDateParam) {
       fetchFlights();
     }
-  }, [originResult, destinationResult, departureDateParam, isRoundTrip, returnDateParam]);
+  }, [originResult, destinationResult, departureDateParam, isRoundTrip, returnDateParam,passengerCount]);
 
   const formatDate = (value: string) => {
     if (!value) return 'Select date';
@@ -86,7 +94,7 @@ export const FlightResults = () => {
             <Plane className="w-5 h-5 text-red" />
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Origin</p>
-              <p className="font-bold text-gray-900">{originResult}</p>
+              <p className="font-bold text-gray-900">{departureCity}</p>
             </div>
           </div>
           <ArrowRight className="w-4 h-4 text-gray-400" />
@@ -94,11 +102,17 @@ export const FlightResults = () => {
             <Plane className="w-5 h-5 text-gold" />
             <div>
               <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Destination</p>
-              <p className="font-bold text-gray-900">{destinationResult}</p>
+              <p className="font-bold text-gray-900">{arrivalCity}</p>
             </div>
           </div>
         </div>
         <div className="flex items-center gap-6 mt-4 md:mt-0">
+          <div className="text-right">
+            <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Passengers</p>
+            <p className="font-bold text-gray-900">
+              {passengerCount} {'Pax'} 
+            </p>
+          </div>
           <div className="text-right">
             <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Departure From</p>
             <p className="font-bold text-gray-900">{departureDate}</p>
@@ -160,9 +174,13 @@ export const FlightResults = () => {
               <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 2: Selection</span>
             </div>
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-end mb-6">
-            <div>
+            <div> 
               <h1 className="text-3xl font-black tracking-tight text-gray-900">Available Journeys</h1>
-              <p className="text-sm text-gray-500 font-medium mt-1">Showing {flightData?.totalResults} flight options for your selection.</p>
+              <p className="text-sm text-gray-500 font-medium mt-1">
+                {flightData?.totalResults && flightData.totalResults > 0 
+                  ? `Showing ${flightData.totalResults} flight option${flightData.totalResults > 1 ? 's' : ''} for your selection.`
+                  : 'No flight options available for your selection. Please try different dates.'}
+              </p>
             </div>
             <div className="flex items-center gap-2 mt-4 sm:mt-0 text-sm font-semibold text-gray-600">
               <span className="uppercase text-[10px] font-bold text-gray-400 tracking-widest">Sort by:</span>
@@ -174,13 +192,11 @@ export const FlightResults = () => {
 
           <div className="space-y-5">
            {loading ? (
-            // Hiển thị Spinner hoặc Skeleton tại đây
             <div className="flex flex-col items-center justify-center py-20 bg-white rounded-3xl border border-dashed border-gray-200">
               <div className="w-12 h-12 border-4 border-red/20 border-t-red rounded-full animate-spin mb-4" />
               <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Đang tìm chuyến bay tốt nhất...</p>
             </div>
           ) : (
-            // Khi hết loading mới hiển thị danh sách flights.map(...)
             <div className="space-y-5">
               {flights.map(f => <FlightCard {...f} />)}
             </div>
