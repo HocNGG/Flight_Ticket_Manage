@@ -1,13 +1,71 @@
-import { ArrowLeft, PlaneTakeoff, PlaneLanding, ShieldCheck, ArrowRight, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { ArrowLeft, PlaneTakeoff, PlaneLanding, ShieldCheck, ArrowRight, Check, Plane } from 'lucide-react';
+import { useNavigate, useParams } from 'react-router-dom';
 import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
 import { amenities } from '../../../data/flightAmen';
+import { useEffect, useState } from 'react';
+import flightApi from '../../../api/flightApi';
+import type { FlightDTO } from '../../../types/flight/flight';
 
 export const FlightDetail = () => {
   const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
 
+  const { id } = useParams();
+  const flightId = Number(id);
+  const [flight, setFlight] = useState<FlightDTO|null>(null);
+  useEffect(() => {
+    const fetchFlightDetail = async () => {
+      try {
+        const res = await flightApi.getFlightDetail(flightId);
+        setFlight(res.data);
+      } catch (error) {
+        console.log(error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFlightDetail();
+  }, [flightId]);
+  
+  const formatFlightTime = (dateInput?: string | Date) => {
+    if (!dateInput) return { time: '--:--', period: '', date: '' };
+    const date = new Date(dateInput);
+    
+    if (isNaN(date.getTime())) return { time: '--:--', period: '', date: '' };
+
+    const time = date.toLocaleTimeString('en-US', {
+      hour: '2-digit',
+      minute: '2-digit',
+      hour12: true
+    }).split(' ')[0];
+    
+    const period = date.getHours() >= 12 ? 'PM' : 'AM';
+    
+    const formattedDate = date.toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric'
+    });
+
+    return { time, period, date: formattedDate };
+  };
+
+  const dep = formatFlightTime(flight?.departureTime);
+  const arr = formatFlightTime(flight?.arrivalTime);
+  if (loading) {
+    return (
+      <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center justify-center bg-[#f9fafb]">
+        {/* Vòng xoay Spinner */}
+        <div className="w-16 h-16 border-4 border-gray-200 border-t-red rounded-full animate-spin mb-4"></div>
+        {/* Chữ nhấp nháy */}
+        <p className="text-gray-500 font-bold uppercase tracking-widest text-sm animate-pulse">
+          Đang tải thông tin chuyến bay
+        </p>
+      </div>
+    );
+  }
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors uppercase tracking-widest mb-8">
@@ -34,56 +92,82 @@ export const FlightDetail = () => {
         <div className="flex-1 space-y-6">
 
           {/* Main Flight Info Card */}
-          <div className="bg-[#fcfcfc] rounded-[2rem] p-8 border border-gray-100 flex flex-col md:flex-row shadow-sm">
+          <div className="bg-[#fcfcfc] rounded-[2rem] p-10 border border-gray-100 flex flex-col md:flex-row shadow-sm gap-10">
             <div className="flex-1 flex flex-col relative pb-8 md:pb-0 md:pr-8 md:border-r border-gray-200 border-dashed">
+              {/* HEADER: Flight Number & Airline */}
+              <div className="flex items-center justify-between mb-10">
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm">
+                    <Plane className="w-6 h-6 text-red" />
+                  </div>
+                  <div className="flex flex-col md:flex-row md:items-center md:gap-4">
+                    <h3 className="text-xl font-bold text-gray-900 leading-none">
+                      {flight?.airline.name}
+                    </h3>
+                    {/* Thanh ngăn cách giữa tên hãng và mã chuyến bay */}
+                    <div className="hidden md:block w-px h-4 bg-black"></div>
+                    <span className="text-sm font-bold text-red tracking-widest uppercase">
+                      Flight {flight?.flightNumber}
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Điểm đi */}
               <div className="flex items-center gap-6 mb-12">
-                <div className="w-16 h-16 rounded-2xl bg-red text-white flex items-center justify-center flex-shrink-0">
+                <div className="w-16 h-16 rounded-2xl bg-red text-white flex items-center justify-center flex-shrink-0 shadow-lg shadow-red/20">
                   <PlaneTakeoff className="w-8 h-8" />
                 </div>
                 <div>
-                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">London</h2>
-                  <p className="text-gray-500 font-medium">Heathrow International (LHR)</p>
+                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">{flight?.departureAirport.airportCode}</h2>
+                  <p className="text-gray-500 font-medium">{flight?.departureAirport.city}</p>
                 </div>
               </div>
 
-              {/* Vertical connecting line on mobile, decorative plane mostly */}
-              <div className="absolute left-8 top-16 bottom-16 w-0.5 bg-gray-200 hidden md:block">
-                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 bg-white flex items-center justify-center text-gold">
-                  <PlaneTakeoff className="w-4 h-4" />
+              <div className="absolute left-8 top-[150px] bottom-[64px] w-0.5 bg-red hidden lg:block z-0">
+                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 bg-white border-2 border-gray-100 rounded-full flex items-center justify-center text-gold shadow-sm">
+                  <Plane className="w-3 h-3 rotate-90" />
                 </div>
               </div>
-
+              
+              {/* Điểm đến */}
               <div className="flex items-center gap-6">
                 <div className="w-16 h-16 rounded-2xl bg-gray-200 text-gray-500 flex items-center justify-center flex-shrink-0">
                   <PlaneLanding className="w-8 h-8" />
                 </div>
                 <div>
-                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">New York</h2>
-                  <p className="text-gray-500 font-medium">John F. Kennedy (JFK)</p>
+                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">{flight?.arrivalAirport.airportCode}</h2>
+                  <p className="text-gray-500 font-medium">{flight?.arrivalAirport.city}</p>
                 </div>
               </div>
             </div>
 
-            <div className="md:w-64 pt-8 md:pt-0 md:pl-8 flex flex-col justify-center relative justify-between py-4">
-              <div className="absolute top-0 right-0 bg-white rounded-full px-3 py-1 text-[10px] font-bold text-gray-900 shadow-sm border border-gray-100 flex items-center gap-2">
-                <div className="w-2 h-2 rounded-full bg-gold"></div>
-                FLIGHT EA-402
+            <div className="md:w-96 pt-8 md:pt-0 md:pl-4 flex flex-col justify-between relative py-4">
+              <div className="flex justify-between items-start mb-8 mt-6 md:mt-0">
+                {/* Departure */}
+                <div className="flex flex-col items-start">
+                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Departure</p>
+                  <p className="text-5xl font-black text-gray-950 leading-none tracking-tight">
+                    {dep.time || '08:00'} 
+                    <span className="text-lg font-bold text-gray-400 align-super">{dep.period || 'AM'}</span>
+                  </p>
+                  <p className="text-sm font-bold text-red tracking-tight">{dep.date || '19 Apr 2026'}</p>
+                </div>
+
+                {/* Arrival */}
+                <div className="flex flex-col items-end text-right">
+                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em]">Arrival</p>
+                  <p className="text-5xl font-black text-gray-950 leading-none tracking-tight">
+                    {arr.time || '10:05'} <span className="text-lg font-bold text-gray-400 align-super">{arr.period || 'AM'}</span>
+                  </p>
+                  <p className="text-sm font-bold text-gray-500 tracking-tight">{arr.date || '19 Apr 2026'}</p>
+                </div>
               </div>
 
-              <div className="flex justify-between items-end mb-8 mt-6 md:mt-0">
-                <div>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Departure</p>
-                  <p className="text-3xl font-black text-gray-900">08:45 <span className="text-sm font-bold text-gray-400">AM</span></p>
-                </div>
-                <div className="text-right">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-1">Arrival</p>
-                  <p className="text-2xl font-black text-gray-500">11:55 <span className="text-sm font-bold text-gray-400">AM</span></p>
-                </div>
-              </div>
-
+              {/* Duration & Stops */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                  <span className="text-xl">⏱</span> 7h 10m
+                  <span className="text-xl">⏱</span> {flight?.duration || '7h 10m'}
                 </div>
                 <div className="bg-[#f0e6d2] text-gold text-[10px] font-bold px-3 py-1 rounded">
                   NON-STOP
@@ -108,7 +192,7 @@ export const FlightDetail = () => {
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Total Fare</p>
               <div className="flex items-baseline">
                 <span className="text-3xl font-medium tracking-tighter mr-2">$</span>
-                <span className="text-6xl font-black tracking-tighter">1,248</span>
+                <span className="text-6xl font-black tracking-tighter">1248</span>
                 <span className="text-xl font-bold ml-1">.50</span>
               </div>
             </div>
@@ -117,7 +201,9 @@ export const FlightDetail = () => {
               <div className="space-y-4 text-sm font-medium border-b border-gray-100 pb-6">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Base Fare (1 Adult)</span>
-                  <span className="text-gray-900 font-bold">$1,080.00</span>
+                  <span className="text-gray-900 font-bold">{flight?.seats?.seatsByClass 
+      ? Object.values(flight.seats.seatsByClass)[0]?.price?.toLocaleString() 
+      : '0'}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Taxes and Fees</span>
