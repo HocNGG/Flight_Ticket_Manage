@@ -6,6 +6,6 @@ export interface SeatSummaryDTO{
 }
 
 export interface SeatDetail{
-      price:string,
+      price:number,
       availableSeats:number
 }
