@@ -142,16 +142,17 @@ export const FlightSearch = () => {
               </button>
             </div>
             {/* Dates */}
-            <div className="flex-[2] w-full">
-              <DateInput
-                departureDate={departureDate}
-                returnDate={returnDate}
-                isRoundTrip={isRoundTrip}
-                onDepartureDateChange={setDepartureDate}
-                onReturnDateChange={setReturnDate}
-              />
-            </div>
-            <div className="flex-[1] w-full">
+            <DateInput
+              departureDate={departureDate}
+              returnDate={returnDate}
+              isRoundTrip={isRoundTrip}
+              onDepartureDateChange={setDepartureDate}
+              onReturnDateChange={setReturnDate}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <div className="col-span-1 md:col-span-3 relative mt-4 md:mt-0">
               <button
                 onClick={handleSearch}
                 disabled={!canSearch}
