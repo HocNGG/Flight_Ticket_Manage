@@ -2,21 +2,27 @@
 // Component chính cho trang chọn ghế
 // Tập trung vào UI, logic được tách vào hook useSeatSelection
 
-import { Clock, Plane, ShieldCheck, Utensils, Briefcase, Check } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import { Clock, Plane, ShieldCheck , Check } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { SeatButton } from '../../../components/customer/booking/Seat';
 import { useSeatSelection } from '../../../hooks/useSeatSelection';
-import { seatLayout } from '../../../data/flightSeat';
 import { Enhance } from '../../../components/customer/booking/Enhance';
 import { enhanceList } from '../../../data/filghtEnhance';
 
-
 export const SeatSelection = () => {
+  const location = useLocation();
   const navigate = useNavigate();
-
-  // Sử dụng hook tùy chỉnh để lấy logic chọn ghế
-  const { selectedSeat, seatRows, handleSelectSeat, seatStatusLabel } = useSeatSelection();
-
+  const flightId = location.state?.flightId;
+  console.log(flightId);
+  const { 
+    selectedSeat, 
+    seatRows, 
+    aircraftInfo, 
+    handleSelectSeat, 
+    loading, 
+    seatStatusLabel 
+  } = useSeatSelection(flightId); 
+  
   // Luồng xử lý:
   // 1. Hook useSeatSelection cung cấp:
   //    - selectedSeat: ghế đang được chọn
@@ -25,7 +31,7 @@ export const SeatSelection = () => {
   //    - seatStatusLabel: text hiển thị ghế đã chọn
   // 2. Render UI với seat map, form passenger details, và sidebar summary
   // 3. Khi user click ghế available -> gọi handleSelectSeat -> cập nhật selectedSeat
-
+  if (loading) return <div className="p-20 text-center">Loading Seat Map...</div>;
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-32">
       
@@ -35,7 +41,7 @@ export const SeatSelection = () => {
           <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase">SEAT SELECTION</h1>
         </div>
       </div>
- {/* Stepper Divider */}
+            {/* Stepper Divider */}
             <div className="flex items-center justify-between w-full relative py-6 my-2">
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
               <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[55%] h-0.5 bg-red"></div>
@@ -53,54 +59,57 @@ export const SeatSelection = () => {
         <div className="flex-1">
           
           {/* SEAT MAP */}
-          <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden mb-8">
-             <div className="flex justify-between items-start mb-12">
-               <div>
-                 <h2 className="text-xl font-bold text-gray-900">Main Cabin</h2>
-                 <p className="text-xs text-gray-500 font-medium">Boeing 787-9 Dreamliner</p>
-               </div>
-               
-               <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> AVAILABLE</div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red rounded-sm"></div> SELECTED</div>
-                  <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> OCCUPIED</div>
-               </div>
-             </div>
+<div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden mb-8">
+  <div className="flex justify-between items-start mb-12">
+    <div>
+      <h2 className="text-xl font-bold text-gray-900">Main Cabin</h2>
+      <p className="text-xs text-gray-500 font-medium">{aircraftInfo || "Boeing 787-9 Dreamliner"}</p>
+    </div>
+    
+    <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+      <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> AVAILABLE</div>
+      <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red rounded-sm"></div> SELECTED</div>
+      <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> OCCUPIED</div>
+    </div>
+  </div>
 
-             {/* Mock Seat Map Container */}
-             <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
-               <div className="space-y-4">
-                 <div className="flex gap-2 text-center text-gray-400 mb-2 px-4 sm:px-8">
-                   {seatLayout.map((letter) =>
-                     letter === '_' ? (
-                       <span key="aisle" className="w-10"></span>
-                     ) : (
-                       <span key={letter} className="w-10">
-                         {letter}
-                       </span>
-                     ),
-                   )}
-                 </div>
+  {/* Seat Map Container */}
+  <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
+    <div className="space-y-4">
+      
+      {/* Header Row: Hiển thị chữ cái A, B, C... dựa trên hàng đầu tiên */}
+      
 
-                 {seatRows.map((rowSeats, rowIndex) => (
-                   <div key={rowIndex} className="flex gap-2 items-center px-4">
-                     <span className="w-6 text-right text-gray-300 mr-2 text-xs">
-                       {rowIndex + 1}
-                     </span>
-                     {rowSeats.map((seat, seatIndex) => (
-                       <SeatButton
-                         key={seat ? seat.id : `aisle-${seatIndex}`}
-                         seat={seat}
-                         isSelected={seat?.id === selectedSeat}
-                         onSelect={handleSelectSeat}
-                       />
-                     ))}
-                   </div>
-                 ))}
-               </div>
-             </div>
-             <div className="mt-4 text-sm font-semibold text-gray-600">{seatStatusLabel}</div>
-          </div>
+      {/* Render các hàng ghế */}
+      {seatRows.map((rowSeats, rowIndex) => (
+        <div key={`row-${rowIndex}`} className="flex gap-2 items-center px-4 justify-center">
+          {/* Số hàng */}
+          <span className="w-6 text-right text-gray-300 mr-2 text-[10px] font-bold uppercase tracking-tighter">
+            {rowIndex + 1}
+          </span>
+
+          {/* Danh sách ghế trong hàng */}
+          {rowSeats.map((seat, seatIndex) => (
+            <SeatButton
+              key={seat ? seat.flightSeatId : `aisle-${rowIndex}-${seatIndex}`}
+              seat={seat}
+              // So sánh theo flightSeatId (number)
+              isSelected={selectedSeat?.flightSeatId === seat?.flightSeatId}
+              onSelect={handleSelectSeat}
+            />
+          ))}
+        </div>
+      ))}
+    </div>
+  </div>
+
+  {/* Label hiển thị trạng thái đã chọn */}
+  <div className="mt-8 pt-6 border-t border-dashed border-gray-100 text-center">
+    <span className="text-sm font-bold text-red uppercase tracking-widest animate-fadeIn">
+      {seatStatusLabel}
+    </span>
+  </div>
+</div>
 
           {/* PASSENGER DETAILS FORM */}
           <div className="mb-16">

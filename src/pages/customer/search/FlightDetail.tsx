@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import flightApi from '../../../api/flightApi';
 import type { FlightDTO } from '../../../types/flight/flight';
 import amenityApi from '../../../api/amenityApi';
@@ -252,7 +252,7 @@ export const FlightDetail = () => {
               </div>
 
               <button
-                onClick={() => navigate('/booking/seat')}
+                onClick={() => navigate('/booking/seat', { state: { flightId: flightId } })}
                 className="w-full mt-6 bg-red text-white hover:bg-reddark transition-colors rounded-xl h-14 font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 shadow-lg shadow-red/30"
               >
                 Book This Flight
