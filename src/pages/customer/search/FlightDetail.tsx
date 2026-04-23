@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import flightApi from '../../../api/flightApi';
 import type { FlightDTO } from '../../../types/flight/flight';
 import amenityApi from '../../../api/amenityApi';
@@ -28,7 +28,7 @@ export const FlightDetail = () => {
           amenityApi.getAllService()
         ]);
         const mappedData = amenityResponse.data.map((item: any) => ({
-          type: item.name.toUpperCase(), 
+          type: item.code.toUpperCase(), 
           title: item.name,
           description: item.description
         }));
@@ -65,7 +65,28 @@ export const FlightDetail = () => {
 
     return { time, period, date: formattedDate };
   };
+  /**
+ * Định dạng số thành chuỗi tiền tệ
+ * @param amount - Số tiền cần định dạng
+ * @param currency - Mã tiền tệ (VND, USD, v.v.) - Mặc định là VND
+ * @param locale - Ngôn ngữ hiển thị (vi-VN, en-US, v.v.) - Mặc định là vi-VN
+ */
+  const formatCurrency = (
+    amount: number | string | undefined,
+    currency: string = 'VND',
+    locale: string = 'vi-VN'
+  ): string => {
+    if (amount === undefined || amount === null) return '0 ₫';
 
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numericAmount)) return '0 ₫';
+
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(numericAmount);
+  };
   const dep = formatFlightTime(flight?.departureTime);
   const arr = formatFlightTime(flight?.arrivalTime);
   if (loading) {
@@ -80,6 +101,10 @@ export const FlightDetail = () => {
       </div>
     );
   }
+  const firstClass = Object.values(flight?.seats?.seatsByClass || {})[0];
+  const firstPrice = firstClass?.price ? firstClass.price : 0;
+  const tax = firstPrice*0.1 || 0;
+  const sumPrice = firstPrice + tax || 0;
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
       <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors uppercase tracking-widest mb-8">
@@ -205,9 +230,7 @@ export const FlightDetail = () => {
 
               <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Total Fare</p>
               <div className="flex items-baseline">
-                <span className="text-3xl font-medium tracking-tighter mr-2">$</span>
-                <span className="text-6xl font-black tracking-tighter">1248</span>
-                <span className="text-xl font-bold ml-1">.50</span>
+                <span className="text-6xl font-black tracking-tighter">{formatCurrency(sumPrice)}</span>
               </div>
             </div>
 
@@ -215,13 +238,11 @@ export const FlightDetail = () => {
               <div className="space-y-4 text-sm font-medium border-b border-gray-100 pb-6">
                 <div className="flex justify-between">
                   <span className="text-gray-500">Base Fare (1 Adult)</span>
-                  <span className="text-gray-900 font-bold">{flight?.seats?.seatsByClass 
-      ? Object.values(flight.seats.seatsByClass)[0]?.price?.toLocaleString() 
-      : '0'}</span>
+                  <span className="text-gray-900 font-bold">{formatCurrency(firstPrice)}</span>
                 </div>
                 <div className="flex justify-between">
                   <span className="text-gray-500">Taxes and Fees</span>
-                  <span className="text-gray-900 font-bold">$168.50</span>
+                  <span className="text-gray-900 font-bold">{formatCurrency(tax)}</span>
                 </div>
               </div>
 
