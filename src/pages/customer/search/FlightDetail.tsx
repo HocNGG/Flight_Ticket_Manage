@@ -3,11 +3,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
-import { amenities } from '../../../data/flightAmen';
 import { useEffect, useState } from 'react';
 import flightApi from '../../../api/flightApi';
 import type { FlightDTO } from '../../../types/flight/flight';
-
+import amenityApi from '../../../api/amenityApi';
+export interface AmenityItem {
+  type: string;
+  title: string;
+  description: string;
+}
 export const FlightDetail = () => {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
@@ -15,18 +19,28 @@ export const FlightDetail = () => {
   const { id } = useParams();
   const flightId = Number(id);
   const [flight, setFlight] = useState<FlightDTO|null>(null);
+  const [amenities, setAmenities] = useState<AmenityItem[]>([]);
   useEffect(() => {
-    const fetchFlightDetail = async () => {
+    const fetchData = async () => {
       try {
-        const res = await flightApi.getFlightDetail(flightId);
-        setFlight(res.data);
+        const [flightResponse,amenityResponse] = await Promise.all([
+          flightApi.getFlightDetail(flightId),
+          amenityApi.getAllService()
+        ]);
+        const mappedData = amenityResponse.data.map((item: any) => ({
+          type: item.name.toUpperCase(), 
+          title: item.name,
+          description: item.description
+        }));
+        setFlight(flightResponse.data);
+        setAmenities(mappedData)
       } catch (error) {
         console.log(error);
       } finally {
         setLoading(false);
       }
     };
-    fetchFlightDetail();
+    fetchData();
   }, [flightId]);
   
   const formatFlightTime = (dateInput?: string | Date) => {

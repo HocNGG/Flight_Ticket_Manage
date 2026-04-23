@@ -1,8 +1,7 @@
 import { amenitiesConfig } from '../../../data/flightAmen';
-import type { AmenityType } from '../../../data/flightAmen';
 
 interface AmenityItem {
-  type: AmenityType;
+  type: string;
   title: string;
   description: string;
 };
@@ -23,7 +22,8 @@ export const AmenitiesFeatures: React.FC<AmenitiesFeaturesProps> = ({ amenitiesL
   return (
     <div className={`grid gap-4 ${gridColsClass}`}>
       {amenitiesList.map((amenity, index) => {
-        const config = amenitiesConfig[amenity.type as keyof typeof amenitiesConfig];
+        const typeKey = amenity.type.toLowerCase() as keyof typeof amenitiesConfig;
+        const config = amenitiesConfig[typeKey];
         if (!config) return null;
 
         const IconComponent = config.icon;
