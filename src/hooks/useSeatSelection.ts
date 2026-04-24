@@ -9,7 +9,7 @@ import flightApi from '../api/flightApi';
 export const useSeatSelection = (flightId:number) => {
 
   const [seatRows, setSeatRows] = useState<(SeatDetailDTO | null)[][]>([]);
-  const [selectedSeat, setSelectedSeat] = useState<SeatDetailDTO | null>(null);
+  const [selectedSeats, setSelectedSeats] = useState<SeatDetailDTO[]>([]);
   const [aircraftInfo, setAircraftInfo] = useState("");
   const [loading, setLoading] = useState(true);
   useEffect(() => {
@@ -49,16 +49,24 @@ export const useSeatSelection = (flightId:number) => {
   // Hàm xử lý chọn ghế: chỉ cho phép chọn ghế available
   const handleSelectSeat = (seat: SeatDetailDTO | null) => {
     if (!seat || seat.status.toUpperCase() !== 'AVAILABLE') return;
-    setSelectedSeat(seat);
+
+    setSelectedSeats((prev) => {
+      const isExist = prev.find(s => s.flightSeatId === seat.flightSeatId);
+      if (isExist) {
+        return prev.filter(s => s.flightSeatId !== seat.flightSeatId);
+      }
+      return [...prev, seat];
+    });
   };
+  const seatStatusLabel = selectedSeats.length > 0 
+    ? `Đã chọn ${selectedSeats.length} ghế: ${selectedSeats.map(s => s.seatNumber).join(', ')}`
+    : "Vui lòng chọn ghế của bạn";
   return {
-    selectedSeat,
+    selectedSeats,
     seatRows,
     aircraftInfo,
     handleSelectSeat,
     loading,
-    seatStatusLabel: selectedSeat 
-      ? `Selected: ${selectedSeat.seatNumber} (${selectedSeat.seatClass})` 
-      : "Please select your seat"
+    seatStatusLabel
   };
 };

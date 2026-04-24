@@ -2,35 +2,76 @@
 // Component chính cho trang chọn ghế
 // Tập trung vào UI, logic được tách vào hook useSeatSelection
 
-import { Clock, Plane, ShieldCheck , Check } from 'lucide-react';
+import { Clock, Plane, ShieldCheck , Check, Mail } from 'lucide-react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { SeatButton } from '../../../components/customer/booking/Seat';
 import { useSeatSelection } from '../../../hooks/useSeatSelection';
 import { Enhance } from '../../../components/customer/booking/Enhance';
 import { enhanceList } from '../../../data/filghtEnhance';
+import type { CreateBookingRequest } from '../../../types/booking/booking';
+import { useEffect, useState } from 'react';
+import type { PassengerInfo } from '../../../types/passenger/passenger';
+import type { BookingPassengerRequest } from '../../../types/booking/bookingPassenger';
+import type { SeatDetailDTO } from '../../../types/flight/seat';
 
 export const SeatSelection = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const flightId = location.state?.flightId;
-  console.log(flightId);
+
   const { 
-    selectedSeat, 
+    selectedSeats, 
     seatRows, 
     aircraftInfo, 
-    handleSelectSeat, 
+    handleSelectSeat: handleSelectSeatFromHook, 
     loading, 
     seatStatusLabel 
-  } = useSeatSelection(flightId); 
+  } = useSeatSelection(flightId);
+  const [bookingData, setBookingData] = useState<CreateBookingRequest>({
+    contactEmail: '',
+    contactPhone: '',
+    contactName: '',
+    flightId: flightId || 0,
+    passengers: []
+  });
+
+  const onSeatClick = (seat: SeatDetailDTO | null) => {
+    if (!seat || seat.status.toUpperCase() !== 'AVAILABLE') return;
+
+    handleSelectSeatFromHook(seat);
+
+    setBookingData(prev => {
+      const isSelected = prev.passengers.find(p => p.flightSeatId === seat.flightSeatId);
+      
+      if (isSelected) {
+        return { ...prev, passengers: prev.passengers.filter(p => p.flightSeatId !== seat.flightSeatId) };
+      } else {
+        const newPassenger: BookingPassengerRequest = {
+          flightSeatId: seat.flightSeatId,
+          passengerData: { fullName: '', dateOfBirth: '', gender: 'MALE', nationality: 'Vietnam' },
+          serviceOptions: [],
+          baggageOptions: []
+        };
+        return { ...prev, passengers: [...prev.passengers, newPassenger] };
+      }
+    });
+  };
+
+  const updatePassenger = (index: number, field: keyof PassengerInfo, value: string) => {
+    const newPassengers = [...bookingData.passengers];
+    const pData = { ...newPassengers[index].passengerData, [field]: value };
+    
+    if (field === 'nationality') {
+      value === 'Vietnam' ? delete pData.passportNumber : delete pData.cccd;
+    }
+
+    newPassengers[index].passengerData = pData;
+    setBookingData({ ...bookingData, passengers: newPassengers });
+  };
+
+  // Tính toán tiền cho Sidebar
+  const totalSeatPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
   
-  // Luồng xử lý:
-  // 1. Hook useSeatSelection cung cấp:
-  //    - selectedSeat: ghế đang được chọn
-  //    - seatRows: mảng 2 chiều chứa thông tin tất cả ghế
-  //    - handleSelectSeat: hàm xử lý khi click chọn ghế
-  //    - seatStatusLabel: text hiển thị ghế đã chọn
-  // 2. Render UI với seat map, form passenger details, và sidebar summary
-  // 3. Khi user click ghế available -> gọi handleSelectSeat -> cập nhật selectedSeat
   if (loading) return <div className="p-20 text-center">Loading Seat Map...</div>;
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-32">
@@ -41,82 +82,111 @@ export const SeatSelection = () => {
           <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase">SEAT SELECTION</h1>
         </div>
       </div>
-            {/* Stepper Divider */}
-            <div className="flex items-center justify-between w-full relative py-6 my-2">
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[55%] h-0.5 bg-red"></div>
 
-              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
-              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
-              <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">03</div>
-              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
+      {/* Stepper Divider */}
+      <div className="flex items-center justify-between w-full relative py-6 my-2">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[55%] h-0.5 bg-red"></div>
 
-              <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 3: Selection & information</span>
-            </div>
+        <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
+        <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
+        <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">03</div>
+        <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
+
+        <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 3: Selection & information</span>
+      </div>
+
       <div className="flex flex-col lg:flex-row gap-8">
-        
         {/* Left Column - Main Content */}
         <div className="flex-1">
-          
           {/* SEAT MAP */}
-<div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden mb-8">
-  <div className="flex justify-between items-start mb-12">
-    <div>
-      <h2 className="text-xl font-bold text-gray-900">Main Cabin</h2>
-      <p className="text-xs text-gray-500 font-medium">{aircraftInfo || "Boeing 787-9 Dreamliner"}</p>
-    </div>
-    
-    <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-      <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> AVAILABLE</div>
-      <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red rounded-sm"></div> SELECTED</div>
-      <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> OCCUPIED</div>
-    </div>
-  </div>
+          <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden mb-8">
+            <div className="flex justify-between items-start mb-12">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Main Cabin</h2>
+                <p className="text-xs text-gray-500 font-medium">{aircraftInfo || "Boeing 787-9 Dreamliner"}</p>
+              </div>
+              
+              <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> AVAILABLE</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red rounded-sm"></div> SELECTED</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> OCCUPIED</div>
+              </div>
+            </div>
 
-  {/* Seat Map Container */}
-  <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
-    <div className="space-y-4">
-      
-      {/* Header Row: Hiển thị chữ cái A, B, C... dựa trên hàng đầu tiên */}
-      
+          {/* Seat Map Container */}
+          <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
+            <div className="space-y-4">
+              {/* Render các hàng ghế */}
+              {seatRows.map((rowSeats, rowIndex) => (
+                <div key={`row-${rowIndex}`} className="flex gap-2 items-center px-4 justify-center">
+                  {/* Số hàng */}
+                  <span className="w-6 text-right text-gray-300 mr-2 text-[10px] font-bold uppercase tracking-tighter">
+                    {rowIndex + 1}
+                  </span>
 
-      {/* Render các hàng ghế */}
-      {seatRows.map((rowSeats, rowIndex) => (
-        <div key={`row-${rowIndex}`} className="flex gap-2 items-center px-4 justify-center">
-          {/* Số hàng */}
-          <span className="w-6 text-right text-gray-300 mr-2 text-[10px] font-bold uppercase tracking-tighter">
-            {rowIndex + 1}
-          </span>
+                  {/* Danh sách ghế trong hàng */}
+                  {rowSeats.map((seat, seatIndex) => (
+                    <SeatButton
+                      key={seat ? seat.flightSeatId : `aisle-${rowIndex}-${seatIndex}`}
+                      seat={seat}
+                      isSelected={selectedSeats.some(s => s.flightSeatId === seat?.flightSeatId)}
+                      onSelect={() => onSeatClick(seat)}
+                    />
+                  ))}
+                </div>
+              ))}
+            </div>
+          </div>
 
-          {/* Danh sách ghế trong hàng */}
-          {rowSeats.map((seat, seatIndex) => (
-            <SeatButton
-              key={seat ? seat.flightSeatId : `aisle-${rowIndex}-${seatIndex}`}
-              seat={seat}
-              // So sánh theo flightSeatId (number)
-              isSelected={selectedSeat?.flightSeatId === seat?.flightSeatId}
-              onSelect={handleSelectSeat}
-            />
-          ))}
+          {/* Label hiển thị trạng thái đã chọn */}
+          <div className="mt-8 pt-6 border-t border-dashed border-gray-100 text-center">
+            <span className="text-sm font-bold text-red uppercase tracking-widest animate-fadeIn">
+              {seatStatusLabel}
+            </span>
+          </div>
         </div>
-      ))}
-    </div>
-  </div>
 
-  {/* Label hiển thị trạng thái đã chọn */}
-  <div className="mt-8 pt-6 border-t border-dashed border-gray-100 text-center">
-    <span className="text-sm font-bold text-red uppercase tracking-widest animate-fadeIn">
-      {seatStatusLabel}
-    </span>
-  </div>
-</div>
+        {/* CONTACT INFORMATION (Người đặt) */}
+        <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 mb-8">
+          <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
+            <Mail className="w-5 h-5 text-red" /> CONTACT INFORMATION
+          </h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Full Name</label>
+              <input 
+                placeholder="e.g. Johnathan Doe" 
+                className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
+                onChange={e => setBookingData({...bookingData, contactName: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Email Address</label>
+              <input 
+                placeholder="john.doe@example.com" 
+                className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
+                onChange={e => setBookingData({...bookingData, contactEmail: e.target.value})}
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Phone Number</label>
+              <input 
+                placeholder="+1 (555) 000-0000" 
+                className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
+                onChange={e => setBookingData({...bookingData, contactPhone: e.target.value})}
+              />
+            </div>
+          </div>
+        </section>  
 
-          {/* PASSENGER DETAILS FORM */}
-          <div className="mb-16">
-            <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Information Checklist</p>
-            <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Passenger Details Required</h2>
 
-            <div className="flex flex-col md:flex-row gap-8">
+        {/* PASSENGER DETAILS FORM */}
+        <div className="mb-16">
+          <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Information Checklist</p>
+          <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Passenger Details Required</h2>
+
+          <div className="flex flex-col md:flex-row gap-8">
                <div className="flex-1 space-y-4">
                   <p className="text-sm text-gray-500 font-medium mb-6 leading-relaxed max-w-sm">
                     Ensure your details match your passport exactly to avoid boarding issues. Standard international travel regulations apply.
@@ -139,35 +209,113 @@ export const SeatSelection = () => {
                </div>
 
                <div className="flex-[2] bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-                    <div className="md:col-span-2">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Full Legal Name</label>
-                      <input type="text" defaultValue="Johnathan Doe" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
+                  {bookingData.passengers.length === 0 ? (
+                    <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[2rem] p-12 text-center">
+                      <p className="text-gray-400 font-bold uppercase text-xs tracking-widest">Please select a seat to provide passenger info</p>
                     </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Date of Birth</label>
-                      <input type="text" defaultValue="mm/dd/yyyy" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Phone Number</label>
-                      <input type="text" defaultValue="+1 (555) 000-0000" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Email Address</label>
-                      <input type="email" defaultValue="john.doe@example.com" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
-                    </div>
-                    <div>
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Nationality</label>
-                      <select className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none appearance-none">
-                        <option>United Kingdom</option>
-                        <option>United States</option>
-                      </select>
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Passport Number</label>
-                      <input type="text" defaultValue="P12345678" className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20" />
-                    </div>
-                  </div>
+                  ) : (
+                    bookingData.passengers.map((passenger, idx) => (
+                      <section 
+                        key={passenger.flightSeatId} 
+                        className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 border-l-8 border-red w-full animate-fadeIn"
+                      >
+                        {/* Header của từng hành khách */}
+                        <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-50">
+                          <div className="flex flex-col">
+                            <h3 className="font-bold uppercase text-gray-400 text-[10px] tracking-widest">Passenger Details</h3>
+                            <span className="text-xl font-black text-gray-900 tracking-tighter">PASSENGER #{idx + 1}</span>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1 px-1">Assigned Seat</p>
+                            <span className="bg-red text-white px-5 py-1.5 rounded-full text-xs font-black tracking-tighter shadow-lg shadow-red/20">
+                              {selectedSeats.find(s => s.flightSeatId === passenger.flightSeatId)?.seatNumber}
+                            </span>
+                          </div>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
+                          {/* Full Name */}
+                          <div className="md:col-span-2">
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Full Legal Name</label>
+                            <input 
+                              placeholder="JOHNATHAN DOE" 
+                              className="w-full bg-[#f3f4f6] border-none rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
+                              onChange={e => updatePassenger(idx, 'fullName', e.target.value.toUpperCase())} 
+                            />
+                          </div>
+
+                          {/* Gender - Trường mới thêm */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Gender</label>
+                            <div className="grid grid-cols-2 gap-3">
+                              {['MALE', 'FEMALE'].map((gender) => (
+                                <button
+                                  key={gender}
+                                  type="button"
+                                  onClick={() => updatePassenger(idx, 'gender', gender)}
+                                  className={`h-14 rounded-xl text-[10px] font-black tracking-widest transition-all ${
+                                    passenger.passengerData.gender === gender 
+                                    ? 'bg-red text-white shadow-md shadow-red/20' 
+                                    : 'bg-[#f3f4f6] text-gray-400 hover:bg-gray-200'
+                                  }`}
+                                >
+                                  {gender}
+                                </button>
+                              ))}
+                            </div>
+                          </div>
+
+                          {/* Date of Birth */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Date of Birth</label>
+                            <input 
+                              type="date" 
+                              className="w-full bg-[#f3f4f6] border-none rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
+                              onChange={e => updatePassenger(idx, 'dateOfBirth', e.target.value)} 
+                            />
+                          </div>
+
+                          {/* Nationality */}
+                          <div>
+                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Nationality</label>
+                            <select 
+                              className="w-full bg-[#f3f4f6] border-none rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none cursor-pointer"
+                              onChange={e => updatePassenger(idx, 'nationality', e.target.value)}
+                              defaultValue="Vietnam"
+                            >
+                              <option value="Vietnam">Vietnam</option>
+                              <option value="United Kingdom">United Kingdom</option>
+                              <option value="United States">United States</option>
+                              <option value="Japan">Japan</option>
+                            </select>
+                          </div>
+
+                          {/* CCCD / Passport - Luôn là màu ĐỎ */}
+                          <div className="animate-slideDown">
+                            {passenger.passengerData.nationality === 'Vietnam' ? (
+                              <>
+                                <label className="text-[10px] font-bold text-red uppercase tracking-widest block mb-2 px-1">ID Card Number (CCCD)</label>
+                                <input 
+                                  placeholder="001203xxxxxx" 
+                                  className="w-full bg-[#f3f4f6] border-2 border-red/10 rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
+                                  onChange={e => updatePassenger(idx, 'cccd', e.target.value)} 
+                                />
+                              </>
+                            ) : (
+                              <>
+                                <label className="text-[10px] font-bold text-red uppercase tracking-widest block mb-2 px-1">Passport Number</label>
+                                <input 
+                                  placeholder="P12345678" 
+                                  className="w-full bg-[#f3f4f6] border-2 border-red/10 rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
+                                  onChange={e => updatePassenger(idx, 'passportNumber', e.target.value)} 
+                                />
+                              </>
+                            )}
+                          </div>
+                        </div>
+                      </section>
+                    ))
+                  )}
                </div>
             </div>
           </div>
@@ -254,7 +402,7 @@ export const SeatSelection = () => {
              <div className="flex justify-between items-end pt-6">
                <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total</span>
                <div className="text-right">
-                 <span className="text-2xl font-black text-gray-900">$999.40</span>
+                 <span className="text-2xl font-black text-gray-900">{totalSeatPrice}</span>
                  <p className="text-[8px] font-bold text-gray-400 tracking-widest uppercase text-right mt-1">ALL INCLUSIVE</p>
                </div>
              </div>
