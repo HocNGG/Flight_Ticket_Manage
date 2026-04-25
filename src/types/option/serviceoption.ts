@@ -1,8 +1,9 @@
 export interface ServiceOptionDTO{
-      serviceId : number,
-      serviceName : string,
-      description : string,
-      price : number
+    serviceId : number,
+    serviceName : string,
+    description : string,
+    type:string,
+    price : number
 }
 
 export interface EnhanceItem {
@@ -11,3 +12,4 @@ export interface EnhanceItem {
     description: string;
     price?: number;
 }
+

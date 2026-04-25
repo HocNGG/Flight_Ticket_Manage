@@ -1,7 +1,6 @@
 import { useState } from 'react';
 import { Plane, BarChart3, Building2, DollarSign, Layers, LogOut, Plus, Search, Bell, Settings } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { enhanceList } from '../../../data/filghtEnhance';
 const navigation = [
   { label: 'Airline Management', icon: Building2, path: '/admin/airlines' },
   { label: 'Flight Management', icon: Plane, active: true, path: '/admin/flights' },

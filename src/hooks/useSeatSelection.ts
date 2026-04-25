@@ -59,8 +59,8 @@ export const useSeatSelection = (flightId:number) => {
     });
   };
   const seatStatusLabel = selectedSeats.length > 0 
-    ? `Đã chọn ${selectedSeats.length} ghế: ${selectedSeats.map(s => s.seatNumber).join(', ')}`
-    : "Vui lòng chọn ghế của bạn";
+    ? `Selected ${selectedSeats.length} seat: ${selectedSeats.map(s => s.seatNumber).join(', ')}`
+    : "Please choose your seat";
   return {
     selectedSeats,
     seatRows,

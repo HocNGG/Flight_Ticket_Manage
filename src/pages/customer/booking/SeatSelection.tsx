@@ -7,18 +7,21 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { SeatButton } from '../../../components/customer/booking/Seat';
 import { useSeatSelection } from '../../../hooks/useSeatSelection';
 import { Enhance } from '../../../components/customer/booking/Enhance';
-import { enhanceList } from '../../../data/filghtEnhance';
 import type { CreateBookingRequest } from '../../../types/booking/booking';
 import { useEffect, useState } from 'react';
 import type { PassengerInfo } from '../../../types/passenger/passenger';
-import type { BookingPassengerRequest } from '../../../types/booking/bookingPassenger';
+import type { BookingPassengerRequest, BookingServiceRequest } from '../../../types/booking/bookingPassenger';
 import type { SeatDetailDTO } from '../../../types/flight/seat';
+import type { ServiceOptionDTO } from '../../../types/option/serviceoption';
+import serviceApi from '../../../api/serviceApi';
 
 export const SeatSelection = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const flightId = location.state?.flightId;
 
+  const [services, setServices] = useState<ServiceOptionDTO[]>([]);
+  
   const { 
     selectedSeats, 
     seatRows, 
@@ -27,6 +30,19 @@ export const SeatSelection = () => {
     loading, 
     seatStatusLabel 
   } = useSeatSelection(flightId);
+  useEffect(() => {
+    const fetchServices = async () => {
+      try {
+        const response = await serviceApi.getAllService(); 
+        if (response.data) {
+          setServices(response.data);
+        }
+      } catch (error) {
+        console.error("Failed to fetch services:", error);
+      }
+    };
+    fetchServices();
+  }, []);
   const [bookingData, setBookingData] = useState<CreateBookingRequest>({
     contactEmail: '',
     contactPhone: '',
@@ -63,15 +79,35 @@ export const SeatSelection = () => {
     
     if (field === 'nationality') {
       value === 'Vietnam' ? delete pData.passportNumber : delete pData.cccd;
-    }
+    } 
 
     newPassengers[index].passengerData = pData;
     setBookingData({ ...bookingData, passengers: newPassengers });
   };
+  
+  const toggleService = (pIdx: number, sId: number) => {
+    setBookingData(prev => {
+      const newPassengers = [...prev.passengers];
+      const currentServices = newPassengers[pIdx].serviceOptions;
+      const isSelected = currentServices.some(s => s.serviceOptionId === sId);
 
+      if (isSelected) {
+        newPassengers[pIdx].serviceOptions = currentServices.filter(s => s.serviceOptionId !== sId);
+      } else {
+        const newService: BookingServiceRequest = {
+          serviceOptionId: sId,
+          quantity: 1 
+        };
+        newPassengers[pIdx].serviceOptions = [...currentServices, newService];
+      }
+
+      return { ...prev, passengers: newPassengers };
+    });
+  };
   // Tính toán tiền cho Sidebar
   const totalSeatPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
-  
+  const taxFee = totalSeatPrice*0.1;
+
   if (loading) return <div className="p-20 text-center">Loading Seat Map...</div>;
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-32">
@@ -139,7 +175,6 @@ export const SeatSelection = () => {
             </div>
           </div>
 
-          {/* Label hiển thị trạng thái đã chọn */}
           <div className="mt-8 pt-6 border-t border-dashed border-gray-100 text-center">
             <span className="text-sm font-bold text-red uppercase tracking-widest animate-fadeIn">
               {seatStatusLabel}
@@ -147,7 +182,7 @@ export const SeatSelection = () => {
           </div>
         </div>
 
-        {/* CONTACT INFORMATION (Người đặt) */}
+        {/* CONTACT INFORMATION  */}
         <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 mb-8">
           <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
             <Mail className="w-5 h-5 text-red" /> CONTACT INFORMATION
@@ -156,7 +191,7 @@ export const SeatSelection = () => {
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Full Name</label>
               <input 
-                placeholder="e.g. Johnathan Doe" 
+                placeholder="Johnathan Doe" 
                 className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
                 onChange={e => setBookingData({...bookingData, contactName: e.target.value})}
               />
@@ -172,7 +207,7 @@ export const SeatSelection = () => {
             <div className="space-y-1">
               <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Phone Number</label>
               <input 
-                placeholder="+1 (555) 000-0000" 
+                placeholder="(+84) 00-0000-000" 
                 className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
                 onChange={e => setBookingData({...bookingData, contactPhone: e.target.value})}
               />
@@ -209,157 +244,113 @@ export const SeatSelection = () => {
                </div>
 
                <div className="flex-[2] bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-                  {bookingData.passengers.length === 0 ? (
-                    <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-[2rem] p-12 text-center">
-                      <p className="text-gray-400 font-bold uppercase text-xs tracking-widest">Please select a seat to provide passenger info</p>
-                    </div>
-                  ) : (
-                    bookingData.passengers.map((passenger, idx) => (
-                      <section 
-                        key={passenger.flightSeatId} 
-                        className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 border-l-8 border-red w-full animate-fadeIn"
-                      >
-                        {/* Header của từng hành khách */}
-                        <div className="flex justify-between items-center mb-8 pb-4 border-b border-gray-50">
-                          <div className="flex flex-col">
-                            <h3 className="font-bold uppercase text-gray-400 text-[10px] tracking-widest">Passenger Details</h3>
-                            <span className="text-xl font-black text-gray-900 tracking-tighter">PASSENGER #{idx + 1}</span>
-                          </div>
-                          <div className="text-right">
-                            <p className="text-[10px] font-bold text-gray-400 uppercase mb-1 px-1">Assigned Seat</p>
-                            <span className="bg-red text-white px-5 py-1.5 rounded-full text-xs font-black tracking-tighter shadow-lg shadow-red/20">
-                              {selectedSeats.find(s => s.flightSeatId === passenger.flightSeatId)?.seatNumber}
+                  <div className="flex-1 w-full space-y-4">
+                    {bookingData.passengers.length === 0 ? (
+                      <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center">
+                        <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Select a seat to start</p>
+                      </div>
+                    ) : (
+                      bookingData.passengers.map((passenger, idx) => (
+                        <section 
+                          key={passenger.flightSeatId} 
+                          className="bg-white rounded-[1.5rem] p-5 shadow-sm border border-gray-100 b-w-full animate-fadeIn"
+                        >
+                          {/* Header */}
+                          <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-50">
+                            <h3 className="font-black text-gray-900 text-xs tracking-tight">
+                              PASSENGER #{idx + 1}
+                            </h3>
+                            <span className="text-[10px] font-bold text-red bg-red/5 px-3 py-0.5 rounded-full border border-red/10">
+                              SEAT {selectedSeats.find(s => s.flightSeatId === passenger.flightSeatId)?.seatNumber}
                             </span>
                           </div>
-                        </div>
-                        
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-8">
-                          {/* Full Name */}
-                          <div className="md:col-span-2">
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Full Legal Name</label>
-                            <input 
-                              placeholder="JOHNATHAN DOE" 
-                              className="w-full bg-[#f3f4f6] border-none rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
-                              onChange={e => updatePassenger(idx, 'fullName', e.target.value.toUpperCase())} 
-                            />
-                          </div>
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
+                            {/* Full Name */}
+                            <div className="md:col-span-3">
+                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Full Legal Name</label>
+                              <input 
+                                placeholder="Jonathan Doe" 
+                                className="w-full bg-[#f3f4f6] border-none rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/30 focus:bg-white transition-all outline-none"
+                                onChange={e => updatePassenger(idx, 'fullName', e.target.value.toUpperCase())} 
+                              />
+                            </div>
 
-                          {/* Gender - Trường mới thêm */}
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Gender</label>
-                            <div className="grid grid-cols-2 gap-3">
-                              {['MALE', 'FEMALE'].map((gender) => (
-                                <button
-                                  key={gender}
-                                  type="button"
-                                  onClick={() => updatePassenger(idx, 'gender', gender)}
-                                  className={`h-14 rounded-xl text-[10px] font-black tracking-widest transition-all ${
-                                    passenger.passengerData.gender === gender 
-                                    ? 'bg-red text-white shadow-md shadow-red/20' 
-                                    : 'bg-[#f3f4f6] text-gray-400 hover:bg-gray-200'
-                                  }`}
-                                >
-                                  {gender}
-                                </button>
-                              ))}
+                            {/* Gender -*/}
+                            <div className="md:col-span-3">
+                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Gender</label>
+                              <div className="flex gap-2">
+                                {['MALE', 'FEMALE'].map((gender) => (
+                                  <button
+                                    key={gender}
+                                    type="button"
+                                    onClick={() => updatePassenger(idx, 'gender', gender)}
+                                    className={`flex-1 h-10 rounded-lg text-[9px] font-black tracking-widest transition-all border ${
+                                      passenger.passengerData.gender === gender 
+                                      ? 'bg-red text-white border-red shadow-sm' 
+                                      : 'bg-[#f3f4f6] text-gray-400 border-transparent hover:bg-gray-200'
+                                    }`}
+                                  >
+                                    {gender}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+
+                            {/* Date of Birth */}
+                            <div className="md:col-span-2">
+                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Date of Birth</label>
+                              <input 
+                                type="date" 
+                                className="w-full bg-[#f3f4f6] border-none rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/30 focus:bg-white transition-all outline-none"
+                                onChange={e => updatePassenger(idx, 'dateOfBirth', e.target.value)} 
+                              />
+                            </div>
+
+                            {/* Nationality */}
+                            <div className="md:col-span-2">
+                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Nationality</label>
+                              <select 
+                                className="w-full bg-[#f3f4f6] border-none rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/30 focus:bg-white transition-all outline-none cursor-pointer"
+                                onChange={e => updatePassenger(idx, 'nationality', e.target.value)}
+                                defaultValue="Vietnam"
+                              >
+                                <option value="Vietnam">Vietnam</option>
+                                <option value="Other">Other</option>
+                              </select>
+                            </div>
+
+                            {/* Identification (CCCD/Passport) */}
+                            <div className="md:col-span-2 animate-slideDown">
+                              <label className="text-[9px] font-bold text-red uppercase tracking-wider block mb-1 ml-1">
+                                {passenger.passengerData.nationality === 'Vietnam' ? 'CCCD' : 'Passport Number'}
+                              </label>
+                              <input 
+                                placeholder={passenger.passengerData.nationality === 'Vietnam' ? "001203xxxxxx" : "P12345678"} 
+                                className="w-full bg-[#f3f4f6] border border-red/20 rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/40 focus:bg-white transition-all outline-none shadow-inner"
+                                onChange={e => updatePassenger(idx, 
+                                  passenger.passengerData.nationality === 'Vietnam' ? 'cccd' : 'passportNumber', 
+                                  e.target.value
+                                )} 
+                              />
                             </div>
                           </div>
-
-                          {/* Date of Birth */}
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Date of Birth</label>
-                            <input 
-                              type="date" 
-                              className="w-full bg-[#f3f4f6] border-none rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
-                              onChange={e => updatePassenger(idx, 'dateOfBirth', e.target.value)} 
-                            />
+                          <div className="mt-6 pt-4 border-t border-gray-50">
+                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Personal Extras</p>
+                              <Enhance 
+                                  enhanceList={services} 
+                                  onAdd={(s) => toggleService(idx, s.serviceId)}
+                                  selectedServices={passenger.serviceOptions.map(s => s.serviceOptionId)}
+                              />
                           </div>
-
-                          {/* Nationality */}
-                          <div>
-                            <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Nationality</label>
-                            <select 
-                              className="w-full bg-[#f3f4f6] border-none rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none cursor-pointer"
-                              onChange={e => updatePassenger(idx, 'nationality', e.target.value)}
-                              defaultValue="Vietnam"
-                            >
-                              <option value="Vietnam">Vietnam</option>
-                              <option value="United Kingdom">United Kingdom</option>
-                              <option value="United States">United States</option>
-                              <option value="Japan">Japan</option>
-                            </select>
-                          </div>
-
-                          {/* CCCD / Passport - Luôn là màu ĐỎ */}
-                          <div className="animate-slideDown">
-                            {passenger.passengerData.nationality === 'Vietnam' ? (
-                              <>
-                                <label className="text-[10px] font-bold text-red uppercase tracking-widest block mb-2 px-1">ID Card Number (CCCD)</label>
-                                <input 
-                                  placeholder="001203xxxxxx" 
-                                  className="w-full bg-[#f3f4f6] border-2 border-red/10 rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
-                                  onChange={e => updatePassenger(idx, 'cccd', e.target.value)} 
-                                />
-                              </>
-                            ) : (
-                              <>
-                                <label className="text-[10px] font-bold text-red uppercase tracking-widest block mb-2 px-1">Passport Number</label>
-                                <input 
-                                  placeholder="P12345678" 
-                                  className="w-full bg-[#f3f4f6] border-2 border-red/10 rounded-xl h-14 px-5 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
-                                  onChange={e => updatePassenger(idx, 'passportNumber', e.target.value)} 
-                                />
-                              </>
-                            )}
-                          </div>
-                        </div>
-                      </section>
-                    ))
-                  )}
+                        </section>
+                      ))
+                    )}
+                  </div>
+                
                </div>
             </div>
           </div>
-
-            {/* ENHANCE YOUR JOURNEY
-            <div>
-              <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Enhance Your Journey</h2>
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
-                  <div className="text-gold mb-4"><Utensils className="w-6 h-6" /></div>
-                  <h3 className="font-bold text-sm text-gray-900 mb-2">Premium Dining</h3>
-                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Upgrade to our Chef's Selection featuring seasonal local ingredients.</p>
-                  <button className="mt-auto w-full py-2.5 rounded-full border border-gold text-gold text-[10px] font-bold tracking-widest uppercase hover:bg-gold hover:text-white transition-colors">Add for $24</button>
-                </div>
-                
-                <div className="bg-white rounded-[2rem] p-6 text-center border border-red/30 shadow-md flex flex-col items-center relative overflow-hidden">
-                  <div className="absolute top-0 left-0 w-full h-1 bg-red"></div>
-                  <div className="text-red mb-4"><ShieldCheck className="w-6 h-6" /></div>
-                  <h3 className="font-bold text-sm text-gray-900 mb-2">Travel Protection</h3>
-                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Comprehensive coverage for cancellations, medical, and baggage loss.</p>
-                  <button className="mt-auto w-full py-2.5 rounded-full border border-red text-red text-[10px] font-bold tracking-widest uppercase hover:bg-red hover:text-white transition-colors">Add for $38</button>
-                </div>
-
-                <div className="bg-white rounded-[2rem] p-6 text-center border border-gray-100 shadow-sm flex flex-col items-center">
-                  <div className="text-gray-500 mb-4"><Briefcase className="w-6 h-6" /></div>
-                  <h3 className="font-bold text-sm text-gray-900 mb-2">Extra Luggage</h3>
-                  <p className="text-[11px] text-gray-500 leading-relaxed mb-6">Need more space? Add an additional 23kg checked bag to your booking.</p>
-                  <button className="mt-auto w-full py-2.5 rounded-full border border-gray-300 text-gray-500 text-[10px] font-bold tracking-widest uppercase hover:bg-gray-100 transition-colors">Add for $55</button>
-                </div>
-              </div>
-              <div className="flex justify-center md:justify-end mt-8">
-                <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
-                  Payment & Extras 
-                </button>
-              </div>
-            </div> */}
-          
-          <Enhance enhanceList={enhanceList} />
-          <div className="flex justify-center md:justify-end mt-8">
-                <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
-                  Payment & Extras 
-                </button>
-              </div>
-
         </div>
 
         {/* Right Column - Summary */}
@@ -415,7 +406,11 @@ export const SeatSelection = () => {
                  <h3 className="text-xs font-bold text-white leading-tight">Your Japanese adventure is just a few steps away.</h3>
                </div>
             </div>
-
+            <div className="flex justify-center  mt-8">
+                <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
+                  Payment & Extras 
+                </button>
+              </div>       
            </div>
         </aside>
 
