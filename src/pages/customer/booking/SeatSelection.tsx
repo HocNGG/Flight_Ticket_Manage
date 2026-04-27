@@ -10,7 +10,7 @@ import { Enhance } from '../../../components/customer/booking/Enhance';
 import type { CreateBookingRequest } from '../../../types/booking/booking';
 import { useEffect, useState } from 'react';
 import type { PassengerInfo } from '../../../types/passenger/passenger';
-import type { BookingPassengerRequest, BookingServiceRequest } from '../../../types/booking/bookingPassenger';
+import type { BookingPassengerRequest } from '../../../types/booking/bookingPassenger';
 import type { SeatDetailDTO } from '../../../types/flight/seat';
 import type { ServiceOptionDTO } from '../../../types/option/serviceoption';
 import serviceApi from '../../../api/serviceApi';
@@ -87,27 +87,59 @@ export const SeatSelection = () => {
   
   const toggleService = (pIdx: number, sId: number) => {
     setBookingData(prev => {
+      // 1. Tạo bản sao sâu của mảng passengers
       const newPassengers = [...prev.passengers];
-      const currentServices = newPassengers[pIdx].serviceOptions;
-      const isSelected = currentServices.some(s => s.serviceOptionId === sId);
+      
+      // 2. Lấy passenger cụ thể
+      const passenger = { ...newPassengers[pIdx] };
+      
+      // 3. Xử lý mảng dịch vụ
+      const currentServices = [...passenger.serviceOptions];
+      const index = currentServices.findIndex(s => s.serviceOptionId === sId);
 
-      if (isSelected) {
-        newPassengers[pIdx].serviceOptions = currentServices.filter(s => s.serviceOptionId !== sId);
+      if (index > -1) {
+        currentServices.splice(index, 1); // Xóa nếu đã có
       } else {
-        const newService: BookingServiceRequest = {
-          serviceOptionId: sId,
-          quantity: 1 
-        };
-        newPassengers[pIdx].serviceOptions = [...currentServices, newService];
+        currentServices.push({ serviceOptionId: sId, quantity: 1 }); // Thêm mới
       }
+
+      passenger.serviceOptions = currentServices;
+      newPassengers[pIdx] = passenger;
 
       return { ...prev, passengers: newPassengers };
     });
   };
-  // Tính toán tiền cho Sidebar
+   /**
+ * Định dạng số thành chuỗi tiền tệ
+ * @param amount - Số tiền cần định dạng
+ * @param currency - Mã tiền tệ (VND, USD, v.v.) - Mặc định là VND
+ * @param locale - Ngôn ngữ hiển thị (vi-VN, en-US, v.v.) - Mặc định là vi-VN
+ */
+  const formatCurrency = (
+    amount: number | string | undefined,
+    currency: string = 'VND',
+    locale: string = 'vi-VN'
+  ): string => {
+    if (amount === undefined || amount === null) return '0 ₫';
+
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numericAmount)) return '0 ₫';
+
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(numericAmount);
+  };
+  const totalServicesPrice = bookingData.passengers.reduce((acc, p) => {
+    return acc + p.serviceOptions.reduce((pAcc, opt) => {
+      const sDetail = services.find(s => s.serviceId === opt.serviceOptionId);
+      return pAcc + (sDetail?.price || 0);
+    }, 0);
+  }, 0);
   const totalSeatPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
   const taxFee = totalSeatPrice*0.1;
-
+  const finalAmount = totalSeatPrice + totalServicesPrice + taxFee;
   if (loading) return <div className="p-20 text-center">Loading Seat Map...</div>;
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-32">
@@ -335,13 +367,15 @@ export const SeatSelection = () => {
                               />
                             </div>
                           </div>
-                          <div className="mt-6 pt-4 border-t border-gray-50">
-                              <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">Personal Extras</p>
-                              <Enhance 
-                                  enhanceList={services} 
-                                  onAdd={(s) => toggleService(idx, s.serviceId)}
-                                  selectedServices={passenger.serviceOptions.map(s => s.serviceOptionId)}
-                              />
+                          <div className="mt-4 relative z-20"> {/* Thêm relative z-20 ở đây */}
+                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">
+                              Personal Extras
+                            </p>
+                            <Enhance 
+                              enhanceList={services} 
+                              onAdd={(s) => toggleService(idx, s.serviceId)}
+                              selectedServices={passenger.serviceOptions.map(s => s.serviceOptionId)}
+                            />
                           </div>
                         </section>
                       ))
@@ -375,28 +409,68 @@ export const SeatSelection = () => {
              
              <h3 className="text-xl font-bold text-gray-900 mb-6">Price Summary</h3>
              
-             <div className="space-y-4 text-xs font-medium border-b border-gray-100 pb-6">
-                 <div className="flex justify-between">
-                   <span className="text-gray-500">Base Fare (London - Tokyo)</span>
-                   <span className="text-gray-900 font-bold">$842.00</span>
-                 </div>
-                 <div className="flex justify-between">
-                   <span className="text-gray-500">Preferred Seat (13B)</span>
-                   <span className="text-red font-bold">+$45.00</span>
-                 </div>
-                 <div className="flex justify-between">
-                   <span className="text-gray-500">Taxes & Fees</span>
-                   <span className="text-gray-900 font-bold">$112.40</span>
-                 </div>
-             </div>
-             
-             <div className="flex justify-between items-end pt-6">
-               <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total</span>
-               <div className="text-right">
-                 <span className="text-2xl font-black text-gray-900">{totalSeatPrice}</span>
-                 <p className="text-[8px] font-bold text-gray-400 tracking-widest uppercase text-right mt-1">ALL INCLUSIVE</p>
-               </div>
-             </div>
+             <div className="space-y-6 text-xs font-medium border-b border-gray-100 pb-6">
+            {bookingData.passengers.map((passenger, idx) => {
+              const seatInfo = selectedSeats.find(s => s.flightSeatId === passenger.flightSeatId);
+              return (
+                <div key={idx} className="space-y-2">
+                  {/* Tên hành khách & Ghế */}
+                  <div className="flex justify-between items-center">
+                    <span className="text-[10px] font-black text-gray-900 uppercase tracking-tighter">
+                      P#{idx + 1}: {passenger.passengerData.fullName || "Guest"}
+                    </span>
+                    <span className="text-gray-900 font-bold">
+                      {formatCurrency(seatInfo?.price || 0)}
+                    </span>
+                  </div>
+
+                  {/* Hiển thị số ghế */}
+                  <div className="flex justify-between pl-2 border-l border-gray-100">
+                    <span className="text-gray-500 italic text-[10px]">Seat ({seatInfo?.seatNumber || 'N/A'})</span>
+                    <span className="text-gray-400 text-[10px]">Included</span>
+                  </div>
+
+                  {/* Liệt kê các dịch vụ đã chọn của khách này */}
+                  <div className="mt-2 space-y-1.5 border-l-2 border-gray-50 ml-1 pl-3">
+                  {passenger.serviceOptions.map((opt) => {
+                    const service = services.find(s => s.serviceId === opt.serviceOptionId);
+                    if (!service) return null;
+                    return (
+                      <div key={opt.serviceOptionId} className="flex justify-between items-center animate-slideRight">
+                        <span className="text-gray-500 text-[10px] flex items-center gap-1">
+                          <Check className="w-2.5 h-2.5 text-red" /> {service.serviceName}
+                        </span>
+                        <span className="text-red font-bold text-[10px]">
+                          +${service.price.toLocaleString()}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+                </div>
+              );
+            })}
+
+            {/* Thuế & Phí (Tính chung hoặc riêng tùy logic của bạn) */}
+            <div className="flex justify-between pt-2 border-t border-gray-50">
+              <span className="text-gray-500 uppercase text-[9px] tracking-widest">Taxes & Fees</span>
+              <span className="text-gray-900 font-bold">{formatCurrency(taxFee)}</span>
+            </div>
+          </div>
+
+          {/* TỔNG CỘNG */}
+          <div className="flex justify-between items-end pt-6">
+            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Amount</span>
+            <div className="text-right">
+              <span className="text-2xl font-black text-gray-900">
+                {/* totalSeatPrice nên bao gồm: Ghế + Dịch vụ + Thuế */}
+                {formatCurrency(finalAmount)}
+              </span>
+              <p className="text-[8px] font-bold text-gray-400 tracking-widest uppercase text-right mt-1">
+                ALL INCLUSIVE
+              </p>
+            </div>
+          </div>
 
              {/* Promo Image inside sidebar now */}
              <div className="rounded-[1rem] overflow-hidden relative shadow-sm group cursor-pointer border border-transparent mt-8">

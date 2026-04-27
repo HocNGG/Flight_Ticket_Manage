@@ -25,48 +25,42 @@ export const Enhance: React.FC<EnhanceProps> = ({ enhanceList, onAdd, selectedSe
                 const isSelected = selectedServices.includes(service.serviceId);
 
                 return (
-                    <div 
-                        key={service.serviceId} 
-                        onClick={() => onAdd(service)} // Click vào cả thẻ để chọn
+                    <button
+                        key={service.serviceId}
+                        type="button"
+                        onClick={(e) => {
+                            e.preventDefault(); // Ngăn chặn hành vi mặc định của form
+                            e.stopPropagation(); // Ngăn chặn sự kiện nổi bọt lên thẻ cha
+                            onAdd(service);
+                        }}
                         className={`
-                            relative flex flex-col items-center justify-center p-4 rounded-[1.5rem] 
-                            cursor-pointer transition-all duration-200 group
-                            border-2 
+                            relative z-10 cursor-pointer pointer-events-auto flex flex-col items-center justify-center p-4 rounded-[1.5rem] 
+                            transition-all duration-300 group border-2
                             ${isSelected 
-                                ? 'bg-red/5 border-red shadow-sm scale-[0.98]' 
-                                : 'bg-gray-50 border-transparent hover:bg-gray-100 hover:border-gray-200'
+                                ? 'bg-red border-red shadow-lg shadow-red/20 scale-[0.95]' 
+                                : 'bg-[#f8f9fb] border-transparent hover:bg-white hover:border-gray-200'
                             }
                         `}
                     >
-                        {/* Checkmark icon nhỏ ở góc khi đã chọn */}
-                        {isSelected && (
-                            <div className="absolute top-2 right-2 bg-red rounded-full p-0.5 shadow-sm animate-fadeIn">
-                                <svg width="8" height="8" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="4">
-                                    <polyline points="20 6 9 17 4 12"></polyline>
-                                </svg>
-                            </div>
-                        )}
-
-                        <IconComponent 
-                            className={`w-5 h-5 mb-2 transition-colors ${isSelected ? 'text-red' : 'text-gray-400 group-hover:text-gray-600'}`} 
+                        <IconComponent
+                            className={`w-5 h-5 mb-2 transition-colors ${
+                                isSelected ? 'text-white' : 'text-gray-400 group-hover:text-gray-600'
+                            }`}
                         />
-                        
-                        <p className={`font-black text-[10px] text-center uppercase tracking-tighter mb-2 leading-tight ${isSelected ? 'text-red' : 'text-gray-900'}`}>
+
+                        <p className={`font-black text-[9px] text-center uppercase tracking-tighter mb-3 ${
+                            isSelected ? 'text-white' : 'text-gray-900'
+                        }`}>
                             {service.serviceName}
                         </p>
-                        
+
                         <div className={`
-                            px-3 py-1 rounded-lg border transition-all
-                            ${isSelected 
-                                ? 'bg-white border-red/20 shadow-sm' 
-                                : 'bg-white border-gray-100'
-                            }
+                            w-full py-1.5 rounded-xl text-[9px] font-black tracking-widest transition-all
+                            ${isSelected ? 'bg-white text-red' : 'bg-white text-gray-900 border border-gray-50'}
                         `}>
-                            <p className={`text-[9px] font-black tracking-tighter ${isSelected ? 'text-red' : 'text-gray-800'}`}>
-                                +${service.price.toLocaleString()}
-                            </p>
+                            {isSelected ? "ADDED" : `+$${service.price.toLocaleString()}`}
                         </div>
-                    </div>
+                    </button>
                 );
             })}
         </div>
