@@ -416,18 +416,15 @@ export const SeatSelection = () => {
                 <div key={idx} className="space-y-2">
                   {/* Tên hành khách & Ghế */}
                   <div className="flex justify-between items-center">
-                    <span className="text-[10px] font-black text-gray-900 uppercase tracking-tighter">
-                      P#{idx + 1}: {passenger.passengerData.fullName || "Guest"}
+                    <span className="text-[15px] font-black text-gray-900  tracking-tighter">
+                      Passenger #{idx + 1}: {passenger.passengerData.fullName || "Guest"}
+                    </span>
+                    <span className="text-gray-900 font-bold">
+                      {seatInfo?.seatNumber || 'N/A'}
                     </span>
                     <span className="text-gray-900 font-bold">
                       {formatCurrency(seatInfo?.price || 0)}
                     </span>
-                  </div>
-
-                  {/* Hiển thị số ghế */}
-                  <div className="flex justify-between pl-2 border-l border-gray-100">
-                    <span className="text-gray-500 italic text-[10px]">Seat ({seatInfo?.seatNumber || 'N/A'})</span>
-                    <span className="text-gray-400 text-[10px]">Included</span>
                   </div>
 
                   {/* Liệt kê các dịch vụ đã chọn của khách này */}
@@ -441,7 +438,7 @@ export const SeatSelection = () => {
                           <Check className="w-2.5 h-2.5 text-red" /> {service.serviceName}
                         </span>
                         <span className="text-red font-bold text-[10px]">
-                          +${service.price.toLocaleString()}
+                          {formatCurrency(service.price)}
                         </span>
                       </div>
                     );
