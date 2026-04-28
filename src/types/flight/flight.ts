@@ -7,7 +7,7 @@ export interface FlightSearchRequest{
       arrival : string,
       departureDate: string,
       passengerCount: number,
-      isRoundTrip?: boolean,
+      roundTrip: boolean,
       returnDate?: string
 }
 

@@ -1,7 +1,7 @@
 import { Plane, ArrowRight, Check, Search,X } from 'lucide-react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { FlightCard } from '../../../components/customer/search/FlightCard';
-import type { FlightSearchResponse } from '../../../types/flight/flight';
+import type { FlightDTO, FlightSearchResponse } from '../../../types/flight/flight';
 import { useEffect, useState } from 'react';
 import flightApi from '../../../api/flightApi';
 import airportApi from '../../../api/airportApi';
@@ -22,7 +22,7 @@ export const FlightResults = () => {
   const originResult = searchParams.get('from') || 'London (LHR)';
   const destinationResult = searchParams.get('to') || 'Tokyo (HND)';
   const departureDateParam = searchParams.get('date') || '';
-  const isRoundTrip = searchParams.get('isRoundTrip') === 'true';
+  const isRoundTrip = searchParams.get('roundTrip') === 'true';
   const returnDateParam = searchParams.get('return') || '';
 
   const handleUpdateSearch = (e: React.ChangeEvent<HTMLFormElement>) => {
@@ -31,6 +31,7 @@ export const FlightResults = () => {
     const newParams = new URLSearchParams(searchParams);
     newParams.set('from', formData.get('from') as string);
     newParams.set('to', formData.get('to') as string);
+
     setSearchParams(newParams);
     setIsEditing(false);
     setCurrentStep('outbound'); 
@@ -46,7 +47,7 @@ export const FlightResults = () => {
             arrival: destinationResult,
             departureDate: departureDateParam,
             passengerCount: parseInt(passengerCount), 
-            isRoundTrip: isRoundTrip,
+            roundTrip: isRoundTrip,
             returnDate: returnDateParam || undefined
           }),
           airportApi.getAirportsByCode(originResult),
@@ -77,7 +78,7 @@ export const FlightResults = () => {
       year: 'numeric',
     });
   };
-  const handleSelectFlight = (flight: any) => {
+  const handleSelectFlight = (flight: FlightDTO) => {
     if (currentStep === 'outbound') {
       if (isRoundTrip) {
         setSelectedOutbound(flight);
@@ -126,7 +127,7 @@ export const FlightResults = () => {
           <div className="flex flex-col md:flex-row items-center justify-between">
             <div className="flex items-center gap-6">
                <div className="flex items-center gap-3">
-                 <Plane className={`w-5 h-5 ${currentStep === 'outbound' ? 'text-red' : 'text-gray-400'}`} />
+                 <Plane className="w-5 h-5 text-red" />
                  <div>
                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">From</p>
                    <p className="font-bold text-gray-900">{departureCity} ({originResult})</p>
@@ -134,7 +135,7 @@ export const FlightResults = () => {
                </div>
                <ArrowRight className="w-4 h-4 text-gray-300" />
                <div className="flex items-center gap-3">
-                 <Plane className={`w-5 h-5 ${currentStep === 'inbound' ? 'text-gold' : 'text-gray-400'}`} />
+                 <Plane className="w-5 h-5 text-gold" />
                  <div>
                    <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">To</p>
                    <p className="font-bold text-gray-900">{arrivalCity} ({destinationResult})</p>
@@ -231,37 +232,17 @@ export const FlightResults = () => {
         {/* Main Flight List */}
         
         <main className="flex-1">
-          {/* Progress Stepper */}
-          <div className="flex items-center justify-between w-full relative py-6 mb-4">
-            <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-100"></div>
-            <div 
-              className="absolute left-0 top-1/2 -translate-y-1/2 h-0.5 bg-red transition-all duration-500" 
-            ></div>
-
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center relative z-10 text-[10px] font-bold border-2 transition-all ${currentStep === 'outbound' ? 'bg-red border-red text-white' : 'bg-white border-red text-red'}`}>
-              {currentStep === 'inbound' ? <Check className="w-4 h-4" /> : '01'}
-            </div>
-            <div className={`w-8 h-8 rounded-full flex items-center justify-center relative z-10 text-[10px] font-bold border-2 transition-all ${currentStep === 'inbound' ? 'bg-red border-red text-white' : 'bg-white border-gray-200 text-gray-400'}`}>
-              02
-            </div>
-            <div className="w-8 h-8 rounded-full bg-white border-2 border-gray-200 text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10">03</div>
-            
-            <span className="relative z-10 bg-surface px-4 text-[10px] font-black uppercase tracking-widest text-red">
-              {currentStep === 'outbound' ? 'Step 1: Outbound Flight' : 'Step 2: Inbound Flight'}
-            </span>
-          </div>
-
-          {/* Vé đã chọn (Hiển thị khi đang ở bước chọn vé về) */}
+          {/* Vé đã chọn  */}
           {selectedOutbound && currentStep === 'inbound' && (
             <div className="mb-6 animate-slideDown">
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2 ml-1">Selected Outbound</p>
+              <h1 className="text-3xl font-black tracking-tight text-gray-900 mb-6">Selected Outbound</h1>
               <div className="bg-red/5 border border-red/20 rounded-2xl p-4 flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="bg-white p-2 rounded-lg shadow-sm font-black text-red text-xs">
                     {selectedOutbound.flightNumber}
                   </div>
                   <div>
-                    <p className="font-bold text-sm">{selectedOutbound.departureTime} → {selectedOutbound.arrivalTime}</p>
+                    <p className="font-bold text-sm">{formatDate(selectedOutbound.departureTime)} → {formatDate(selectedOutbound.arrivalTime)}</p>
                     <p className="text-[10px] font-medium text-gray-500">{departureCity} to {arrivalCity}</p>
                   </div>
                 </div>

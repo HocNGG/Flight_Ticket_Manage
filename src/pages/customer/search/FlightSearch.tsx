@@ -43,7 +43,7 @@ export const FlightSearch = () => {
       arrival: to,
       departureDate: departureDate, 
       passengerCount: passengerCount, 
-      isRoundTrip: isRoundTrip,
+      roundTrip: isRoundTrip,
       returnDate: isRoundTrip ? returnDate : undefined
     };
 
@@ -54,7 +54,7 @@ export const FlightSearch = () => {
         to,
         date: departureDate,
         passengerCount:passengerCount.toString(),
-        isRoundTrip: isRoundTrip.toString(),
+        roundTrip: isRoundTrip.toString(),
       });
       if (isRoundTrip && returnDate) query.append('return', returnDate);
       navigate(`/results?${query.toString()}`);
