@@ -15,15 +15,10 @@ export interface FlightSearchResponse{
       from:string,
       to:string,
       isRoundTrip: boolean,
-      totalResults:number,
-      results:AirlineFlightGroup[]
-}
-export interface AirlineFlightGroup{
-      airlineId:number,
-      airlineName:string,
       outboundFlights:FlightDTO[],
       inboundFlights:FlightDTO[]
 }
+
 export interface FlightDTO{
       flightId:number,
       flightNumber:string,

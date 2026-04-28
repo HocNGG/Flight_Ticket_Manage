@@ -10,11 +10,12 @@ export type FlightCardProps = {
   destination: string;
   duration: string;
   stops: string;
-  price: string;
+  price: number;
   tag: string;
   tagColor?: string;
   logo: string;
   detailPath: string;
+  onSelect?: () => void;
 };
 
 export const FlightCard = ({
@@ -30,9 +31,39 @@ export const FlightCard = ({
   tagColor = 'text-gray-500',
   logo,
   detailPath,
+  onSelect,
 }: FlightCardProps) => {
   const navigate = useNavigate();
+  /**
+ * Định dạng số thành chuỗi tiền tệ
+ * @param amount - Số tiền cần định dạng
+ * @param currency - Mã tiền tệ (VND, USD, v.v.) - Mặc định là VND
+ * @param locale - Ngôn ngữ hiển thị (vi-VN, en-US, v.v.) - Mặc định là vi-VN
+ */
+  const formatCurrency = (
+    amount: number | string | undefined,
+    currency: string = 'VND',
+    locale: string = 'vi-VN'
+  ): string => {
+    if (amount === undefined || amount === null) return '0 ₫';
 
+    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
+    if (isNaN(numericAmount)) return '0 ₫';
+
+    return new Intl.NumberFormat(locale, {
+      style: 'currency',
+      currency: currency,
+      minimumFractionDigits: currency === 'VND' ? 0 : 2,
+    }).format(numericAmount);
+  };
+  const handleButtonClick = (e: React.MouseEvent) => {
+    e.stopPropagation(); // Chặn nổi bọt sự kiện nếu bạn bọc cả card trong thẻ click
+    if (onSelect) {
+      onSelect(); // Nếu có hàm xử lý riêng (để đổi bước 1 -> bước 2)
+    } else {
+      navigate(detailPath); 
+    }
+  };
   return (
     <div className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-lg transition-shadow border border-transparent hover:border-red/10 flex flex-col md:flex-row items-center relative overflow-hidden group">
       <div className="flex items-center flex-1 w-full flex-wrap gap-6 md:gap-0">
@@ -71,7 +102,7 @@ export const FlightCard = ({
         </div>
 
         <div className="text-right mt-2">
-          <div className="text-3xl font-black text-gray-900">{price}</div>
+          <div className="text-3xl font-black text-gray-900">{formatCurrency(price)}</div>
         </div>
 
         <div className="flex items-center gap-4 mt-3">
@@ -80,7 +111,7 @@ export const FlightCard = ({
             <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Compare</span>
           </label>
           <button
-            onClick={() => navigate(detailPath)}
+            onClick={handleButtonClick}
             className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-6 py-2.5 font-bold text-sm"
           >
             Select Flight
