@@ -28,6 +28,12 @@ import { PricingDashboard } from '../pages/admin/pricing/PricingDashboard';
 import { ServicesManagement } from '../pages/admin/services/ServicesManagement';
 import { PolicyManagement } from '../pages/admin/policies/PolicyManagement';
 
+// Staff
+import { CancelRequests } from '../pages/staff/CancelRequests';
+import { StaffAllBookings } from '../pages/staff/StaffAllBookings';
+import { StaffFlights } from '../pages/staff/StaffFlights';
+
+
 const AppRoutes = () => {
   return (
     <Routes>
@@ -69,6 +75,12 @@ const AppRoutes = () => {
       <Route path="/admin/pricing" element={<PricingDashboard />} />
       <Route path="/admin/services" element={<ServicesManagement />} />
       <Route path="/admin/policies" element={<PolicyManagement />} />
+
+      {/* Staff — tự wrap StaffLayout bên trong */}
+      <Route path="/staff" element={<Navigate to="/staff/cancel-requests" replace />} />
+      <Route path="/staff/cancel-requests" element={<CancelRequests />} />
+      <Route path="/staff/bookings" element={<StaffAllBookings />} />
+      <Route path="/staff/flights" element={<StaffFlights />} />
     </Routes>
   );
 };
