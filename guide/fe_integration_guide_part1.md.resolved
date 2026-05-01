@@ -1,0 +1,364 @@
+# 🛫 FE Integration Guide — Customer Flow (5 Trang Đầu)
+
+> **Stack**: React + TypeScript | Zustand (global) | React Query (API) | useState (local) | useMemo (computed)  
+> **Base URL**: `http://localhost:8080`
+
+---
+
+## 📁 Cấu Trúc Thư Mục Cần Tạo
+
+```
+src/
+├── api/                          ← Tầng gọi API thuần (axios instances + endpoint fns)
+│   ├── axiosInstance.ts          ← axios config + interceptor tự động gắn token
+│   ├── authApi.ts                ← login, register, forgotPassword, resetPassword
+│   ├── flightApi.ts              ← searchFlights, getFlightById, getAirports
+│   └── types.ts                  ← TypeScript interfaces cho API response
+│
+├── store/                        ← Zustand stores (GLOBAL state dùng xuyên app)
+│   ├── useAuthStore.ts           ← user, accessToken, isAuthenticated, actions
+│   └── useSearchStore.ts         ← searchParams (departure/arrival/date...) — dùng giữa Search→Results
+│
+├── hooks/                        ← Custom hooks bọc React Query
+│   ├── useAuth.ts                ← useMutation login/register/forgotPw
+│   └── useFlights.ts             ← useQuery searchFlights, getAirports
+│
+├── pages/
+│   ├── auth/
+│   │   ├── Login.tsx             ← CÓ SẴN, cần tích hợp
+│   │   ├── Signup.tsx            ← CÓ SẴN, cần tích hợp
+│   │   └── ForgotPassword.tsx    ← CÓ SẴN, cần tích hợp
+│   └── customer/
+│       └── search/
+│           ├── FlightSearch.tsx  ← CÓ SẴN, cần tích hợp
+│           └── FlightResults.tsx ← CÓ SẴN, cần tích hợp (replace mock data)
+│
+└── utils/
+    └── tokenStorage.ts           ← get/set/remove token trong localStorage
+```
+
+---
+
+## BƯỚC 0 — Cài Dependencies
+
+```bash
+npm install zustand @tanstack/react-query axios
+```
+
+Wrap app trong `main.tsx`:
+
+```tsx
+// src/main.tsx
+import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+const queryClient = new QueryClient();
+
+ReactDOM.createRoot(document.getElementById('root')!).render(
+  <QueryClientProvider client={queryClient}>
+    <App />
+  </QueryClientProvider>
+);
+```
+
+---
+
+## BƯỚC 1 — Tạo `src/api/axiosInstance.ts`
+
+```ts
+import axios from 'axios';
+
+const api = axios.create({
+  baseURL: 'http://localhost:8080',
+  headers: { 'Content-Type': 'application/json' },
+});
+
+// Tự động gắn Bearer token vào mỗi request
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem('accessToken');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+
+export default api;
+```
+
+---
+
+## BƯỚC 2 — Tạo `src/api/types.ts`
+
+```ts
+// Wrapper chung cho mọi API response
+export interface ApiResponse<T> {
+  success: boolean;
+  message: string;
+  data: T;
+}
+
+// Auth
+export interface LoginResponse {
+  accessToken: string;
+  refreshToken: string;
+}
+
+export interface RegisterResponse {
+  userId: number;
+  email: string;
+  fullName: string;
+  phoneNumber: string;
+  role: string;
+  status: string;
+}
+
+export interface UserProfile {
+  email: string;
+  fullName: string;
+  phone: string;
+}
+
+// Flight Search
+export interface Airport {
+  airportCode: string;
+  airportName: string;
+  city?: string;
+  country?: string;
+}
+
+export interface FlightResult {
+  flightId: number;
+  flightCode: string;
+  departureTime: string;
+  arrivalTime: string;
+  departureAirport: { code: string; name: string };
+  arrivalAirport: { code: string; name: string };
+  airline: { airlineId: number; airlineName: string; airlineCode: string };
+  aircraft: { aircraftId: number; model: string; totalSeats: number };
+  basePrice: number;
+  availableSeats: number;
+  duration: string;
+}
+
+export interface FlightSearchParams {
+  departure: string;
+  arrival: string;
+  departureDate: string;
+  passengerCount: number;
+  seatClass: 'ECONOMY' | 'BUSINESS' | 'FIRST';
+}
+```
+
+---
+
+## BƯỚC 3 — Tạo `src/api/authApi.ts`
+
+```ts
+import api from './axiosInstance';
+import type { ApiResponse, LoginResponse, RegisterResponse } from './types';
+
+export const authApi = {
+  login: (email: string, password: string) =>
+    api.post<ApiResponse<LoginResponse>>('/api/auth/login', { email, password }),
+
+  register: (data: { email: string; password: string; fullName: string; phoneNumber: string }) =>
+    api.post<ApiResponse<RegisterResponse>>('/api/auth/register', data),
+
+  requestPasswordReset: (email: string) =>
+    api.post<ApiResponse<null>>(`/api/auth/request-password-reset?email=${email}`),
+
+  resetPassword: (email: string, otp: string, newPassword: string) =>
+    api.post<ApiResponse<null>>(
+      `/api/auth/reset-password?email=${email}&otp=${otp}&newPassword=${newPassword}`
+    ),
+
+  getMe: () =>
+    api.get<ApiResponse<{ email: string; fullName: string; phone: string }>>('/api/users/me'),
+};
+```
+
+---
+
+## BƯỚC 4 — Tạo `src/api/flightApi.ts`
+
+```ts
+import api from './axiosInstance';
+import type { ApiResponse, FlightResult, Airport, FlightSearchParams } from './types';
+
+export const flightApi = {
+  // API chính: GET /api/flights?departure=...
+  searchFlights: (params: FlightSearchParams) =>
+    api.get<ApiResponse<{ flights: FlightResult[] }>>('/api/flights', { params }),
+
+  // Dùng cho dropdown sân bay — gọi 1 lần, cache dài
+  getAirports: () =>
+    api.get<ApiResponse<Airport[]>>('/api/airports/general'),
+
+  getFlightById: (id: number) =>
+    api.get<ApiResponse<FlightResult>>(`/api/flights/${id}`),
+};
+```
+
+---
+
+## BƯỚC 5 — Tạo `src/store/useAuthStore.ts` (ZUSTAND)
+
+> **Tại sao Zustand?** Token + thông tin user cần dùng ở Navbar, ProtectedRoute, trang Booking — tức là nhiều nơi trong app. Nếu dùng useState thì phải prop-drill rất sâu.
+
+```ts
+import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+interface User {
+  email: string;
+  fullName: string;
+  phone: string;
+}
+
+interface AuthState {
+  accessToken: string | null;
+  user: User | null;
+  isAuthenticated: boolean;
+  // Actions
+  setTokens: (accessToken: string, refreshToken: string) => void;
+  setUser: (user: User) => void;
+  logout: () => void;
+}
+
+export const useAuthStore = create<AuthState>()(
+  persist(
+    (set) => ({
+      accessToken: null,
+      user: null,
+      isAuthenticated: false,
+
+      setTokens: (accessToken, refreshToken) => {
+        localStorage.setItem('accessToken', accessToken);
+        localStorage.setItem('refreshToken', refreshToken);
+        set({ accessToken, isAuthenticated: true });
+      },
+
+      setUser: (user) => set({ user }),
+
+      logout: () => {
+        localStorage.removeItem('accessToken');
+        localStorage.removeItem('refreshToken');
+        set({ accessToken: null, user: null, isAuthenticated: false });
+      },
+    }),
+    {
+      name: 'auth-storage', // tên key trong localStorage
+      partialize: (state) => ({ accessToken: state.accessToken, user: state.user, isAuthenticated: state.isAuthenticated }),
+    }
+  )
+);
+```
+
+---
+
+## BƯỚC 6 — Tạo `src/store/useSearchStore.ts` (ZUSTAND)
+
+> **Tại sao Zustand cho search params?**  
+> Luồng: FlightSearch → navigate → FlightResults. URL params (`useSearchParams`) là cách tiêu chuẩn, NHƯNG nếu user bấm "Sửa tìm kiếm" từ trang results và quay lại, Zustand giúp giữ giá trị form mà không cần parse lại URL. Ngoài ra search params có thể cần ở FlightDetail (để hiển thị "hạng ghế đã chọn").
+
+```ts
+import { create } from 'zustand';
+
+interface SearchParams {
+  departure: string;
+  arrival: string;
+  departureDate: string;
+  passengerCount: number;
+  seatClass: 'ECONOMY' | 'BUSINESS' | 'FIRST';
+}
+
+interface SearchState {
+  searchParams: SearchParams | null;
+  setSearchParams: (params: SearchParams) => void;
+  clearSearch: () => void;
+}
+
+export const useSearchStore = create<SearchState>()((set) => ({
+  searchParams: null,
+  setSearchParams: (params) => set({ searchParams: params }),
+  clearSearch: () => set({ searchParams: null }),
+}));
+```
+
+---
+
+## BƯỚC 7 — Tạo `src/hooks/useAuth.ts` (REACT QUERY MUTATIONS)
+
+> **Tại sao useMutation?** Login/Register/ForgotPassword là các thao tác **ghi** (POST), không phải đọc. React Query's `useMutation` xử lý loading/error/success tự động và không cache như `useQuery`.
+
+```ts
+import { useMutation } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { authApi } from '../api/authApi';
+import { useAuthStore } from '../store/useAuthStore';
+
+export function useLogin() {
+  const navigate = useNavigate();
+  const { setTokens } = useAuthStore();
+
+  return useMutation({
+    mutationFn: ({ email, password }: { email: string; password: string }) =>
+      authApi.login(email, password),
+    onSuccess: (res) => {
+      const { accessToken, refreshToken } = res.data.data;
+      setTokens(accessToken, refreshToken);
+      navigate('/search'); // Sau login → về trang search
+    },
+  });
+}
+
+export function useRegister() {
+  return useMutation({
+    mutationFn: (data: { email: string; password: string; fullName: string; phoneNumber: string }) =>
+      authApi.register(data),
+    // onSuccess xử lý ở component (show "check email")
+  });
+}
+
+export function useRequestPasswordReset() {
+  return useMutation({
+    mutationFn: (email: string) => authApi.requestPasswordReset(email),
+  });
+}
+
+export function useResetPassword() {
+  return useMutation({
+    mutationFn: ({ email, otp, newPassword }: { email: string; otp: string; newPassword: string }) =>
+      authApi.resetPassword(email, otp, newPassword),
+  });
+}
+```
+
+---
+
+## BƯỚC 8 — Tạo `src/hooks/useFlights.ts` (REACT QUERY QUERIES)
+
+```ts
+import { useQuery } from '@tanstack/react-query';
+import { flightApi } from '../api/flightApi';
+import type { FlightSearchParams } from '../api/types';
+
+// Airports: gọi 1 lần, cache 30 phút — dùng cho dropdown
+export function useAirports() {
+  return useQuery({
+    queryKey: ['airports'],
+    queryFn: () => flightApi.getAirports().then((r) => r.data.data),
+    staleTime: 30 * 60 * 1000, // 30 phút — airports hiếm thay đổi
+  });
+}
+
+// Flight Search: chỉ chạy khi có đủ params
+export function useSearchFlights(params: FlightSearchParams | null) {
+  return useQuery({
+    queryKey: ['flights', params], // cache riêng theo từng bộ params
+    queryFn: () => flightApi.searchFlights(params!).then((r) => r.data.data.flights),
+    enabled: !!params, // QUAN TRỌNG: không gọi khi chưa có params
+    staleTime: 2 * 60 * 1000, // 2 phút — giá vé có thể thay đổi
+  });
+}
+```
+
+---
+
+*Tiếp theo: Tích hợp vào từng page component — xem Part 2*
