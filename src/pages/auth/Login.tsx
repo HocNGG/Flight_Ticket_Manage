@@ -1,34 +1,28 @@
 import { ArrowRight } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useLogin } from '../../hooks/useAuth';
 
 export const Login = () => {
   const [form, setForm] = useState({ email: '', password: '' });
   const [rememberMe, setRememberMe] = useState(false);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+
+  const loginMutation = useLogin();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setError('');
+    loginMutation.reset(); // Xóa lỗi cũ mỗi khi user gõ lại
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      // API: POST /api/auth/login
-      // Body: { email, password }
-      // Response: { accessToken, refreshToken }
-      // await authService.login(form);
-      // navigate('/search');
-    } catch {
-      setError('Email hoặc mật khẩu không chính xác.');
-    } finally {
-      setLoading(false);
-    }
+    loginMutation.mutate({ email: form.email, password: form.password });
   };
+
+  // Lấy thông báo lỗi từ response của server, fallback về thông báo mặc định
+  const errorMsg = loginMutation.error
+    ? (loginMutation.error as any)?.response?.data?.message || 'Email hoặc mật khẩu không chính xác.'
+    : '';
 
   return (
     <div className="min-h-[calc(100vh-80px)] w-full flex items-center justify-center p-6 pb-24 relative overflow-hidden">
@@ -42,10 +36,10 @@ export const Login = () => {
         <p className="text-sm font-medium text-gray-500 mb-10">Welcome back to the horizon.</p>
 
         <form className="space-y-6" onSubmit={handleSubmit}>
-          {/* Error message */}
-          {error && (
+          {/* Error message — lấy từ loginMutation.error */}
+          {errorMsg && (
             <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">
-              {error}
+              {errorMsg}
             </div>
           )}
 
@@ -95,10 +89,10 @@ export const Login = () => {
 
           <button
             type="submit"
-            disabled={loading}
+            disabled={loginMutation.isPending}
             className="w-full bg-red text-white hover:bg-reddark transition-colors rounded-full h-14 font-bold text-sm tracking-wider flex items-center justify-center gap-2 mt-8 shadow-lg shadow-red/20 disabled:opacity-60"
           >
-            {loading ? 'Signing in...' : 'Sign In'}
+            {loginMutation.isPending ? 'Signing in...' : 'Sign In'}
             <ArrowRight className="w-4 h-4" />
           </button>
         </form>

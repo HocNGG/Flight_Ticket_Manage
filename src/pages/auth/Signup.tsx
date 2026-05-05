@@ -1,6 +1,7 @@
 import { PlaneTakeoff } from 'lucide-react';
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useRegister } from '../../hooks/useAuth';
 
 export const Signup = () => {
   const [form, setForm] = useState({
@@ -10,24 +11,25 @@ export const Signup = () => {
     password: '',
   });
   const [submitted, setSubmitted] = useState(false);
-  const [loading, setLoading] = useState(false);
+
+  const registerMutation = useRegister();
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    registerMutation.reset(); // Xóa lỗi cũ mỗi khi user gõ lại
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    try {
-      // API: POST /api/auth/register
-      // Body: { email, password, fullName, phoneNumber }
-      // await authService.register(form);
-      setSubmitted(true);
-    } finally {
-      setLoading(false);
-    }
+    registerMutation.mutate(form, {
+      onSuccess: () => setSubmitted(true),
+    });
   };
+
+  // Lấy thông báo lỗi từ server, fallback về thông báo mặc định
+  const errorMsg = registerMutation.error
+    ? (registerMutation.error as any)?.response?.data?.message || 'Đăng ký thất bại.'
+    : '';
 
   return (
     <div className="min-h-[calc(100vh-80px)] w-full flex items-center justify-center p-6 pb-24 relative overflow-hidden">
@@ -64,6 +66,12 @@ export const Signup = () => {
             <p className="text-sm font-medium text-gray-500 mb-8">Begin your premium journey.</p>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
+              {/* Error message — lấy từ registerMutation.error */}
+              {errorMsg && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">
+                  {errorMsg}
+                </div>
+              )}
               {/* Full Name */}
               <div>
                 <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2 px-1">
@@ -134,10 +142,10 @@ export const Signup = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={registerMutation.isPending}
                 className="w-full bg-[#E8E8E8] text-red hover:bg-[#dedede] transition-colors rounded-full h-14 font-bold text-sm tracking-wider flex items-center justify-center gap-2 mt-4 disabled:opacity-60"
               >
-                {loading ? 'Registering...' : 'Join Membership'}
+                {registerMutation.isPending ? 'Registering...' : 'Join Membership'}
                 <PlaneTakeoff className="w-5 h-5 -rotate-45" />
               </button>
             </form>

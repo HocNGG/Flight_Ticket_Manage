@@ -6,29 +6,42 @@ import DropdownInputLanding from '../../../components/customer/search/DropdownIn
 import DateInput from '../../../components/customer/search/DateInput';
 import PassengerInput from '../../../components/customer/search/PassengerInput';
 import CabinInput from '../../../components/customer/search/CabinInput';
+import { useAirports } from '../../../hooks/useFlights';
+import { useSearchStore } from '../../../store/useSearchStore';
 
 export const FlightSearch = () => {
   const navigate = useNavigate();
+  const { setSearchParams } = useSearchStore();
 
-  // API query params: departure, arrival, departureDate, passengerCount, seatClass
+  // Local form state — chỉ dùng trong trang này
   const [departure, setDeparture] = useState('');
   const [arrival, setArrival] = useState('');
   const [departureDate, setDepartureDate] = useState('');
   const [passengerCount, setPassengerCount] = useState(1);
-  const [seatClass, setSeatClass] = useState('ECONOMY');
+  const [seatClass, setSeatClass] = useState<'ECONOMY' | 'BUSINESS' | 'FIRST'>('ECONOMY');
+
+  // React Query: gọi 1 lần khi mount, cache 30 phút
+  const { isLoading: loadingAirports } = useAirports();
+
+  // airports & airportOptions sẽ dùng khi DropdownInputOff được nâng cấp nhận prop options
+
+  // canSearch: không cho search khi airports chưa tải hoặc form chưa điền đủ
+  const canSearch = !loadingAirports && departure !== '' && arrival !== '' && departure !== arrival && departureDate !== '';
 
   const handleSearch = () => {
+    const params = { departure, arrival, departureDate, passengerCount, seatClass };
+
+    // Lưu vào Zustand để FlightResults + FlightDetail dùng lại
+    setSearchParams(params);
+
+    // Navigate với URL params — user có thể F5 hoặc copy link
     const query = new URLSearchParams({
-      departure,
-      arrival,
-      departureDate,
+      departure, arrival, departureDate,
       passengerCount: String(passengerCount),
       seatClass,
     });
     navigate(`/results?${query.toString()}`);
   };
-
-  const canSearch = departure !== '' && arrival !== '' && departureDate !== '';
 
   return (
     <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center">
@@ -60,24 +73,23 @@ export const FlightSearch = () => {
               departureDate={departureDate}
               returnDate={''}
               onDepartureDateChange={setDepartureDate}
-              onReturnDateChange={() => {}}
+              onReturnDateChange={() => { }}
             />
           </div>
 
           {/* Row 2: Passengers, Cabin, Search button */}
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
             <PassengerInput value={passengerCount} onChange={setPassengerCount} />
-            <CabinInput value={seatClass} onChange={setSeatClass} />
+            <CabinInput value={seatClass} onChange={(val) => setSeatClass(val as 'ECONOMY' | 'BUSINESS' | 'FIRST')} />
 
             <div className="col-span-1 md:col-span-2 relative mt-4 md:mt-0">
               <button
                 onClick={handleSearch}
                 disabled={!canSearch}
-                className={`w-full rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2 transition-colors ${
-                  canSearch
+                className={`w-full rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2 transition-colors ${canSearch
                     ? 'bg-red text-white hover:bg-reddark'
                     : 'bg-gray-200 text-gray-500 cursor-not-allowed'
-                }`}
+                  }`}
               >
                 Search Flights
                 <ArrowRight className="w-4 h-4" />

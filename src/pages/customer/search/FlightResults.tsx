@@ -1,63 +1,9 @@
 import { Plane, ArrowRight, ChevronDown } from 'lucide-react';
+import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-
-// API response type: GET /api/flights?departure=...&arrival=...&departureDate=...&passengerCount=...&seatClass=...
-type FlightResult = {
-  flightId: number;
-  flightCode: string;
-  departureTime: string;
-  arrivalTime: string;
-  departureAirport: { code: string; name: string };
-  arrivalAirport: { code: string; name: string };
-  airline: { airlineId: number; airlineName: string; airlineCode: string };
-  aircraft: { aircraftId: number; model: string; totalSeats: number };
-  basePrice: number;
-  availableSeats: number;
-  duration: string;
-};
-
-// Mock data theo đúng cấu trúc API response
-const mockFlights: FlightResult[] = [
-  {
-    flightId: 1,
-    flightCode: 'VN001',
-    departureTime: '2024-03-20T08:00:00',
-    arrivalTime: '2024-03-20T10:00:00',
-    departureAirport: { code: 'SGN', name: 'Sân bay Tân Sơn Nhất' },
-    arrivalAirport: { code: 'HAN', name: 'Sân bay Nội Bài' },
-    airline: { airlineId: 1, airlineName: 'Vietnam Airlines', airlineCode: 'VN' },
-    aircraft: { aircraftId: 1, model: 'Boeing 787', totalSeats: 300 },
-    basePrice: 2500000,
-    availableSeats: 45,
-    duration: '2 giờ',
-  },
-  {
-    flightId: 2,
-    flightCode: 'VJ202',
-    departureTime: '2024-03-20T14:30:00',
-    arrivalTime: '2024-03-20T16:40:00',
-    departureAirport: { code: 'SGN', name: 'Sân bay Tân Sơn Nhất' },
-    arrivalAirport: { code: 'HAN', name: 'Sân bay Nội Bài' },
-    airline: { airlineId: 2, airlineName: 'VietJet Air', airlineCode: 'VJ' },
-    aircraft: { aircraftId: 2, model: 'Airbus A320', totalSeats: 180 },
-    basePrice: 1890000,
-    availableSeats: 12,
-    duration: '2 giờ 10 phút',
-  },
-  {
-    flightId: 3,
-    flightCode: 'QH305',
-    departureTime: '2024-03-20T18:00:00',
-    arrivalTime: '2024-03-20T20:15:00',
-    departureAirport: { code: 'SGN', name: 'Sân bay Tân Sơn Nhất' },
-    arrivalAirport: { code: 'HAN', name: 'Sân bay Nội Bài' },
-    airline: { airlineId: 3, airlineName: 'Bamboo Airways', airlineCode: 'QH' },
-    aircraft: { aircraftId: 3, model: 'Embraer 190', totalSeats: 100 },
-    basePrice: 3200000,
-    availableSeats: 30,
-    duration: '2 giờ 15 phút',
-  },
-];
+import { useSearchFlights } from '../../../hooks/useFlights';
+import { useSearchStore } from '../../../store/useSearchStore';
+import type { FlightResult } from '../../../api/types';
 
 const formatTime = (iso: string) => {
   const d = new Date(iso);
@@ -69,14 +15,62 @@ const formatPrice = (price: number) =>
 
 export const FlightResults = () => {
   const navigate = useNavigate();
-  const [searchParams] = useSearchParams();
+  const [urlParams] = useSearchParams();
+  const { searchParams: storedParams } = useSearchStore();
 
-  // Đọc đúng theo API query param names
-  const departure = searchParams.get('departure') || 'SGN';
-  const arrival = searchParams.get('arrival') || 'HAN';
-  const departureDateParam = searchParams.get('departureDate') || '';
-  const passengerCount = searchParams.get('passengerCount') || '1';
-  const seatClass = searchParams.get('seatClass') || 'ECONOMY';
+  // Local UI state — chỉ dùng trong trang này
+  const [sortBy, setSortBy] = useState<'price' | 'departure'>('price');
+  const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
+
+  // useMemo: ưu tiên URL params (F5 vẫn chạy), fallback về Zustand store
+  const queryParams = useMemo(() => {
+    const dep = urlParams.get('departure');
+    const arr = urlParams.get('arrival');
+    const date = urlParams.get('departureDate');
+    if (dep && arr && date) {
+      return {
+        departure: dep,
+        arrival: arr,
+        departureDate: date,
+        passengerCount: Number(urlParams.get('passengerCount')) || 1,
+        seatClass: (urlParams.get('seatClass') || 'ECONOMY') as 'ECONOMY' | 'BUSINESS' | 'FIRST',
+      };
+    }
+    return storedParams;
+  }, [urlParams, storedParams]);
+
+  // React Query: gọi API, cache riêng theo từng bộ queryParams
+  const { data: flights = [], isLoading, isError } = useSearchFlights(queryParams);
+
+  // useMemo: extract danh sách hãng bay duy nhất từ kết quả thực
+  const airlineOptions = useMemo(
+    () => [...new Map(flights.map((f) => [f.airline.airlineId, f.airline])).values()],
+    [flights]
+  );
+
+  // useMemo: filter + sort client-side — không gọi thêm API
+  const filteredFlights = useMemo(() => {
+    let result = [...flights];
+    if (selectedAirlines.length > 0) {
+      result = result.filter((f) => selectedAirlines.includes(String(f.airline.airlineId)));
+    }
+    result.sort((a, b) => {
+      if (sortBy === 'price') return a.basePrice - b.basePrice;
+      if (sortBy === 'departure') return new Date(a.departureTime).getTime() - new Date(b.departureTime).getTime();
+      return 0;
+    });
+    return result;
+  }, [flights, selectedAirlines, sortBy]);
+
+  const toggleAirline = (id: string) =>
+    setSelectedAirlines((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+
+  // Đọc URL params để hiển thị Search Summary Bar
+  const departure = urlParams.get('departure') || queryParams?.departure || '';
+  const arrival = urlParams.get('arrival') || queryParams?.arrival || '';
+  const departureDateParam = urlParams.get('departureDate') || queryParams?.departureDate || '';
+  const passengerCount = urlParams.get('passengerCount') || String(queryParams?.passengerCount || 1);
+  const seatClass = urlParams.get('seatClass') || queryParams?.seatClass || 'ECONOMY';
 
   const formatDate = (value: string) => {
     if (!value) return 'Chọn ngày';
@@ -90,6 +84,25 @@ export const FlightResults = () => {
     BUSINESS: 'Business',
     FIRST: 'First Class',
   };
+
+  if (isLoading) return (
+    <div className="w-full flex items-center justify-center py-32">
+      <div className="text-center">
+        <div className="w-12 h-12 border-4 border-red border-t-transparent rounded-full animate-spin mx-auto mb-4" />
+        <p className="text-gray-500 font-medium">Đang tìm chuyến bay...</p>
+      </div>
+    </div>
+  );
+
+  if (isError) return (
+    <div className="w-full flex items-center justify-center py-32">
+      <div className="text-center">
+        <p className="text-2xl mb-2">✈️</p>
+        <p className="text-gray-700 font-bold">Không thể tải chuyến bay</p>
+        <p className="text-gray-400 text-sm mt-1">Vui lòng thử lại sau.</p>
+      </div>
+    </div>
+  );
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
@@ -155,9 +168,21 @@ export const FlightResults = () => {
             <div className="mb-8">
               <h3 className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-4">Hãng bay</h3>
               <div className="space-y-3">
-                <Checkbox label="Vietnam Airlines" id="a-1" defaultChecked />
-                <Checkbox label="VietJet Air" id="a-2" defaultChecked />
-                <Checkbox label="Bamboo Airways" id="a-3" defaultChecked />
+                {/* Dynamic từ dữ liệu API thực — không hardcode */}
+                {airlineOptions.map((airline) => (
+                  <div key={airline.airlineId} className="flex items-center gap-3">
+                    <input
+                      type="checkbox"
+                      id={`a-${airline.airlineId}`}
+                      checked={selectedAirlines.length === 0 || selectedAirlines.includes(String(airline.airlineId))}
+                      onChange={() => toggleAirline(String(airline.airlineId))}
+                      className="w-4 h-4 accent-red-600"
+                    />
+                    <label htmlFor={`a-${airline.airlineId}`} className="text-sm cursor-pointer font-medium text-gray-600">
+                      {airline.airlineName}
+                    </label>
+                  </div>
+                ))}
               </div>
             </div>
 
@@ -191,26 +216,43 @@ export const FlightResults = () => {
             <div>
               <h1 className="text-3xl font-black tracking-tight text-gray-900">Chuyến bay có sẵn</h1>
               <p className="text-sm text-gray-500 font-medium mt-1">
-                Tìm thấy {mockFlights.length} chuyến bay phù hợp.
+                Tìm thấy {filteredFlights.length} chuyến bay phù hợp.
               </p>
             </div>
             <div className="flex items-center gap-2 mt-4 sm:mt-0 text-sm font-semibold text-gray-600">
               <span className="uppercase text-[10px] font-bold text-gray-400 tracking-widest">Sắp xếp:</span>
-              <div className="flex items-center gap-1 cursor-pointer hover:text-gray-900">
+              <button
+                onClick={() => setSortBy('price')}
+                className={`flex items-center gap-1 cursor-pointer hover:text-gray-900 ${sortBy === 'price' ? 'text-red font-bold' : ''}`}
+              >
                 Giá thấp nhất <ChevronDown className="w-4 h-4" />
-              </div>
+              </button>
+              <button
+                onClick={() => setSortBy('departure')}
+                className={`flex items-center gap-1 cursor-pointer hover:text-gray-900 ${sortBy === 'departure' ? 'text-red font-bold' : ''}`}
+              >
+                Giờ bay <ChevronDown className="w-4 h-4" />
+              </button>
             </div>
           </div>
 
-          <div className="space-y-5">
-            {mockFlights.map((flight) => (
-              <FlightResultCard
-                key={flight.flightId}
-                flight={flight}
-                onSelect={() => navigate(`/detail/${flight.flightId}`)}
-              />
-            ))}
-          </div>
+          {filteredFlights.length === 0 ? (
+            <div className="text-center py-20">
+              <p className="text-2xl mb-2">🔍</p>
+              <p className="text-gray-700 font-bold">Không tìm thấy chuyến bay</p>
+              <p className="text-gray-400 text-sm mt-1">Thử thay đổi bộ lọc hoặc tìm kiếm lại.</p>
+            </div>
+          ) : (
+            <div className="space-y-5">
+              {filteredFlights.map((flight) => (
+                <FlightResultCard
+                  key={flight.flightId}
+                  flight={flight}
+                  onSelect={() => navigate(`/detail/${flight.flightId}`)}
+                />
+              ))}
+            </div>
+          )}
         </main>
       </div>
     </div>
@@ -286,9 +328,8 @@ const Checkbox = ({ id, label, defaultChecked = false }: { id: string; label: st
 );
 
 const StepDot = ({ done, active, label }: { done?: boolean; active?: boolean; label: string }) => (
-  <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center relative z-10 ${
-    done ? 'bg-red text-white' : active ? 'bg-white border-2 border-red text-red' : 'bg-white border-2 border-gray-200 text-gray-400'
-  }`}>
+  <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center relative z-10 ${done ? 'bg-red text-white' : active ? 'bg-white border-2 border-red text-red' : 'bg-white border-2 border-gray-200 text-gray-400'
+    }`}>
     {done ? '✓' : label}
   </div>
 );

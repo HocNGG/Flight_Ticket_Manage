@@ -1,8 +1,21 @@
-import { Outlet, Link, useLocation } from 'react-router-dom';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
 
 const MainLayout = () => {
   const location = useLocation();
+  const navigate = useNavigate();
   const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
+
+  // Đọc từ Zustand — tự động re-render ngay khi login/logout
+  const { isAuthenticated, user, logout } = useAuthStore();
+
+  const handleLogout = () => {
+    logout();
+    navigate('/login');
+  };
+
+  // Lấy chữ cái đầu của tên để làm avatar
+  const avatarLetter = user?.fullName?.charAt(0).toUpperCase() ?? 'U';
 
   return (
     <div className="min-h-screen flex flex-col bg-surface">
@@ -22,17 +35,35 @@ const MainLayout = () => {
             </nav>
           )}
 
-          {!isAuthPage ? (
+          {/* Góc phải: thay đổi theo trạng thái đăng nhập */}
+          {isAuthPage ? (
+            <Link to="/search" className="text-sm font-semibold text-red">Back to Search</Link>
+          ) : isAuthenticated ? (
+            // ✅ Đã đăng nhập: hiện avatar + tên + Logout
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-red text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                {avatarLetter}
+              </div>
+              <span className="text-sm font-semibold text-gray-800 hidden md:block">
+                {user?.fullName ?? 'Traveler'}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-xs font-bold text-gray-400 hover:text-red transition-colors uppercase tracking-widest"
+              >
+                Logout
+              </button>
+            </div>
+          ) : (
+            // ❌ Chưa đăng nhập: nút Login
             <Link to="/login" className="bg-red text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-reddark transition-colors">
               Login
             </Link>
-          ) : (
-            <Link to="/search" className="text-sm font-semibold text-red">Back to Search</Link>
           )}
         </div>
       </header>
 
-      {/* Main Content (Outlet renders the child routes) */}
+      {/* Main Content */}
       <main className="flex-1 w-full bg-surface">
         <Outlet />
       </main>

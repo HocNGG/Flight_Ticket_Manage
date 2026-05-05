@@ -1,6 +1,7 @@
 import { ArrowLeft, ArrowRight, KeyRound, Mail } from 'lucide-react';
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useRequestPasswordReset, useResetPassword } from '../../hooks/useAuth';
 
 type Step = 'request' | 'reset' | 'success';
 
@@ -11,43 +12,38 @@ export const ForgotPassword = () => {
   const [otp, setOtp] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
+  const requestMutation = useRequestPasswordReset();
+  const resetMutation = useResetPassword();
 
-  const handleRequestReset = async (e: React.FormEvent) => {
+  // Mỗi step có error message riêng biệt từ server
+  const requestErrorMsg = requestMutation.error
+    ? (requestMutation.error as any)?.response?.data?.message || 'Không tìm thấy email. Vui lòng kiểm tra lại.'
+    : '';
+  const resetErrorMsg = resetMutation.error
+    ? (resetMutation.error as any)?.response?.data?.message || 'OTP không hợp lệ hoặc đã hết hạn.'
+    : '';
+  // Local validation error (password mismatch) — không dùng mutation vì check client-side
+  const [confirmError, setConfirmError] = useState('');
+
+  const handleRequestReset = (e: React.FormEvent) => {
     e.preventDefault();
-    setLoading(true);
-    setError('');
-    try {
-      // API: POST /api/auth/request-password-reset?email={email}
-      // Response: { success: true, message: "Password reset OTP sent to email..." }
-      // await authService.requestPasswordReset(email);
-      setStep('reset');
-    } catch {
-      setError('Không tìm thấy email. Vui lòng kiểm tra lại.');
-    } finally {
-      setLoading(false);
-    }
+    requestMutation.reset();
+    requestMutation.mutate(email, {
+      onSuccess: () => setStep('reset'),
+    });
   };
 
-  const handleResetPassword = async (e: React.FormEvent) => {
+  const handleResetPassword = (e: React.FormEvent) => {
     e.preventDefault();
+    setConfirmError('');
     if (newPassword !== confirmPassword) {
-      setError('Mật khẩu xác nhận không khớp.');
+      setConfirmError('Mật khẩu xác nhận không khớp.'); // local validation
       return;
     }
-    setLoading(true);
-    setError('');
-    try {
-      // API: POST /api/auth/reset-password?email={email}&otp={otp}&newPassword={newPassword}
-      // Response: { success: true, message: "Password reset successful..." }
-      // await authService.resetPassword({ email, otp, newPassword });
-      setStep('success');
-    } catch {
-      setError('OTP không hợp lệ hoặc đã hết hạn. Vui lòng thử lại.');
-    } finally {
-      setLoading(false);
-    }
+    resetMutation.reset();
+    resetMutation.mutate({ email, otp, newPassword }, {
+      onSuccess: () => setStep('success'),
+    });
   };
 
   return (
@@ -88,8 +84,8 @@ export const ForgotPassword = () => {
             </p>
 
             <form className="space-y-6" onSubmit={handleRequestReset}>
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">{error}</div>
+              {requestErrorMsg && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">{requestErrorMsg}</div>
               )}
 
               <div>
@@ -106,10 +102,10 @@ export const ForgotPassword = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={requestMutation.isPending}
                 className="w-full bg-red text-white hover:bg-reddark transition-colors rounded-full h-14 font-bold text-sm tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-red/20 disabled:opacity-60"
               >
-                {loading ? 'Sending OTP...' : 'Send OTP'}
+                {requestMutation.isPending ? 'Sending OTP...' : 'Send OTP'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
@@ -135,8 +131,10 @@ export const ForgotPassword = () => {
             <p className="text-xs text-gray-400 mb-8">Check your inbox and spam folder.</p>
 
             <form className="space-y-5" onSubmit={handleResetPassword}>
-              {error && (
-                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">{error}</div>
+              {(resetErrorMsg || confirmError) && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">
+                  {confirmError || resetErrorMsg}
+                </div>
               )}
 
               <div>
@@ -179,10 +177,10 @@ export const ForgotPassword = () => {
 
               <button
                 type="submit"
-                disabled={loading}
+                disabled={resetMutation.isPending}
                 className="w-full bg-red text-white hover:bg-reddark transition-colors rounded-full h-14 font-bold text-sm tracking-wider flex items-center justify-center gap-2 shadow-lg shadow-red/20 disabled:opacity-60 mt-2"
               >
-                {loading ? 'Resetting...' : 'Reset Password'}
+                {resetMutation.isPending ? 'Resetting...' : 'Reset Password'}
                 <ArrowRight className="w-4 h-4" />
               </button>
             </form>
