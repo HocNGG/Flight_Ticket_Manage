@@ -9,6 +9,16 @@ import CabinInput from '../../../components/customer/search/CabinInput';
 import { useAirports } from '../../../hooks/useFlights';
 import { useSearchStore } from '../../../store/useSearchStore';
 
+const toAirportCode = (value: string) => {
+  const trimmed = value.trim();
+  const codeInBracket = trimmed.match(/\(([A-Za-z]{3})\)\s*$/);
+  if (codeInBracket) return codeInBracket[1].toUpperCase();
+  if (/^[A-Za-z]{3}$/.test(trimmed)) return trimmed.toUpperCase();
+  return '';
+};
+
+const getTodayDate = () => new Date().toISOString().slice(0, 10);
+
 export const FlightSearch = () => {
   const navigate = useNavigate();
   const { setSearchParams } = useSearchStore();
@@ -26,17 +36,27 @@ export const FlightSearch = () => {
   // airports & airportOptions sẽ dùng khi DropdownInputOff được nâng cấp nhận prop options
 
   // canSearch: không cho search khi airports chưa tải hoặc form chưa điền đủ
-  const canSearch = !loadingAirports && departure !== '' && arrival !== '' && departure !== arrival && departureDate !== '';
+  const departureCode = toAirportCode(departure);
+  const arrivalCode = toAirportCode(arrival);
+  const isValidDate = departureDate !== '' && departureDate >= getTodayDate();
+  const canSearch = !loadingAirports
+    && departureCode !== ''
+    && arrivalCode !== ''
+    && departureCode !== arrivalCode
+    && isValidDate;
 
   const handleSearch = () => {
-    const params = { departure, arrival, departureDate, passengerCount, seatClass };
+    if (!canSearch) return;
+    const params = { departure: departureCode, arrival: arrivalCode, departureDate, passengerCount, seatClass };
 
     // Lưu vào Zustand để FlightResults + FlightDetail dùng lại
     setSearchParams(params);
 
     // Navigate với URL params — user có thể F5 hoặc copy link
     const query = new URLSearchParams({
-      departure, arrival, departureDate,
+      departure: departureCode,
+      arrival: arrivalCode,
+      departureDate,
       passengerCount: String(passengerCount),
       seatClass,
     });

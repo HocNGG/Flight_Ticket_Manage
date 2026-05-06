@@ -1,13 +1,27 @@
 import { Plane, ArrowRight, ChevronDown } from 'lucide-react';
 import { useState, useMemo } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { useSearchFlights } from '../../../hooks/useFlights';
+import { useAllFlights, useSearchFlights } from '../../../hooks/useFlights';
 import { useSearchStore } from '../../../store/useSearchStore';
 import type { FlightResult } from '../../../api/types';
+
+const toAirportCode = (value: string) => {
+  const trimmed = value.trim();
+  const codeInBracket = trimmed.match(/\(([A-Za-z]{3})\)\s*$/);
+  if (codeInBracket) return codeInBracket[1].toUpperCase();
+  if (/^[A-Za-z]{3}$/.test(trimmed)) return trimmed.toUpperCase();
+  return trimmed.toUpperCase();
+};
 
 const formatTime = (iso: string) => {
   const d = new Date(iso);
   return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
+
+const formatFlightDate = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
 };
 
 const formatPrice = (price: number) =>
@@ -19,8 +33,9 @@ export const FlightResults = () => {
   const { searchParams: storedParams } = useSearchStore();
 
   // Local UI state — chỉ dùng trong trang này
-  const [sortBy, setSortBy] = useState<'price' | 'departure'>('price');
+  const [sortBy, setSortBy] = useState<'price' | 'departure'>('departure');
   const [selectedAirlines, setSelectedAirlines] = useState<string[]>([]);
+  const [isShowingAllFlights, setIsShowingAllFlights] = useState(false);
 
   // useMemo: ưu tiên URL params (F5 vẫn chạy), fallback về Zustand store
   const queryParams = useMemo(() => {
@@ -29,28 +44,41 @@ export const FlightResults = () => {
     const date = urlParams.get('departureDate');
     if (dep && arr && date) {
       return {
-        departure: dep,
-        arrival: arr,
+        departure: toAirportCode(dep),
+        arrival: toAirportCode(arr),
         departureDate: date,
         passengerCount: Number(urlParams.get('passengerCount')) || 1,
         seatClass: (urlParams.get('seatClass') || 'ECONOMY') as 'ECONOMY' | 'BUSINESS' | 'FIRST',
       };
     }
-    return storedParams;
+    return storedParams
+      ? {
+        ...storedParams,
+        departure: toAirportCode(storedParams.departure),
+        arrival: toAirportCode(storedParams.arrival),
+      }
+      : null;
   }, [urlParams, storedParams]);
 
   // React Query: gọi API, cache riêng theo từng bộ queryParams
   const { data: flights = [], isLoading, isError } = useSearchFlights(queryParams);
+  const {
+    data: allFlights = [],
+    refetch: refetchAllFlights,
+    isFetching: isFetchingAllFlights,
+  } = useAllFlights();
+
+  const sourceFlights = isShowingAllFlights ? allFlights : flights;
 
   // useMemo: extract danh sách hãng bay duy nhất từ kết quả thực
   const airlineOptions = useMemo(
-    () => [...new Map(flights.map((f) => [f.airline.airlineId, f.airline])).values()],
-    [flights]
+    () => [...new Map(sourceFlights.map((f) => [f.airline.airlineId, f.airline])).values()],
+    [sourceFlights]
   );
 
   // useMemo: filter + sort client-side — không gọi thêm API
   const filteredFlights = useMemo(() => {
-    let result = [...flights];
+    let result = [...sourceFlights];
     if (selectedAirlines.length > 0) {
       result = result.filter((f) => selectedAirlines.includes(String(f.airline.airlineId)));
     }
@@ -60,14 +88,22 @@ export const FlightResults = () => {
       return 0;
     });
     return result;
-  }, [flights, selectedAirlines, sortBy]);
+  }, [sourceFlights, selectedAirlines, sortBy]);
 
   const toggleAirline = (id: string) =>
     setSelectedAirlines((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
 
+  const handleShowAllFlights = async () => {
+    const result = await refetchAllFlights();
+    if ((result.data ?? []).length > 0) {
+      setSelectedAirlines([]);
+      setIsShowingAllFlights(true);
+    }
+  };
+
   // Đọc URL params để hiển thị Search Summary Bar
-  const departure = urlParams.get('departure') || queryParams?.departure || '';
-  const arrival = urlParams.get('arrival') || queryParams?.arrival || '';
+  const departure = queryParams?.departure || '';
+  const arrival = queryParams?.arrival || '';
   const departureDateParam = urlParams.get('departureDate') || queryParams?.departureDate || '';
   const passengerCount = urlParams.get('passengerCount') || String(queryParams?.passengerCount || 1);
   const seatClass = urlParams.get('seatClass') || queryParams?.seatClass || 'ECONOMY';
@@ -216,7 +252,9 @@ export const FlightResults = () => {
             <div>
               <h1 className="text-3xl font-black tracking-tight text-gray-900">Chuyến bay có sẵn</h1>
               <p className="text-sm text-gray-500 font-medium mt-1">
-                Tìm thấy {filteredFlights.length} chuyến bay phù hợp.
+                {isShowingAllFlights
+                  ? `Hiển thị toàn bộ ${filteredFlights.length} chuyến bay khả dụng.`
+                  : `Tìm thấy ${filteredFlights.length} chuyến bay phù hợp.`}
               </p>
             </div>
             <div className="flex items-center gap-2 mt-4 sm:mt-0 text-sm font-semibold text-gray-600">
@@ -241,6 +279,16 @@ export const FlightResults = () => {
               <p className="text-2xl mb-2">🔍</p>
               <p className="text-gray-700 font-bold">Không tìm thấy chuyến bay</p>
               <p className="text-gray-400 text-sm mt-1">Thử thay đổi bộ lọc hoặc tìm kiếm lại.</p>
+              <button
+                onClick={handleShowAllFlights}
+                disabled={isFetchingAllFlights}
+                className={`mt-5 rounded-full px-6 py-2.5 text-sm font-bold transition-colors ${isFetchingAllFlights
+                  ? 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  : 'bg-red text-white hover:bg-reddark'
+                  }`}
+              >
+                {isFetchingAllFlights ? 'Đang tải toàn bộ chuyến bay...' : 'Hiển thị toàn bộ chuyến bay'}
+              </button>
             </div>
           ) : (
             <div className="space-y-5">
@@ -284,15 +332,18 @@ const FlightResultCard = ({
         <div className="text-2xl font-black text-gray-900">{formatTime(flight.departureTime)}</div>
         <div className="text-sm text-gray-500 font-medium">{flight.departureAirport.code}</div>
         <div className="text-[10px] text-gray-400">{flight.departureAirport.name}</div>
+        <div className="text-[10px] text-red font-bold mt-1">
+          Ngày đi: {formatFlightDate(flight.departureTime)}
+        </div>
       </div>
 
       {/* Duration */}
       <div className="flex-1 min-w-[140px] px-4 flex flex-col items-center justify-center">
-        <span className="text-[10px] font-bold text-gold mb-1">{flight.duration}</span>
-        <div className="w-full h-0.5 bg-red relative flex items-center">
-          <Plane className="w-3 h-3 text-red absolute left-1/2 -translate-x-1/2 -translate-y-1/2" />
+        <span className="text-[10px] font-bold text-gold mb-3">{flight.duration}</span>
+        <div className="w-full h-0.5 bg-red relative flex items-center mt-1">
+          <Plane className="w-4 h-4 text-red absolute left-1/2 -translate-x-1/2 -translate-y-1/2" />
         </div>
-        <span className="text-[10px] font-bold text-red mt-1">NON-STOP</span>
+        <span className="text-[15px] font-semibold text-gray-400 mt-1">NON-STOP</span>
       </div>
 
       {/* Arrival */}
@@ -300,6 +351,9 @@ const FlightResultCard = ({
         <div className="text-2xl font-black text-gray-900">{formatTime(flight.arrivalTime)}</div>
         <div className="text-sm text-gray-500 font-medium">{flight.arrivalAirport.code}</div>
         <div className="text-[10px] text-gray-400">{flight.arrivalAirport.name}</div>
+        <div className="text-[10px] text-red font-bold mt-1">
+          Ngày đến: {formatFlightDate(flight.arrivalTime)}
+        </div>
       </div>
     </div>
 

@@ -15,50 +15,20 @@ import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
 import { amenities } from '../../../data/flightAmen';
+import { useFlightDetail } from '../../../hooks/useFlights';
+import type { FlightResult } from '../../../api/types';
 
-// API response types
-// GET /api/flights/{id}
-type FlightDetail = {
-  flightId: number;
-  flightCode: string;
-  departureTime: string;
-  arrivalTime: string;
-  basePrice: number;
-  availableSeats: number;
-  airline: { airlineId: number; airlineName: string };
-  aircraft: { aircraftId: number; model: string; totalSeats: number };
-  departureAirport: { code: string; name: string };
-  arrivalAirport: { code: string; name: string };
-  duration: string;
-};
-
-// API: GET /api/seat-classes
 type SeatClassOption = {
   seatClassId: number;
-  className: string; // ECONOMY | BUSINESS | FIRST
+  className: 'ECONOMY' | 'BUSINESS' | 'FIRST';
   description: string;
-  basePrice: number;
-};
-
-// Mock data theo API response structure
-const mockFlight: FlightDetail = {
-  flightId: 1,
-  flightCode: 'VN001',
-  departureTime: '2024-03-20T08:00:00',
-  arrivalTime: '2024-03-20T10:00:00',
-  basePrice: 2500000,
-  availableSeats: 45,
-  airline: { airlineId: 1, airlineName: 'Vietnam Airlines' },
-  aircraft: { aircraftId: 1, model: 'Boeing 787', totalSeats: 300 },
-  departureAirport: { code: 'SGN', name: 'Sân bay Tân Sơn Nhất' },
-  arrivalAirport: { code: 'HAN', name: 'Sân bay Nội Bài' },
-  duration: '2 giờ',
+  multiplier: number;
 };
 
 const seatClassOptions: SeatClassOption[] = [
-  { seatClassId: 1, className: 'ECONOMY', description: 'Hạng phổ thông', basePrice: 2500000 },
-  { seatClassId: 2, className: 'BUSINESS', description: 'Hạng thương gia', basePrice: 5000000 },
-  { seatClassId: 3, className: 'FIRST', description: 'Hạng nhất', basePrice: 9000000 },
+  { seatClassId: 1, className: 'ECONOMY', description: 'Hạng phổ thông', multiplier: 1 },
+  { seatClassId: 2, className: 'BUSINESS', description: 'Hạng thương gia', multiplier: 2 },
+  { seatClassId: 3, className: 'FIRST', description: 'Hạng nhất', multiplier: 3.6 },
 ];
 
 const formatTime = (iso: string) =>
@@ -72,13 +42,27 @@ const formatPrice = (price: number) =>
 
 export const FlightDetail = () => {
   const navigate = useNavigate();
-  const { id } = useParams<{ id: string }>(); // flightId thực từ URL /detail/:id
+  const { id } = useParams<{ id: string }>();
   const [selectedClass, setSelectedClass] = useState<SeatClassOption>(seatClassOptions[0]);
+  const { data: flight, isLoading, isError } = useFlightDetail(id);
 
-  // TODO: fetch `GET /api/flights/${id}` và `GET /api/seat-classes`
-  const flight = mockFlight;
+  if (isLoading) {
+    return (
+      <div className="flex items-center justify-center py-32">
+        <div className="w-10 h-10 border-4 border-red border-t-transparent rounded-full animate-spin" />
+      </div>
+    );
+  }
 
-  const totalPrice = selectedClass.basePrice;
+  if (isError || !flight) {
+    return (
+      <div className="text-center py-32">
+        <p className="text-gray-700 font-bold">Không thể tải thông tin chuyến bay</p>
+      </div>
+    );
+  }
+
+  const totalPrice = flight.basePrice * selectedClass.multiplier;
 
   const handleBook = () => {
     // Navigate sang SeatSelection với state đúng API: flightId + seatClass
@@ -91,7 +75,7 @@ export const FlightDetail = () => {
         arrivalAirport: flight.arrivalAirport,
         departureTime: flight.departureTime,
         arrivalTime: flight.arrivalTime,
-        basePrice: selectedClass.basePrice,
+        basePrice: totalPrice,
       },
     });
   };
@@ -233,7 +217,7 @@ export const FlightDetail = () => {
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-sm text-gray-900">{cls.description}</span>
-                      <span className="text-xs font-bold text-red">{formatPrice(cls.basePrice)}</span>
+                      <span className="text-xs font-bold text-red">{formatPrice(flight.basePrice * cls.multiplier)}</span>
                     </div>
                     <p className="text-[11px] text-gray-500 mt-0.5">{cls.className}</p>
                   </button>

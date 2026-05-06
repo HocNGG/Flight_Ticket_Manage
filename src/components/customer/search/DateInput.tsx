@@ -8,6 +8,8 @@ type DateInputProps = {
 };
 
 const DateInput = ({ departureDate, returnDate, onDepartureDateChange, onReturnDateChange }: DateInputProps) => {
+  const today = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
       <div>
@@ -16,6 +18,7 @@ const DateInput = ({ departureDate, returnDate, onDepartureDateChange, onReturnD
           <input
             type="date"
             value={departureDate}
+            min={today}
             onChange={(e) => onDepartureDateChange(e.target.value)}
             className="w-full bg-surface rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
           />
@@ -28,6 +31,7 @@ const DateInput = ({ departureDate, returnDate, onDepartureDateChange, onReturnD
           <input
             type="date"
             value={returnDate}
+            min={departureDate || today}
             onChange={(e) => onReturnDateChange(e.target.value)}
             className="w-full bg-surface rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-dark focus:outline-none focus:ring-2 focus:ring-red/20 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
           />
