@@ -1,77 +1,108 @@
 // hooks/useSeatSelection.ts
-// Hook tùy chỉnh để quản lý logic chọn ghế và xây dựng danh sách ghế
-// Tách logic ra khỏi component để dễ test và tái sử dụng
+// Hook quản lý logic chọn ghế — nhận dữ liệu thực từ API thay vì mock tĩnh
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Seat, SeatStatus } from '../components/customer/booking/Seat';
 import type { SeatClassCode } from '../data/flightSeat';
-import { seatLayout, rows, initialSeats, buildSeat, getSeatClassByRow, seatClasses } from '../data/flightSeat';
+import type { SeatItem } from '../api/types';
+import { mapApiSeatClass } from '../data/flightSeat';
 
 type SeatRow = {
   rowNumber: number;
   seats: Array<Seat | null>;
 };
 
-export const useSeatSelection = (selectedSeatClass: SeatClassCode) => {
+// Chuyển API SeatItem → internal Seat object cho SeatButton
+const apiSeatToSeat = (s: SeatItem): Seat => {
+  const status: SeatStatus = s.status === 'BOOKED' ? 'booked' : 'available';
+  return {
+    id: s.seatNumber,
+    status,
+    price: s.price,
+    seatClass: mapApiSeatClass(s.seatClass),
+    occupied: status === 'booked',
+    flightSeatId: s.flightSeatId,
+  };
+};
+
+// Nhóm ghế API vào rows để render sơ đồ máy bay
+const buildRowsFromApiSeats = (apiSeats: SeatItem[]): SeatRow[] => {
+  // Nhóm theo rowNumber (số đầu của seatNumber: "20F" → row 20)
+  const rowMap = new Map<number, Seat[]>();
+
+  for (const s of apiSeats) {
+    const match = s.seatNumber.match(/^(\d+)/);
+    const rowNum = match ? parseInt(match[1], 10) : 0;
+    if (!rowMap.has(rowNum)) rowMap.set(rowNum, []);
+    rowMap.get(rowNum)!.push(apiSeatToSeat(s));
+  }
+
+  // Sắp xếp theo row số
+  const sortedRows = [...rowMap.entries()].sort(([a], [b]) => a - b);
+
+  return sortedRows.map(([rowNumber, seats]) => {
+    // Sắp xếp ghế trong hàng theo chữ cái (A, B, C, D, E, F)
+    const sorted = seats.sort((a, b) => {
+      const aLetter = a.id.replace(/^\d+/, '');
+      const bLetter = b.id.replace(/^\d+/, '');
+      return aLetter.localeCompare(bLetter);
+    });
+
+    // Build với aisle null nếu có cả 2 nhóm ABC và DEF
+    const letters = sorted.map((s) => s.id.replace(/^\d+/, ''));
+    const hasLeft = letters.some((l) => ['A', 'B', 'C'].includes(l));
+    const hasRight = letters.some((l) => ['D', 'E', 'F'].includes(l));
+    const needsAisle = hasLeft && hasRight;
+
+    const leftSeats = sorted.filter((s) => ['A', 'B', 'C'].includes(s.id.replace(/^\d+/, '')));
+    const rightSeats = sorted.filter((s) => ['D', 'E', 'F'].includes(s.id.replace(/^\d+/, '')));
+
+    const rowSeats: Array<Seat | null> = needsAisle
+      ? [...leftSeats, null, ...rightSeats]
+      : sorted;
+
+    return { rowNumber, seats: rowSeats };
+  });
+};
+
+export const useSeatSelection = (
+  selectedSeatClass: SeatClassCode,
+  _flightBasePrice = 0,           // kept for API compat, price now comes from API
+  apiSeats: SeatItem[] = [],
+) => {
   const [selectedSeat, setSelectedSeat] = useState<string>('');
+  const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
 
-  // Xây dựng danh sách ghế cho toàn bộ máy bay
-  // Sử dụng useMemo để chỉ tính toán lại khi dependencies thay đổi
-  const seatRows = useMemo(() => {
-    const seatMap: SeatRow[] = [];
-
-    // Duyệt qua từng hàng (1 đến rows)
-    for (let row = 1; row <= rows; row += 1) {
-      // Tạo mảng ghế cho hàng này dựa trên seatLayout
-      const rowSeatClass = getSeatClassByRow(row);
-      const rowSeats = seatLayout.map((letter) => {
-        if (letter === '_') {
-          return null; // Vị trí aisle (khoảng trống giữa ghế)
-        }
-
-        const id = `${row}${letter}`; // Tạo id ghế (vd: 1A, 2B, ...)
-        const sample = initialSeats.find((seat) => seat.id === id); // Tìm dữ liệu mẫu
-        const status = (sample?.status as SeatStatus) ?? 'available'; // Mặc định available
-        const classBasePrice = seatClasses.find((item) => item.code === rowSeatClass)?.basePrice ?? 0;
-        const price = sample?.price ?? classBasePrice; // Mặc định theo hạng ghế
-
-        return buildSeat(id, status, price, rowSeatClass); // Tạo object Seat
-      });
-
-      seatMap.push({ rowNumber: row, seats: rowSeats }); // Thêm hàng vào seatMap
-    }
-
-    return seatMap; // Trả về mảng 2 chiều [hàng][ghế]
-  }, []); // Dependencies rỗng vì dữ liệu tĩnh
-
-  // Hàm xử lý chọn ghế: chỉ cho phép chọn ghế available
+  // Reset khi đổi hạng ghế
   useEffect(() => {
     setSelectedSeat('');
+    setSelectedSeatId(null);
   }, [selectedSeatClass]);
+
+  // Build rows từ API seats, lọc theo hạng được chọn
+  const seatRows = useMemo(() => {
+    if (apiSeats.length === 0) return [];
+    const filtered = apiSeats.filter(
+      (s) => mapApiSeatClass(s.seatClass) === selectedSeatClass,
+    );
+    return buildRowsFromApiSeats(filtered);
+  }, [apiSeats, selectedSeatClass]);
 
   const handleSelectSeat = (seat: Seat) => {
     if (seat.seatClass !== selectedSeatClass) return;
-    if (seat.status !== 'available') return; // Bỏ qua nếu không available
-    setSelectedSeat(seat.id); // Cập nhật state
+    if (seat.status !== 'available') return;
+    setSelectedSeat(seat.id);
+    setSelectedSeatId((seat as any).flightSeatId ?? null);
   };
 
-  const filteredRows = useMemo(
-    () =>
-      seatRows.filter(({ rowNumber }) => {
-        const rowClass = getSeatClassByRow(rowNumber);
-        return rowClass === selectedSeatClass;
-      }),
-    [seatRows, selectedSeatClass],
-  );
-
-  // Label hiển thị trạng thái ghế đã chọn
   const seatStatusLabel = selectedSeat
-    ? `Selected seat ${selectedSeat} (${selectedSeatClass})`
-    : `Select a ${selectedSeatClass} seat`;
+    ? `Ghế đã chọn: ${selectedSeat} (${selectedSeatClass})`
+    : `Chọn ghế hạng ${selectedSeatClass}`;
 
   return {
     selectedSeat,
-    seatRows: filteredRows,
+    selectedSeatId,
+    seatRows,
     handleSelectSeat,
     seatStatusLabel,
   };

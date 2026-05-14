@@ -11,7 +11,7 @@ export type SeatClassConfig = {
   label: string;
   rowStart: number;
   rowEnd: number;
-  basePrice: number;
+  priceMultiplier: number;  // Hệ số nhân giá: giá ghế = flight.basePrice × priceMultiplier
 };
 
 // Layout ghế: A B C (aisle) D E F - đại diện cho vị trí ghế trong máy bay
@@ -21,9 +21,9 @@ export const seatLayout = ['A', 'B', 'C', '_', 'D', 'E', 'F'] as const;
 export const rows = 30;
 
 export const seatClasses: SeatClassConfig[] = [
-  { code: 'first', label: 'Hạng nhất', rowStart: 1, rowEnd: 3, basePrice: 9000000 },
-  { code: 'business', label: 'Thương gia', rowStart: 4, rowEnd: 10, basePrice: 5000000 },
-  { code: 'economy', label: 'Phổ thông', rowStart: 11, rowEnd: 30, basePrice: 2500000 },
+  { code: 'first',    label: 'Hạng nhất', rowStart: 1,  rowEnd: 3,  priceMultiplier: 3.6 },
+  { code: 'business', label: 'Thương gia', rowStart: 4,  rowEnd: 10, priceMultiplier: 2.0 },
+  { code: 'economy',  label: 'Phổ thông',  rowStart: 11, rowEnd: 30, priceMultiplier: 1.0 },
 ];
 
 // Helper: chuyển từ API value (ECONOMY|BUSINESS|FIRST) sang internal SeatClassCode

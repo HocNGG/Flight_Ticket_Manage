@@ -2,75 +2,21 @@
 // Trang quản lý đặt chỗ của Passenger
 // API: GET /api/bookings — lấy danh sách booking của user đang đăng nhập
 
-import { Download, X, Search, ChevronRight, Plane } from 'lucide-react';
-import { useState } from 'react';
+import { Download, X, Search, ChevronRight, Plane, Loader2 } from 'lucide-react';
+import { useState, useMemo } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { useMyBookings, useCancelBooking } from '../../../hooks/useBookings';
+import type { Booking } from '../../../api/types';
 
 // API response types
 // GET /api/bookings
-type BookingStatus = 'PENDING_PAYMENT' | 'PAID' | 'CANCELLED' | 'PENDING_APPROVAL';
-
-type Booking = {
-  bookingId: number;
-  bookingCode: string;
-  flightId: number;
-  flightCode: string;
-  departureAirport: string;
-  arrivalAirport: string;
-  departureTime: string;
-  totalPrice: number;
-  status: BookingStatus;
-  bookingDate: string;
-  passengers: { firstName: string; lastName: string; seatNumber: string }[];
-};
-
-// Mock data theo API response structure
-const mockBookings: Booking[] = [
-  {
-    bookingId: 1,
-    bookingCode: 'BK123456',
-    flightId: 1,
-    flightCode: 'VN001',
-    departureAirport: 'SGN',
-    arrivalAirport: 'HAN',
-    departureTime: '2024-03-20T08:00:00',
-    totalPrice: 2500000,
-    status: 'PAID',
-    bookingDate: '2024-03-15T10:30:00',
-    passengers: [{ firstName: 'Nguyễn', lastName: 'Văn A', seatNumber: '12A' }],
-  },
-  {
-    bookingId: 2,
-    bookingCode: 'BK789012',
-    flightId: 2,
-    flightCode: 'VJ202',
-    departureAirport: 'HAN',
-    arrivalAirport: 'DAD',
-    departureTime: '2024-04-05T14:30:00',
-    totalPrice: 1890000,
-    status: 'PENDING_PAYMENT',
-    bookingDate: '2024-03-20T09:00:00',
-    passengers: [{ firstName: 'Nguyễn', lastName: 'Văn A', seatNumber: '5C' }],
-  },
-  {
-    bookingId: 3,
-    bookingCode: 'BK345678',
-    flightId: 3,
-    flightCode: 'QH305',
-    departureAirport: 'DAD',
-    arrivalAirport: 'SGN',
-    departureTime: '2024-02-10T18:00:00',
-    totalPrice: 3200000,
-    status: 'CANCELLED',
-    bookingDate: '2024-02-01T11:00:00',
-    passengers: [{ firstName: 'Nguyễn', lastName: 'Văn A', seatNumber: '20B' }],
-  },
-];
+type BookingStatus = Booking['status'];
 
 const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string }> = {
-  PAID: { label: 'Đã thanh toán', color: 'text-green-700', bg: 'bg-green-100' },
-  PENDING_PAYMENT: { label: 'Chờ thanh toán', color: 'text-yellow-700', bg: 'bg-yellow-100' },
+  CONFIRMED: { label: 'Đã thanh toán', color: 'text-green-700', bg: 'bg-green-100' },
+  PENDING: { label: 'Chờ thanh toán', color: 'text-yellow-700', bg: 'bg-yellow-100' },
   CANCELLED: { label: 'Đã hủy', color: 'text-red-700', bg: 'bg-red-100' },
-  PENDING_APPROVAL: { label: 'Chờ duyệt hủy', color: 'text-orange-700', bg: 'bg-orange-100' },
 };
 
 const formatPrice = (price: number) =>
@@ -83,40 +29,68 @@ const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
 
 export const MyBookings = () => {
+  const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
-  const [cancelLoading, setCancelLoading] = useState(false);
   const [searchCode, setSearchCode] = useState('');
 
-  const filteredBookings = mockBookings.filter((b) =>
-    b.bookingCode.toLowerCase().includes(searchCode.toLowerCase()) ||
-    b.flightCode.toLowerCase().includes(searchCode.toLowerCase())
+  const { data: bookings = [], isLoading, isError } = useMyBookings();
+  const cancelBooking = useCancelBooking();
+
+  const filteredBookings = useMemo(() =>
+    bookings.filter((b) =>
+      b.bookingCode.toLowerCase().includes(searchCode.toLowerCase()) ||
+      b.flight?.flightNumber.toLowerCase().includes(searchCode.toLowerCase())
+    ),
+    [bookings, searchCode]
   );
 
   const handleDownloadTicket = (booking: Booking) => {
-    // API: GET /api/tickets/download/{bookingId}
-    // Response: application/pdf — file "Airline_ETicket_{bookingId}.pdf"
     alert(`Đang tải vé PDF...\nBooking: ${booking.bookingCode}\nAPI: GET /api/tickets/download/${booking.bookingId}`);
-    // window.open(`/api/tickets/download/${booking.bookingId}`, '_blank');
   };
 
-  const handleCancelRequest = async () => {
+  const handleCancelRequest = () => {
     if (!selectedBooking || !cancelReason.trim()) return;
-    setCancelLoading(true);
-    try {
-      // API: POST /api/bookings/{id}/cancel
-      // Body: { reason, requestedRefundAmount }
-      // Response: { cancelId, status: 'PENDING_APPROVAL' }
-      await new Promise((r) => setTimeout(r, 1000)); // mock delay
-      alert(`Yêu cầu hủy đã được gửi!\nMã booking: ${selectedBooking.bookingCode}\nLý do: ${cancelReason}`);
-      setShowCancelModal(false);
-      setCancelReason('');
-      setSelectedBooking(null);
-    } finally {
-      setCancelLoading(false);
-    }
+
+    cancelBooking.mutate(
+      {
+        bookingId: selectedBooking.bookingId,
+        reason: cancelReason,
+        requestedRefundAmount: selectedBooking.totalPrice,
+      },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: ['myBookings'] });
+          setShowCancelModal(false);
+          setCancelReason('');
+          setSelectedBooking(null);
+          alert('Yêu cầu hủy đã được gửi!');
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message || 'Không thể gửi yêu cầu hủy.';
+          alert(msg);
+        },
+      }
+    );
   };
+
+  if (isLoading) {
+    return (
+      <div className="w-full max-w-[1280px] mx-auto px-6 py-24 flex items-center justify-center">
+        <Loader2 className="w-10 h-10 animate-spin text-red" />
+      </div>
+    );
+  }
+
+  if (isError) {
+    return (
+      <div className="w-full max-w-[1280px] mx-auto px-6 py-24 flex items-center justify-center text-red">
+        Đã có lỗi xảy ra khi tải danh sách đặt chỗ.
+      </div>
+    );
+  }
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-24">
@@ -164,16 +138,15 @@ export const MyBookings = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-1">
-                      <span className="font-black text-gray-900 text-lg">{booking.departureAirport}</span>
+                      <span className="font-black text-gray-900 text-lg">---</span>
                       <ChevronRight className="w-4 h-4 text-gray-400" />
-                      <span className="font-black text-gray-900 text-lg">{booking.arrivalAirport}</span>
+                      <span className="font-black text-gray-900 text-lg">---</span>
                     </div>
                     <p className="text-sm text-gray-500 font-medium">
-                      {booking.flightCode} · {formatDate(booking.departureTime)} lúc {formatTime(booking.departureTime)}
+                      {booking.flight?.flightNumber || '---'} · {booking.flight?.departureTime ? formatDate(booking.flight.departureTime) : '---'} lúc {booking.flight?.departureTime ? formatTime(booking.flight.departureTime) : '---'}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
-                      Ghế: {booking.passengers.map((p) => p.seatNumber).join(', ')} ·
-                      {booking.passengers.map((p) => ` ${p.firstName} ${p.lastName}`).join(', ')}
+                      Liên hệ: {booking.contactName || '---'} - {booking.contactPhone || '---'}
                     </p>
                   </div>
                 </div>
@@ -192,8 +165,8 @@ export const MyBookings = () => {
 
                 {/* Actions */}
                 <div className="flex flex-col gap-2 md:items-end">
-                  {/* Download Ticket — chỉ khi PAID */}
-                  {booking.status === 'PAID' && (
+                  {/* Download Ticket — chỉ khi CONFIRMED */}
+                  {booking.status === 'CONFIRMED' && (
                     <button
                       onClick={() => handleDownloadTicket(booking)}
                       className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
@@ -203,8 +176,8 @@ export const MyBookings = () => {
                     </button>
                   )}
 
-                  {/* Cancel — chỉ khi PAID hoặc PENDING_PAYMENT */}
-                  {(booking.status === 'PAID' || booking.status === 'PENDING_PAYMENT') && (
+                  {/* Cancel — chỉ khi CONFIRMED hoặc PENDING */}
+                  {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
                     <button
                       onClick={() => {
                         setSelectedBooking(booking);
@@ -217,8 +190,18 @@ export const MyBookings = () => {
                     </button>
                   )}
 
-                  {booking.status === 'PENDING_PAYMENT' && (
-                    <button className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors">
+                  {booking.status === 'PENDING' && (
+                    <button
+                      onClick={() => navigate('/booking/payment', {
+                        state: {
+                          bookingId: booking.bookingId,
+                          bookingCode: booking.bookingCode,
+                          totalPrice: booking.totalPrice,
+                          flightCode: booking.flight?.flightNumber,
+                        }
+                      })}
+                      className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
+                    >
                       Thanh toán ngay
                     </button>
                   )}
@@ -274,10 +257,10 @@ export const MyBookings = () => {
               </button>
               <button
                 onClick={handleCancelRequest}
-                disabled={!cancelReason.trim() || cancelLoading}
+                disabled={!cancelReason.trim() || cancelBooking.isPending}
                 className="flex-1 bg-red text-white hover:bg-reddark font-bold py-3 rounded-xl text-sm transition-colors disabled:opacity-60"
               >
-                {cancelLoading ? 'Đang gửi...' : 'Gửi yêu cầu hủy'}
+                {cancelBooking.isPending ? 'Đang gửi...' : 'Gửi yêu cầu hủy'}
               </button>
             </div>
           </div>

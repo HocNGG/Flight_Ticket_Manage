@@ -15,21 +15,9 @@ import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
 import { amenities } from '../../../data/flightAmen';
-import { useFlightDetail } from '../../../hooks/useFlights';
-import type { FlightResult } from '../../../api/types';
+import { useFlightDetail, useSeatClasses } from '../../../hooks/useFlights';
+import type { SeatClass } from '../../../api/types';
 
-type SeatClassOption = {
-  seatClassId: number;
-  className: 'ECONOMY' | 'BUSINESS' | 'FIRST';
-  description: string;
-  multiplier: number;
-};
-
-const seatClassOptions: SeatClassOption[] = [
-  { seatClassId: 1, className: 'ECONOMY', description: 'Hạng phổ thông', multiplier: 1 },
-  { seatClassId: 2, className: 'BUSINESS', description: 'Hạng thương gia', multiplier: 2 },
-  { seatClassId: 3, className: 'FIRST', description: 'Hạng nhất', multiplier: 3.6 },
-];
 
 const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
@@ -43,10 +31,11 @@ const formatPrice = (price: number) =>
 export const FlightDetail = () => {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const [selectedClass, setSelectedClass] = useState<SeatClassOption>(seatClassOptions[0]);
+  const [selectedClass, setSelectedClass] = useState<SeatClass | null>(null);
   const { data: flight, isLoading, isError } = useFlightDetail(id);
+  const { data: seatClasses, isLoading: isLoadingSeatClasses } = useSeatClasses();
 
-  if (isLoading) {
+  if (isLoading || isLoadingSeatClasses) {
     return (
       <div className="flex items-center justify-center py-32">
         <div className="w-10 h-10 border-4 border-red border-t-transparent rounded-full animate-spin" />
@@ -62,20 +51,22 @@ export const FlightDetail = () => {
     );
   }
 
-  const totalPrice = flight.basePrice * selectedClass.multiplier;
+  // Lấy class được chọn (mặc định ECONOMY)
+  const activeClasses = seatClasses ?? [];
+  const currentClass = selectedClass ?? activeClasses.find((c) => c.className === 'ECONOMY') ?? activeClasses[0];
+  const totalPrice = flight.basePrice * (currentClass?.priceMultiplier ?? 1);
 
   const handleBook = () => {
-    // Navigate sang SeatSelection với state đúng API: flightId + seatClass
     navigate('/booking/seat', {
       state: {
         flightId: id || flight.flightId,
-        seatClass: selectedClass.className,
+        seatClass: currentClass?.className ?? 'ECONOMY',
         flightCode: flight.flightCode,
         departureAirport: flight.departureAirport,
         arrivalAirport: flight.arrivalAirport,
         departureTime: flight.departureTime,
         arrivalTime: flight.arrivalTime,
-        basePrice: totalPrice,
+        basePrice: flight.basePrice, // truyền basePrice gốc, SeatSelection sẽ tính lại
       },
     });
   };
@@ -204,20 +195,20 @@ export const FlightDetail = () => {
                 Chọn hạng ghế
               </p>
               <div className="space-y-2 mb-6">
-                {seatClassOptions.map((cls) => (
+                {activeClasses.map((cls) => (
                   <button
                     key={cls.seatClassId}
                     type="button"
                     onClick={() => setSelectedClass(cls)}
                     className={`w-full text-left rounded-xl border px-4 py-3 transition ${
-                      selectedClass.seatClassId === cls.seatClassId
+                      currentClass?.seatClassId === cls.seatClassId
                         ? 'border-red bg-red/5'
                         : 'border-gray-200 hover:border-gray-300'
                     }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-semibold text-sm text-gray-900">{cls.description}</span>
-                      <span className="text-xs font-bold text-red">{formatPrice(flight.basePrice * cls.multiplier)}</span>
+                      <span className="text-xs font-bold text-red">{formatPrice(flight.basePrice * cls.priceMultiplier)}</span>
                     </div>
                     <p className="text-[11px] text-gray-500 mt-0.5">{cls.className}</p>
                   </button>

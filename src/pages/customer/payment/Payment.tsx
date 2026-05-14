@@ -1,10 +1,13 @@
 import { Check, ExternalLink, ShieldCheck, Clock, Ticket } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation } from 'react-router-dom';
 
 // API: POST /api/payments/zalopay/create-url?bookingId={bookingId}&amount={amount}
 // Response: { success: true, data: "https://sandbox.zalopay.com.vn/..." }
 
+import { useCreateZaloPayUrl } from '../../../hooks/usePayment';
+
 type PaymentState = {
+  bookingId?: number;
   flightId?: number | string;
   flightCode?: string;
   seatClass?: string;
@@ -25,7 +28,6 @@ const seatClassLabel: Record<string, string> = {
 };
 
 export const Payment = () => {
-  const navigate = useNavigate();
   const location = useLocation();
   const state = location.state as PaymentState | null;
 
@@ -39,34 +41,26 @@ export const Payment = () => {
   const selectedSeat = state?.selectedSeat || '---';
   const contactEmail = state?.contact?.contactEmail || '---';
 
-  const handlePayWithZaloPay = async () => {
-    // API: POST /api/payments/zalopay/create-url?bookingId={bookingId}&amount={amount}
-    // Response: { success: true, data: "https://sandbox.zalopay.com.vn/..." }
-    // ZaloPay sẽ redirect về: /booking/payment-result?status=success|failed&bookingId=...
-    try {
-      const token = localStorage.getItem('accessToken');
-      const bookingId = state?.bookingCode; // dùng bookingCode hoặc bookingId tuỳ API
-      const res = await fetch(
-        `/api/payments/zalopay/create-url?bookingId=${bookingId}&amount=${totalPrice}`,
-        {
-          method: 'POST',
-          headers: token ? { Authorization: `Bearer ${token}` } : {},
-        }
-      );
-      const json = await res.json();
-      if (json.success && json.data) {
-        // Redirect đến trang thanh toán ZaloPay
-        window.location.href = json.data as string;
-      } else {
-        alert('Không thể tạo link thanh toán. Vui lòng thử lại.\n' + (json.message || ''));
-      }
-    } catch (err) {
-      // Fallback demo khi chưa có backend sẵn
-      alert(
-        `[Demo] Đang tạo đơn hàng ZaloPay...\n\nMã booking: ${bookingCode}\nSố tiền: ${formatPrice(totalPrice)}\n\n` +
-          `Sau khi thanh toán, ZaloPay sẽ redirect về:\n/booking/payment-result?status=success&bookingId=...`
-      );
+  const createZaloPayUrl = useCreateZaloPayUrl();
+
+  const handlePayWithZaloPay = () => {
+    if (!state?.bookingId) {
+      alert('Không tìm thấy mã đặt chỗ. Vui lòng thử lại từ đầu.');
+      return;
     }
+
+    createZaloPayUrl.mutate(
+      { bookingId: Number(state.bookingId), amount: totalPrice },
+      {
+        onSuccess: (res) => {
+          window.location.href = res.data.data; // redirect sang ZaloPay
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message || 'Không thể tạo link thanh toán.';
+          alert(msg);
+        },
+      }
+    );
   };
 
   return (
@@ -161,10 +155,11 @@ export const Payment = () => {
 
               <button
                 onClick={handlePayWithZaloPay}
-                className="w-full bg-blue-600 hover:bg-blue-700 text-white font-bold text-base py-4 rounded-xl transition-colors flex items-center justify-center gap-3 shadow-lg shadow-blue-200"
+                disabled={createZaloPayUrl.isPending}
+                className="w-full bg-blue-600 hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed text-white font-bold text-base py-4 rounded-xl transition-colors flex items-center justify-center gap-3 shadow-lg shadow-blue-200"
               >
-                <span>Thanh toán qua ZaloPay</span>
-                <ExternalLink className="w-5 h-5" />
+                <span>{createZaloPayUrl.isPending ? 'Đang tạo đơn hàng...' : 'Thanh toán qua ZaloPay'}</span>
+                {!createZaloPayUrl.isPending && <ExternalLink className="w-5 h-5" />}
               </button>
             </div>
 

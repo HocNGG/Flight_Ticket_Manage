@@ -51,3 +51,23 @@ export function useFlightDetail(id: string | undefined) {
         staleTime: 5 * 60 * 1000,
     });
 }
+
+// Seat classes — cache dài vì priceMultiplier ít thay đổi
+export function useSeatClasses() {
+    return useQuery({
+        queryKey: ['seat-classes'],
+        queryFn: () => flightApi.getSeatClasses().then((r) => r.data.data),
+        staleTime: 30 * 60 * 1000, // 30 phút
+    });
+}
+
+// Sơ đồ ghế theo flight — cache ngắn vì tình trạng ghế thay đổi thường xuyên
+export function useFlightSeats(flightId: string | number | undefined) {
+    const id = Number(flightId);
+    return useQuery({
+        queryKey: ['seats', id],
+        queryFn: () => flightApi.getFlightSeats(id),
+        enabled: Boolean(flightId) && Number.isFinite(id),
+        staleTime: 2 * 60 * 1000, // 2 phút
+    });
+}

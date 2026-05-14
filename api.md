@@ -193,11 +193,13 @@ GET /api/flights?departure=SGN&arrival=HAN&departureDate=2024-03-20&passengerCou
 **Quyền truy cập**: Public
 
 **Query Parameters**:
-- `departure`: Mã sân bay khởi hành
-- `arrival`: Mã sân bay đến
-- `departureDate`: Ngày khởi hành (YYYY-MM-DD)
-- `passengerCount`: Số hành khách
-- `seatClass`: Hạng ghế (ECONOMY, BUSINESS, FIRST)
+- `departure` *(bắt buộc)*: Mã sân bay khởi hành (VD: `SGN`)
+- `arrival` *(bắt buộc)*: Mã sân bay đến (VD: `HAN`)
+- `departureDate` *(bắt buộc)*: Ngày khở hành (YYYY-MM-DD)
+- `passengerCount` *(bắt buộc)*: Số hành khách (≥ 1)
+- `seatClass` *(tuỳ chọn)*: Hạng ghế (`ECONOMY`, `BUSINESS`, `FIRST`, `PREMIUM_ECONOMY`)
+- `roundTrip` *(tuỳ chọn)*: `true` nếu khứ hồi
+- `returnDate` *(tuỳ chọn)*: Ngày về nếu khứ hồi (YYYY-MM-DD)
 
 **Response** (200 OK):
 ```json
@@ -208,35 +210,49 @@ GET /api/flights?departure=SGN&arrival=HAN&departureDate=2024-03-20&passengerCou
     "flights": [
       {
         "flightId": 1,
-        "flightCode": "VN001",
-        "departureTime": "2024-03-20T08:00:00",
-        "arrivalTime": "2024-03-20T10:00:00",
-        "departureAirport": {
-          "code": "SGN",
-          "name": "Sân bay Tân Sơn Nhất"
-        },
-        "arrivalAirport": {
-          "code": "HAN",
-          "name": "Sân bay Nội Bài"
-        },
+        "flightNumber": "VN201",
+        "departureTime": "2026-05-20T06:00:00",
+        "arrivalTime": "2026-05-20T08:00:00",
+        "duration": "2h 00m",
+        "aircraftModel": "A350-900",
+        "status": "ACTIVE",
         "airline": {
           "airlineId": 1,
-          "airlineName": "Vietnam Airlines",
-          "airlineCode": "VN"
+          "name": "Vietnam Airlines",
+          "code": "VN",
+          "country": "Vietnam"
         },
-        "aircraft": {
-          "aircraftId": 1,
-          "model": "Boeing 787",
-          "totalSeats": 300
+        "departureAirport": {
+          "airportId": 1,
+          "airportCode": "HAN",
+          "airportName": "Noi Bai International Airport",
+          "city": "Ha Noi",
+          "country": "Vietnam"
         },
-        "basePrice": 2500000,
-        "availableSeats": 45,
-        "duration": "2 giờ"
+        "arrivalAirport": {
+          "airportId": 2,
+          "airportCode": "SGN",
+          "airportName": "Tan Son Nhat International Airport",
+          "city": "Ho Chi Minh",
+          "country": "Vietnam"
+        },
+        "seats": {
+          "totalSeats": 18,
+          "availableSeats": 14,
+          "bookedSeats": 4,
+          "seatsByClass": {
+            "ECONOMY": { "availableSeats": 10, "price": 900000 },
+            "BUSINESS": { "availableSeats": 4, "price": 1350000 }
+          }
+        }
       }
-    ]
+    ],
+    "totalResults": 1
   }
 }
 ```
+
+> 💡 `price` = `flight.basePrice × seatClass.priceMultiplier` (không có dynamic pricing)
 
 ---
 
@@ -254,19 +270,40 @@ GET /api/flights/{id}
   "message": "Flight details retrieved successfully",
   "data": {
     "flightId": 1,
-    "flightCode": "VN001",
+    "flightNumber": "VN201",
     "departureTime": "2024-03-20T08:00:00",
     "arrivalTime": "2024-03-20T10:00:00",
-    "basePrice": 2500000,
-    "availableSeats": 45,
+    "duration": "2h 00m",
+    "aircraftModel": "A350-900",
+    "status": "SCHEDULED",
     "airline": {
       "airlineId": 1,
-      "airlineName": "Vietnam Airlines"
+      "name": "Vietnam Airlines",
+      "code": "VN",
+      "country": "Vietnam"
     },
-    "aircraft": {
-      "aircraftId": 1,
-      "model": "Boeing 787",
-      "totalSeats": 300
+    "departureAirport": {
+      "airportId": 2,
+      "airportCode": "SGN",
+      "airportName": "Tan Son Nhat International Airport",
+      "city": "Ho Chi Minh",
+      "country": "Vietnam"
+    },
+    "arrivalAirport": {
+      "airportId": 1,
+      "airportCode": "HAN",
+      "airportName": "Noi Bai International Airport",
+      "city": "Ha Noi",
+      "country": "Vietnam"
+    },
+    "seats": {
+      "totalSeats": 50,
+      "availableSeats": 45,
+      "bookedSeats": 5,
+      "seatsByClass": {
+        "ECONOMY": { "availableSeats": 40, "price": 900000 },
+        "BUSINESS": { "availableSeats": 5, "price": 1350000 }
+      }
     }
   }
 }
@@ -288,25 +325,45 @@ GET /api/flights/{id}/seats
   "message": "Seat map retrieved successfully",
   "data": {
     "flightId": 1,
-    "seats": [
+    "aircraft": "A350-900",
+    "rows": [
       {
-        "seatId": 1,
-        "seatNumber": "1A",
-        "seatClass": "ECONOMY",
-        "status": "AVAILABLE",
-        "price": 2500000
+        "row": 1,
+        "seats": [
+          {
+            "flightSeatId": 1,
+            "seatNumber": "1A",
+            "seatClass": "BUSINESS",
+            "status": "AVAILABLE",
+            "price": 1350000
+          },
+          {
+            "flightSeatId": 2,
+            "seatNumber": "1B",
+            "seatClass": "BUSINESS",
+            "status": "BOOKED",
+            "price": 1350000
+          }
+        ]
       },
       {
-        "seatId": 2,
-        "seatNumber": "1B",
-        "seatClass": "ECONOMY",
-        "status": "BOOKED",
-        "price": 2500000
+        "row": 20,
+        "seats": [
+          {
+            "flightSeatId": 10,
+            "seatNumber": "20A",
+            "seatClass": "ECONOMY",
+            "status": "AVAILABLE",
+            "price": 900000
+          }
+        ]
       }
     ]
   }
 }
 ```
+
+> 💡 `price` = `flight.basePrice × seatClass.priceMultiplier`
 
 ---
 
@@ -325,10 +382,19 @@ GET /api/flights/airline/{airlineId}
   "data": [
     {
       "flightId": 1,
-      "flightCode": "VN001",
+      "flightNumber": "VN201",
       "departureTime": "2024-03-20T08:00:00",
       "arrivalTime": "2024-03-20T10:00:00",
-      "availableSeats": 45
+      "duration": "2h 00m",
+      "aircraftModel": "A350-900",
+      "status": "SCHEDULED",
+      "airline": { "airlineId": 1, "name": "Vietnam Airlines", "code": "VN", "country": "Vietnam" },
+      "departureAirport": { "airportCode": "SGN", "airportName": "Tan Son Nhat", "city": "Ho Chi Minh" },
+      "arrivalAirport": { "airportCode": "HAN", "airportName": "Noi Bai", "city": "Ha Noi" },
+      "seats": {
+        "totalSeats": 50, "availableSeats": 45, "bookedSeats": 5,
+        "seatsByClass": { "ECONOMY": { "availableSeats": 40, "price": 900000 } }
+      }
     }
   ]
 }
@@ -343,21 +409,7 @@ GET /api/flights/route/{routeId}?date=2024-03-20
 
 **Quyền truy cập**: Public
 
-**Response** (200 OK):
-```json
-{
-  "success": true,
-  "message": "Flights retrieved successfully",
-  "data": [
-    {
-      "flightId": 1,
-      "flightCode": "VN001",
-      "departureTime": "2024-03-20T08:00:00",
-      "arrivalTime": "2024-03-20T10:00:00"
-    }
-  ]
-}
-```
+**Response** (200 OK): Cấu trúc giống **3.4** (danh sách `FlightDTO`).
 
 ---
 
@@ -1198,6 +1250,10 @@ GET /api/seat-classes
 
 **Quyền truy cập**: Public
 
+> 💡 **Công thức tính giá ghế**: `giá ghế = flight.basePrice × seatClass.priceMultiplier`
+> - `basePrice` nằm ở chức năng **Flight** (mỗi chuyến bay có giá cơ bản riêng)
+> - `priceMultiplier` là **hệ số nhân** của hạng ghế (ECONOMY=1.0, BUSINESS=1.5, FIRST=2.5)
+
 **Response** (200 OK):
 ```json
 {
@@ -1208,13 +1264,19 @@ GET /api/seat-classes
       "seatClassId": 1,
       "className": "ECONOMY",
       "description": "Hạng phổ thông",
-      "basePrice": 2500000
+      "priceMultiplier": 1.0
     },
     {
       "seatClassId": 2,
       "className": "BUSINESS",
       "description": "Hạng thương gia",
-      "basePrice": 5000000
+      "priceMultiplier": 1.5
+    },
+    {
+      "seatClassId": 3,
+      "className": "FIRST",
+      "description": "Hạng thương gia hạng nhất",
+      "priceMultiplier": 2.5
     }
   ]
 }
@@ -1237,7 +1299,8 @@ GET /api/seat-classes/{id}
   "data": {
     "seatClassId": 1,
     "className": "ECONOMY",
-    "basePrice": 2500000
+    "description": "Hạng phổ thông",
+    "priceMultiplier": 1.0
   }
 }
 ```
@@ -1258,7 +1321,9 @@ GET /api/seat-classes/name/{name}
   "message": "Seat class retrieved successfully",
   "data": {
     "seatClassId": 1,
-    "className": "ECONOMY"
+    "className": "ECONOMY",
+    "description": "Hạng phổ thông",
+    "priceMultiplier": 1.0
   }
 }
 ```
@@ -1277,7 +1342,7 @@ POST /api/seat-classes
 {
   "className": "ECONOMY",
   "description": "Hạng phổ thông",
-  "basePrice": 2500000
+  "priceMultiplier": 1.0
 }
 ```
 
@@ -1289,7 +1354,8 @@ POST /api/seat-classes
   "data": {
     "seatClassId": 1,
     "className": "ECONOMY",
-    "basePrice": 2500000
+    "description": "Hạng phổ thông",
+    "priceMultiplier": 1.0
   }
 }
 ```
@@ -1303,12 +1369,26 @@ PUT /api/seat-classes/{id}
 
 **Quyền truy cập**: Admin
 
+**Request Body**:
+```json
+{
+  "className": "BUSINESS",
+  "description": "Hạng thương gia",
+  "priceMultiplier": 1.5
+}
+```
+
 **Response** (200 OK):
 ```json
 {
   "success": true,
   "message": "Seat class updated successfully",
-  "data": { ... }
+  "data": {
+    "seatClassId": 1,
+    "className": "BUSINESS",
+    "description": "Hạng thương gia",
+    "priceMultiplier": 1.5
+  }
 }
 ```
 
@@ -1405,6 +1485,10 @@ POST /api/seats
   "message": "Seat created successfully",
   "data": {
     "seatId": 1,
+    "aircraftId": 1,
+    "aircraftModel": "Boeing 787",
+    "seatClassId": 1,
+    "seatClassName": "ECONOMY",
     "seatNumber": "1A"
   }
 }
@@ -1419,12 +1503,28 @@ PUT /api/seats/{id}
 
 **Quyền truy cập**: Admin
 
+**Request Body**:
+```json
+{
+  "aircraftId": 1,
+  "seatClassId": 2,
+  "seatNumber": "2A"
+}
+```
+
 **Response** (200 OK):
 ```json
 {
   "success": true,
   "message": "Seat updated successfully",
-  "data": { ... }
+  "data": {
+    "seatId": 1,
+    "aircraftId": 1,
+    "aircraftModel": "Boeing 787",
+    "seatClassId": 2,
+    "seatClassName": "BUSINESS",
+    "seatNumber": "2A"
+  }
 }
 ```
 
@@ -1463,8 +1563,11 @@ GET /api/seats/aircraft/{aircraftId}
   "data": [
     {
       "seatId": 1,
-      "seatNumber": "1A",
-      "seatClassName": "ECONOMY"
+      "aircraftId": 1,
+      "aircraftModel": "Boeing 787",
+      "seatClassId": 1,
+      "seatClassName": "ECONOMY",
+      "seatNumber": "1A"
     }
   ]
 }
@@ -1487,6 +1590,10 @@ GET /api/seats/class/{seatClassId}
   "data": [
     {
       "seatId": 1,
+      "aircraftId": 1,
+      "aircraftModel": "Boeing 787",
+      "seatClassId": 1,
+      "seatClassName": "ECONOMY",
       "seatNumber": "1A"
     }
   ]

@@ -7,6 +7,7 @@ export type Seat = {
   price: number;
   seatClass: SeatClassCode;
   occupied: boolean;
+  flightSeatId?: number;   // ID thực từ API — dùng khi POST /api/bookings
 };
 
 type SeatProps = {

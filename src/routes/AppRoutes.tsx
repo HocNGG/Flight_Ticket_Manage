@@ -5,6 +5,7 @@ import MainLayout from '../layouts/MainLayout';
 import { Login } from '../pages/auth/Login';
 import { Signup } from '../pages/auth/Signup';
 import { ForgotPassword } from '../pages/auth/ForgotPassword';
+import { VerifyEmail } from '../pages/auth/VerifyEmail';
 
 // Customer Flow
 import { FlightSearch } from '../pages/customer/search/FlightSearch';
@@ -44,6 +45,8 @@ const AppRoutes = () => {
         <Route path="/login" element={<Login />} />
         <Route path="/signup" element={<Signup />} />
         <Route path="/forgot-password" element={<ForgotPassword />} />
+        {/* Email verification: link trong mail → /verify-email?token=UUID → gọi BE → redirect /login */}
+        <Route path="/verify-email" element={<VerifyEmail />} />
 
         {/* Customer Search & Results */}
         <Route path="/search" element={<FlightSearch />} />

@@ -1,5 +1,7 @@
-import { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../../api/axiosInstance';
+import type { ApiResponse } from '../../../api/types';
 import {
   CheckCircle2,
   XCircle,
@@ -57,21 +59,6 @@ const formatDateTime = (dt: string) => {
   });
 };
 
-// ─── Mock fetch booking detail ───────────────────────────────────────────────
-const fetchBookingDetail = async (bookingId: string): Promise<BookingDetail | null> => {
-  try {
-    const token = localStorage.getItem('accessToken');
-    const res = await fetch(`/api/bookings/${bookingId}/detail`, {
-      headers: token ? { Authorization: `Bearer ${token}` } : {},
-    });
-    const json = await res.json();
-    if (json.success) return json.data as BookingDetail;
-    return null;
-  } catch {
-    return null;
-  }
-};
-
 // ─── Main Component ────────────────────────────────────────────────────────
 export const PaymentResult = () => {
   const [searchParams] = useSearchParams();
@@ -81,6 +68,19 @@ export const PaymentResult = () => {
   const status = searchParams.get('status'); // 'success' | 'failed' | null
   const bookingIdParam = searchParams.get('bookingId');
   const reasonParam = searchParams.get('reason');
+
+  const { data: booking, isLoading: loading } = useQuery({
+    queryKey: ['bookingDetail', bookingIdParam],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<BookingDetail>>(
+        `/api/bookings/${bookingIdParam}/detail`
+      );
+      return res.data.data;
+    },
+    enabled: !!bookingIdParam,
+    staleTime: 0,
+    retry: 2,
+  });
 
   const isSuccess =
     status === 'success' ||
@@ -92,19 +92,6 @@ export const PaymentResult = () => {
     status === '0' ||
     status === 'cancelled' ||
     status?.toLowerCase() === 'cancel';
-
-  const [loading, setLoading] = useState(!!bookingIdParam);
-  const [booking, setBooking] = useState<BookingDetail | null>(null);
-
-  useEffect(() => {
-    if (bookingIdParam) {
-      setLoading(true);
-      fetchBookingDetail(bookingIdParam).then((data) => {
-        setBooking(data);
-        setLoading(false);
-      });
-    }
-  }, [bookingIdParam]);
 
   if (loading) {
     return (
@@ -124,9 +111,9 @@ export const PaymentResult = () => {
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-12 pb-32 bg-surface">
       {finalSuccess ? (
-        <SuccessView booking={booking} navigate={navigate} />
+        <SuccessView booking={booking ?? null} navigate={navigate} />
       ) : finalFailed ? (
-        <FailedView reason={reasonParam} booking={booking} navigate={navigate} />
+        <FailedView reason={reasonParam} booking={booking ?? null} navigate={navigate} />
       ) : (
         // Fallback nếu không có params
         <UnknownView navigate={navigate} />

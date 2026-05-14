@@ -1,5 +1,5 @@
 import api from './axiosInstance';
-import type { ApiResponse, FlightResult, Airport, FlightSearchParams } from './types';
+import type { ApiResponse, FlightResult, Airport, FlightSearchParams, SeatClass, SeatItem } from './types';
 
 type AirlineSummary = {
     airlineId: number;
@@ -40,17 +40,32 @@ type RawFlight = {
     availableSeats?: number;
     aircraft?: { aircraftId?: number; model?: string; totalSeats?: number };
     aircraftModel?: string;
+    // new structure: price lives only on flight
+    price?: number;
 };
 
 const normalizeFlight = (flight: RawFlight, preferredSeatClass: FlightSearchParams['seatClass'] = 'ECONOMY'): FlightResult => {
     const byClass = flight.seats?.seatsByClass ?? {};
-    const selectedClass = byClass[preferredSeatClass];
     const economyClass = byClass.ECONOMY;
     const anyClass = Object.values(byClass)[0];
+    const selectedClass = byClass[preferredSeatClass];
 
-    const selectedPrice = selectedClass?.price ?? economyClass?.price ?? anyClass?.price ?? flight.basePrice ?? 0;
+    // basePrice ưu tiên: top-level field → ECONOMY.price (= basePrice × 1.0) → anyClass.price → 0
+    // BE hiện tại không trả top-level basePrice, ECONOMY.price chính là basePrice thực
+    const basePrice =
+        flight.basePrice ??
+        flight.price ??
+        economyClass?.price ??
+        anyClass?.price ??
+        0;
+
     const selectedAvailableSeats =
-        selectedClass?.availableSeats ?? economyClass?.availableSeats ?? anyClass?.availableSeats ?? flight.availableSeats ?? flight.seats?.availableSeats ?? 0;
+        selectedClass?.availableSeats ??
+        economyClass?.availableSeats ??
+        anyClass?.availableSeats ??
+        flight.availableSeats ??
+        flight.seats?.availableSeats ??
+        0;
 
     return {
         flightId: flight.flightId,
@@ -75,7 +90,7 @@ const normalizeFlight = (flight: RawFlight, preferredSeatClass: FlightSearchPara
             model: flight.aircraft?.model ?? flight.aircraftModel ?? '',
             totalSeats: flight.aircraft?.totalSeats ?? flight.seats?.totalSeats ?? 0,
         },
-        basePrice: Number(selectedPrice) || 0,
+        basePrice: Number(basePrice) || 0,
         availableSeats: Number(selectedAvailableSeats) || 0,
         duration: flight.duration ?? '',
     };
@@ -130,5 +145,39 @@ export const flightApi = {
     getFlightById: async (id: number) => {
         const response = await api.get<ApiResponse<RawFlight>>(`/api/flights/${id}`);
         return normalizeFlight(response.data.data, 'ECONOMY');
+    },
+
+    // Hạng ghế — chỉ có priceMultiplier, không có giá cứng
+    getSeatClasses: () =>
+        api.get<ApiResponse<SeatClass[]>>('/api/seat-classes'),
+
+    // Sơ đồ ghế theo chuyến bay — trả về flat array SeatItem[]
+    getFlightSeats: async (flightId: number): Promise<SeatItem[]> => {
+        const response = await api.get<ApiResponse<{
+            flightId: number;
+            aircraft: string;
+            rows: Array<{
+                rowNumber: number;
+                seats: Array<{
+                    flightSeatId: number;
+                    seatNumber: string;
+                    seatClass: string;
+                    status: string;
+                    price: number;
+                }>;
+            }>;
+        }>>(`/api/flights/${flightId}/seats`);
+
+        const data = response.data.data;
+        // Flatten rows[] → SeatItem[]
+        return (data.rows ?? []).flatMap((row) =>
+            (row.seats ?? []).map((s) => ({
+                flightSeatId: s.flightSeatId,
+                seatNumber: s.seatNumber,
+                seatClass: s.seatClass as SeatItem['seatClass'],
+                status: s.status as SeatItem['status'],
+                price: s.price,
+            }))
+        );
     },
 };

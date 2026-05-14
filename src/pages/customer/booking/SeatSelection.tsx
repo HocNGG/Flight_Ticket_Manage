@@ -1,22 +1,24 @@
 // SeatSelection.tsx
-// Fix passenger form fields theo đúng API POST /api/bookings
-// Thêm contact section: contactName, contactEmail, contactPhone
+// Tích hợp API: GET /api/flights/:id/seats + POST /api/bookings
 
 import { Clock, Plane, ShieldCheck, Check } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SeatButton } from '../../../components/customer/booking/Seat';
 import { useSeatSelection } from '../../../hooks/useSeatSelection';
-import { seatClasses, seatLayout, type SeatClassCode, mapApiSeatClass } from '../../../data/flightSeat';
+import { seatClasses, type SeatClassCode, mapApiSeatClass } from '../../../data/flightSeat';
 import { Enhance } from '../../../components/customer/booking/Enhance';
 import { enhanceList } from '../../../data/filghtEnhance';
+import { useFlightSeats } from '../../../hooks/useFlights';
+import { useCreateBooking } from '../../../hooks/useBookings';
+import { useState } from 'react';
 
-// API: POST /api/bookings request body
+// PassengerForm khớp với BE PassengerRequest
 type PassengerForm = {
-  firstName: string;
-  lastName: string;
-  dateOfBirth: string;
+  fullName: string;        // BE: fullName
   gender: 'MALE' | 'FEMALE';
+  dateOfBirth: string;
+  passportNumber: string;  // BE: bắt buộc
   nationality: string;
 };
 
@@ -29,7 +31,7 @@ type ContactForm = {
 // State từ FlightDetail navigate
 type BookingState = {
   flightId?: string | number;
-  seatClass?: SeatClassCode;
+  seatClass?: string;
   flightCode?: string;
   departureAirport?: { code: string; name: string };
   arrivalAirport?: { code: string; name: string };
@@ -52,12 +54,12 @@ export const SeatSelection = () => {
     : 'economy';
   const selectedClassConfig = seatClasses.find((item) => item.code === selectedSeatClass);
 
-  // Form passenger — theo API /api/bookings body
+  // Form passenger — kớp với BE PassengerRequest
   const [passenger, setPassenger] = useState<PassengerForm>({
-    firstName: '',
-    lastName: '',
-    dateOfBirth: '',
+    fullName: '',
     gender: 'MALE',
+    dateOfBirth: '',
+    passportNumber: '',
     nationality: 'VN',
   });
 
@@ -76,34 +78,87 @@ export const SeatSelection = () => {
     setContact((prev) => ({ ...prev, [field]: value }));
   };
 
-  if (!bookingState?.flightId || !selectedClassConfig) {
-    return <Navigate to="/search" replace />;
-  }
+  // Fetch sơ đồ ghế từ API — chỉ chạy khi có flightId
+  const { data: apiSeats = [], isLoading: isLoadingSeats } = useFlightSeats(bookingState?.flightId);
 
-  const { selectedSeat, seatRows, handleSelectSeat, seatStatusLabel } = useSeatSelection(selectedSeatClass);
+  // Hook chọn ghế — nhận API seats thật
+  const { selectedSeat, selectedSeatId, seatRows, handleSelectSeat, seatStatusLabel } =
+    useSeatSelection(selectedSeatClass, bookingState?.basePrice ?? 0, apiSeats);
 
+  // Tạo booking mutation
+  const createBooking = useCreateBooking();
+
+  // ✅ useEffect phải gọi TRƯỚC conditional return (Rules of Hooks)
   useEffect(() => {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }, []);
 
+  // Guard: redirect nếu thiếu state cần thiết
+  if (!bookingState?.flightId || !selectedClassConfig) {
+    return <Navigate to="/search" replace />;
+  }
+
+  // Tính giá theo hạng ghế đang chọn
+  const ticketPrice = bookingState?.basePrice
+    ? bookingState.basePrice * (selectedClassConfig.priceMultiplier ?? 1)
+    : 0;
+
   const handleProceedToPayment = () => {
-    // Tạo booking: POST /api/bookings
-    // Body: { flightId, passengers: [{ firstName, lastName, dateOfBirth, gender, nationality }], seatIds: [selectedSeat], contactName, contactEmail, contactPhone }
-    // Response: { bookingId, bookingCode, totalPrice, status: 'PENDING_PAYMENT' }
-    navigate('/booking/payment', {
-      state: {
-        flightId: bookingState?.flightId,
-        flightCode: bookingState?.flightCode,
-        seatClass: selectedSeatClass,
-        selectedSeat,
-        passenger,
-        contact,
-        basePrice: bookingState?.basePrice,
-        // bookingId & bookingCode sẽ đến từ API response
-        bookingCode: 'BK' + Math.floor(Math.random() * 900000 + 100000), // mock
-        totalPrice: bookingState?.basePrice ?? 0,
+    if (!selectedSeat || selectedSeatId === null) {
+      alert('Vui lòng chọn ghế trước khi tiếp tục.');
+      return;
+    }
+    if (!passenger.fullName || !passenger.dateOfBirth || !passenger.passportNumber || !passenger.nationality) {
+      alert('Vui lòng điền đầy đủ thông tin hành khách (họ tên, ngày sinh, hộ chiếu, quốc tịch).');
+      return;
+    }
+    if (!contact.contactName || !contact.contactEmail || !contact.contactPhone) {
+      alert('Vui lòng điền đầy đủ thông tin liên hệ.');
+      return;
+    }
+
+    createBooking.mutate(
+      {
+        flightId: Number(bookingState.flightId),
+        contactName: contact.contactName,
+        contactEmail: contact.contactEmail,
+        contactPhone: contact.contactPhone,
+        passengers: [
+          {
+            flightSeatId: selectedSeatId,         // ID thực từ API
+            passengerData: {
+              fullName: passenger.fullName,
+              gender: passenger.gender,
+              dateOfBirth: passenger.dateOfBirth,
+              passportNumber: passenger.passportNumber,
+              nationality: passenger.nationality,
+            },
+          },
+        ],
       },
-    });
+      {
+        onSuccess: (res) => {
+          const { bookingId, bookingCode, totalPrice } = res.data.data;
+          navigate('/booking/payment', {
+            state: {
+              bookingId,
+              bookingCode,
+              totalPrice,
+              flightId: bookingState.flightId,
+              flightCode: bookingState.flightCode,
+              seatClass: bookingState.seatClass,
+              selectedSeat,
+              passenger,
+              contact,
+            },
+          });
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message || 'Không thể tạo đặt chỗ. Vui lòng thử lại.';
+          alert(msg);
+        },
+      },
+    );
   };
 
   return (
@@ -141,7 +196,7 @@ export const SeatSelection = () => {
             <div className="flex justify-between items-start mb-12">
               <div>
                 <h2 className="text-xl font-bold text-gray-900">Khoang: {selectedClassConfig.label}</h2>
-                <p className="text-xs text-gray-500 font-medium">{bookingState?.flightCode || 'Boeing 787-9 Dreamliner'}</p>
+                <p className="text-xs text-gray-500 font-medium">{bookingState?.flightCode || 'Sơ đồ ghế'}</p>
               </div>
               <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> Trống</div>
@@ -152,65 +207,52 @@ export const SeatSelection = () => {
 
             {/* Seat Map */}
             <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
-              <div className="space-y-4">
-                <div className="flex gap-2 text-center text-gray-400 mb-2 px-4 sm:px-8">
-                  {seatLayout.map((letter) =>
-                    letter === '_' ? (
-                      <span key="aisle" className="w-10"></span>
-                    ) : (
-                      <span key={letter} className="w-10">{letter}</span>
-                    ),
-                  )}
+              {isLoadingSeats ? (
+                <div className="flex items-center justify-center h-40">
+                  <div className="w-8 h-8 border-4 border-red border-t-transparent rounded-full animate-spin" />
                 </div>
-                {seatRows.map((rowData) => (
-                  <div key={rowData.rowNumber} className="flex gap-2 items-center px-4">
-                    <span className="w-6 text-right text-gray-300 mr-2 text-xs">{rowData.rowNumber}</span>
-                    {rowData.seats.map((seat, seatIndex) => (
-                      <SeatButton
-                        key={seat ? seat.id : `aisle-${seatIndex}`}
-                        seat={seat}
-                        isSelected={seat?.id === selectedSeat}
-                        disabledByClass={Boolean(seat && seat.seatClass !== selectedSeatClass)}
-                        onSelect={handleSelectSeat}
-                      />
-                    ))}
-                  </div>
-                ))}
-              </div>
+              ) : seatRows.length === 0 ? (
+                <div className="flex items-center justify-center h-40 text-sm text-gray-400">
+                  Không có ghế khả dụng cho hạng này
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {seatRows.map((rowData) => (
+                    <div key={rowData.rowNumber} className="flex gap-2 items-center px-4">
+                      <span className="w-6 text-right text-gray-300 mr-2 text-xs">{rowData.rowNumber}</span>
+                      {rowData.seats.map((seat, seatIndex) => (
+                        <SeatButton
+                          key={seat ? seat.id : `aisle-${seatIndex}`}
+                          seat={seat}
+                          isSelected={seat?.id === selectedSeat}
+                          disabledByClass={Boolean(seat && seat.seatClass !== selectedSeatClass)}
+                          onSelect={handleSelectSeat}
+                        />
+                      ))}
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
             <div className="mt-4 text-sm font-semibold text-gray-600">{seatStatusLabel}</div>
           </div>
 
-          {/* PASSENGER DETAILS — theo API POST /api/bookings */}
+          {/* PASSENGER DETAILS */}
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Thông tin hành khách</p>
             <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đặt vé</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* firstName */}
-              <div>
+              {/* fullName */}
+              <div className="md:col-span-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
-                  Họ <span className="text-red">*</span>
+                  Họ và tên <span className="text-red">*</span>
                 </label>
                 <input
                   type="text"
-                  value={passenger.firstName}
-                  onChange={(e) => handlePassengerChange('firstName', e.target.value)}
-                  placeholder="Nguyễn"
-                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
-                />
-              </div>
-
-              {/* lastName */}
-              <div>
-                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
-                  Tên <span className="text-red">*</span>
-                </label>
-                <input
-                  type="text"
-                  value={passenger.lastName}
-                  onChange={(e) => handlePassengerChange('lastName', e.target.value)}
-                  placeholder="Văn A"
+                  value={passenger.fullName}
+                  onChange={(e) => handlePassengerChange('fullName', e.target.value)}
+                  placeholder="Nguyễn Văn A"
                   className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
                 />
               </div>
@@ -228,7 +270,7 @@ export const SeatSelection = () => {
                 />
               </div>
 
-              {/* gender — MALE | FEMALE */}
+              {/* gender */}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
                   Giới tính <span className="text-red">*</span>
@@ -243,8 +285,22 @@ export const SeatSelection = () => {
                 </select>
               </div>
 
+              {/* passportNumber */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Số hộ chiếu <span className="text-red">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={passenger.passportNumber}
+                  onChange={(e) => handlePassengerChange('passportNumber', e.target.value)}
+                  placeholder="B12345678"
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+
               {/* nationality */}
-              <div className="md:col-span-2">
+              <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
                   Quốc tịch <span className="text-red">*</span>
                 </label>
@@ -264,7 +320,7 @@ export const SeatSelection = () => {
             </div>
           </div>
 
-          {/* CONTACT INFO — theo API POST /api/bookings */}
+          {/* CONTACT INFO */}
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <div className="flex items-center gap-3 mb-1">
               <Plane className="w-4 h-4 text-red" />
@@ -274,7 +330,6 @@ export const SeatSelection = () => {
             <p className="text-sm text-gray-500 mb-6">Vé điện tử sẽ được gửi đến email này.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-              {/* contactName */}
               <div className="md:col-span-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
                   Tên liên hệ <span className="text-red">*</span>
@@ -288,7 +343,6 @@ export const SeatSelection = () => {
                 />
               </div>
 
-              {/* contactEmail */}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
                   Email <span className="text-red">*</span>
@@ -302,7 +356,6 @@ export const SeatSelection = () => {
                 />
               </div>
 
-              {/* contactPhone */}
               <div>
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
                   Số điện thoại <span className="text-red">*</span>
@@ -329,9 +382,17 @@ export const SeatSelection = () => {
           <div className="flex justify-center md:justify-end mt-8">
             <button
               onClick={handleProceedToPayment}
-              className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md flex items-center gap-2"
+              disabled={createBooking.isPending}
+              className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
             >
-              Tiến hành thanh toán
+              {createBooking.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Đang tạo đặt chỗ...
+                </>
+              ) : (
+                'Tiến hành thanh toán'
+              )}
             </button>
           </div>
         </div>
@@ -359,8 +420,8 @@ export const SeatSelection = () => {
 
             <div className="space-y-4 text-xs font-medium border-b border-gray-100 pb-6">
               <div className="flex justify-between">
-                <span className="text-gray-500">Giá vé cơ bản</span>
-                <span className="text-gray-900 font-bold">{formatPrice(bookingState?.basePrice ?? 0)}</span>
+                <span className="text-gray-500">Giá vé ({selectedClassConfig.label})</span>
+                <span className="text-gray-900 font-bold">{formatPrice(ticketPrice)}</span>
               </div>
               {selectedSeat && (
                 <div className="flex justify-between">
@@ -377,7 +438,7 @@ export const SeatSelection = () => {
             <div className="flex justify-between items-end pt-6">
               <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tổng cộng</span>
               <div className="text-right">
-                <span className="text-2xl font-black text-gray-900">{formatPrice(bookingState?.basePrice ?? 0)}</span>
+                <span className="text-2xl font-black text-gray-900">{formatPrice(ticketPrice)}</span>
                 <p className="text-[8px] font-bold text-gray-400 tracking-widest uppercase text-right mt-1">ĐÃ BAO GỒM THUẾ</p>
               </div>
             </div>
@@ -389,9 +450,8 @@ export const SeatSelection = () => {
 };
 
 const StepDot = ({ done, active, label }: { done?: boolean; active?: boolean; label?: string }) => (
-  <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center relative z-10 ${
-    done ? 'bg-red text-white' : active ? 'bg-white border-2 border-red text-red' : 'bg-white border-2 border-gray-200 text-gray-400'
-  }`}>
+  <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center relative z-10 ${done ? 'bg-red text-white' : active ? 'bg-white border-2 border-red text-red' : 'bg-white border-2 border-gray-200 text-gray-400'
+    }`}>
     {done ? <Check className="w-3 h-3" /> : label}
   </div>
 );

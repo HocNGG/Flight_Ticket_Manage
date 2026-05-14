@@ -55,3 +55,51 @@ export interface FlightSearchParams {
     passengerCount: number;
     seatClass: 'ECONOMY' | 'BUSINESS' | 'FIRST';
 }
+
+// SeatClass — từ GET /api/seat-classes
+export interface SeatClass {
+    seatClassId: number;
+    className: 'ECONOMY' | 'BUSINESS' | 'FIRST' | 'PREMIUM_ECONOMY';
+    description: string;
+    priceMultiplier: number;   // Nhân với flight.basePrice để ra giá vé
+}
+
+// SeatItem — từ GET /api/flights/:id/seats (sau khi flatten rows[])
+export type SeatItem = {
+    flightSeatId: number;
+    seatNumber: string;
+    seatClass: 'ECONOMY' | 'BUSINESS' | 'FIRST' | 'PREMIUM_ECONOMY';
+    status: 'AVAILABLE' | 'BOOKED';
+    price: number;
+};
+
+// Kết quả POST /api/bookings
+export type BookingCreated = {
+    bookingId: number;
+    bookingCode: string;
+    flightId: number;
+    totalPrice: number;
+    status: 'PENDING_PAYMENT';
+    passengers: { passengerCode: string; firstName: string; lastName: string; seatNumber: string }[];
+    bookingDate: string;
+};
+
+// Item trong GET /api/bookings
+export type Booking = {
+    bookingId: number;
+    contactEmail: string;
+    contactPhone: string;
+    contactName: string;
+    bookingCode: string;
+    bookingDate: string;
+    status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+    totalPrice: number;
+    flight: {
+        flightId: number;
+        flightNumber: string;
+        departureTime: string;
+        arrivalTime: string;
+    };
+    passengers: any[];
+};
+
