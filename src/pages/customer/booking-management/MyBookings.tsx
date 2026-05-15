@@ -11,11 +11,13 @@ import type { Booking } from '../../../api/types';
 
 // API response types
 // GET /api/bookings
-type BookingStatus = Booking['status'];
 
-const statusConfig: Record<BookingStatus, { label: string; color: string; bg: string }> = {
+
+const statusConfig: Record<string, { label: string; color: string; bg: string }> = {
   CONFIRMED: { label: 'Đã thanh toán', color: 'text-green-700', bg: 'bg-green-100' },
+  PAID: { label: 'Đã thanh toán', color: 'text-green-700', bg: 'bg-green-100' },
   PENDING: { label: 'Chờ thanh toán', color: 'text-yellow-700', bg: 'bg-yellow-100' },
+  PENDING_PAYMENT: { label: 'Chờ thanh toán', color: 'text-yellow-700', bg: 'bg-yellow-100' },
   CANCELLED: { label: 'Đã hủy', color: 'text-red-700', bg: 'bg-red-100' },
 };
 
@@ -34,6 +36,8 @@ export const MyBookings = () => {
   const [selectedBooking, setSelectedBooking] = useState<Booking | null>(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelReason, setCancelReason] = useState('');
+  const [refundBankName, setRefundBankName] = useState('');
+  const [refundAccountNumber, setRefundAccountNumber] = useState('');
   const [searchCode, setSearchCode] = useState('');
 
   const { data: bookings = [], isLoading, isError } = useMyBookings();
@@ -41,8 +45,8 @@ export const MyBookings = () => {
 
   const filteredBookings = useMemo(() =>
     bookings.filter((b) =>
-      b.bookingCode.toLowerCase().includes(searchCode.toLowerCase()) ||
-      b.flight?.flightNumber.toLowerCase().includes(searchCode.toLowerCase())
+      b.bookingCode?.toLowerCase().includes(searchCode.toLowerCase()) ||
+      b.flight?.flightNumber?.toLowerCase().includes(searchCode.toLowerCase())
     ),
     [bookings, searchCode]
   );
@@ -58,13 +62,16 @@ export const MyBookings = () => {
       {
         bookingId: selectedBooking.bookingId,
         reason: cancelReason,
-        requestedRefundAmount: selectedBooking.totalPrice,
+        refundAccountNumber: refundAccountNumber,
+        refundBankName: refundBankName,
       },
       {
         onSuccess: () => {
           queryClient.invalidateQueries({ queryKey: ['myBookings'] });
           setShowCancelModal(false);
           setCancelReason('');
+          setRefundBankName('');
+          setRefundAccountNumber('');
           setSelectedBooking(null);
           alert('Yêu cầu hủy đã được gửi!');
         },
@@ -138,12 +145,16 @@ export const MyBookings = () => {
                   </div>
                   <div>
                     <div className="flex items-center gap-3 mb-1">
-                      <span className="font-black text-gray-900 text-lg">---</span>
+                      <span className="font-black text-gray-900 text-lg">
+                        {booking.flight?.route?.departureAirport?.airportCode || '---'}
+                      </span>
                       <ChevronRight className="w-4 h-4 text-gray-400" />
-                      <span className="font-black text-gray-900 text-lg">---</span>
+                      <span className="font-black text-gray-900 text-lg">
+                        {booking.flight?.route?.arrivalAirport?.airportCode || '---'}
+                      </span>
                     </div>
                     <p className="text-sm text-gray-500 font-medium">
-                      {booking.flight?.flightNumber || '---'} · {booking.flight?.departureTime ? formatDate(booking.flight.departureTime) : '---'} lúc {booking.flight?.departureTime ? formatTime(booking.flight.departureTime) : '---'}
+                      {booking.flight?.airline?.name || ''} {booking.flight?.flightNumber || '---'} · {booking.flight?.departureTime ? formatDate(booking.flight.departureTime) : '---'} lúc {booking.flight?.departureTime ? formatTime(booking.flight.departureTime) : '---'}
                     </p>
                     <p className="text-xs text-gray-400 mt-0.5">
                       Liên hệ: {booking.contactName || '---'} - {booking.contactPhone || '---'}
@@ -157,16 +168,16 @@ export const MyBookings = () => {
                     <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Mã:</span>
                     <span className="font-black text-gray-900 tracking-wider">{booking.bookingCode}</span>
                   </div>
-                  <span className={`text-xs font-bold px-3 py-1 rounded-full w-fit ${status.bg} ${status.color}`}>
-                    {status.label}
+                  <span className={`text-xs font-bold px-3 py-1 rounded-full w-fit ${status?.bg || 'bg-gray-100'} ${status?.color || 'text-gray-700'}`}>
+                    {status?.label || booking.status}
                   </span>
                   <span className="text-lg font-black text-gray-900">{formatPrice(booking.totalPrice)}</span>
                 </div>
 
                 {/* Actions */}
                 <div className="flex flex-col gap-2 md:items-end">
-                  {/* Download Ticket — chỉ khi CONFIRMED */}
-                  {booking.status === 'CONFIRMED' && (
+                  {/* Download Ticket — chỉ khi CONFIRMED hoặc PAID */}
+                  {(booking.status === 'CONFIRMED' || booking.status === 'PAID') && (
                     <button
                       onClick={() => handleDownloadTicket(booking)}
                       className="flex items-center gap-2 bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
@@ -176,28 +187,34 @@ export const MyBookings = () => {
                     </button>
                   )}
 
-                  {/* Cancel — chỉ khi CONFIRMED hoặc PENDING */}
-                  {(booking.status === 'CONFIRMED' || booking.status === 'PENDING') && (
-                    <button
-                      onClick={() => {
-                        setSelectedBooking(booking);
-                        setShowCancelModal(true);
-                      }}
-                      className="flex items-center gap-2 bg-red/10 hover:bg-red/20 text-red font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
-                    >
-                      <X className="w-4 h-4" />
-                      Yêu cầu hủy vé
-                    </button>
+                  {/* Cancel — chỉ khi CONFIRMED, PAID và chưa có yêu cầu hủy */}
+                  {booking.refund?.status === 'PENDING' ? (
+                    <span className="flex items-center gap-2 bg-yellow-100 text-yellow-700 font-bold text-xs px-4 py-2.5 rounded-xl">
+                      Đang xử lý hủy vé
+                    </span>
+                  ) : (
+                    (booking.status === 'CONFIRMED' || booking.status === 'PAID') && (
+                      <button
+                        onClick={() => {
+                          setSelectedBooking(booking);
+                          setShowCancelModal(true);
+                        }}
+                        className="flex items-center gap-2 bg-red/10 hover:bg-red/20 text-red font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
+                      >
+                        <X className="w-4 h-4" />
+                        Yêu cầu hủy vé
+                      </button>
+                    )
                   )}
 
-                  {booking.status === 'PENDING' && (
+                  {(booking.status === 'PENDING' || booking.status === 'PENDING_PAYMENT') && (
                     <button
                       onClick={() => navigate('/booking/payment', {
                         state: {
                           bookingId: booking.bookingId,
                           bookingCode: booking.bookingCode,
                           totalPrice: booking.totalPrice,
-                          flightCode: booking.flight?.flightNumber,
+                          flightCode: booking.flight?.flightNumber || (booking as any).flightCode,
                         }
                       })}
                       className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white font-bold text-xs px-4 py-2.5 rounded-xl transition-colors"
@@ -222,7 +239,12 @@ export const MyBookings = () => {
                 <p className="text-sm text-gray-500 mt-1">Booking: {selectedBooking.bookingCode}</p>
               </div>
               <button
-                onClick={() => { setShowCancelModal(false); setCancelReason(''); }}
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                  setRefundBankName('');
+                  setRefundAccountNumber('');
+                }}
                 className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center hover:bg-gray-200"
               >
                 <X className="w-4 h-4 text-gray-600" />
@@ -233,6 +255,32 @@ export const MyBookings = () => {
               <p className="text-xs text-orange-700 font-medium">
                 Yêu cầu hủy sẽ được gửi đến nhân viên để xem xét. Tiền hoàn lại sẽ được xử lý theo chính sách của hãng.
               </p>
+            </div>
+
+            <div className="mb-4">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
+                Tên Ngân Hàng <span className="text-red">*</span>
+              </label>
+              <input
+                type="text"
+                value={refundBankName}
+                onChange={(e) => setRefundBankName(e.target.value)}
+                placeholder="VD: Vietcombank"
+                className="w-full bg-surface rounded-xl p-4 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+              />
+            </div>
+
+            <div className="mb-6">
+              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2">
+                Số Tài Khoản Nhận Hoàn Tiền <span className="text-red">*</span>
+              </label>
+              <input
+                type="text"
+                value={refundAccountNumber}
+                onChange={(e) => setRefundAccountNumber(e.target.value)}
+                placeholder="Nhập số tài khoản..."
+                className="w-full bg-surface rounded-xl p-4 text-sm font-medium text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+              />
             </div>
 
             <div className="mb-6">
@@ -250,14 +298,19 @@ export const MyBookings = () => {
 
             <div className="flex gap-3">
               <button
-                onClick={() => { setShowCancelModal(false); setCancelReason(''); }}
+                onClick={() => {
+                  setShowCancelModal(false);
+                  setCancelReason('');
+                  setRefundBankName('');
+                  setRefundAccountNumber('');
+                }}
                 className="flex-1 bg-gray-100 text-gray-700 hover:bg-gray-200 font-bold py-3 rounded-xl text-sm transition-colors"
               >
                 Đóng
               </button>
               <button
                 onClick={handleCancelRequest}
-                disabled={!cancelReason.trim() || cancelBooking.isPending}
+                disabled={!cancelReason.trim() || !refundBankName.trim() || !refundAccountNumber.trim() || cancelBooking.isPending}
                 className="flex-1 bg-red text-white hover:bg-reddark font-bold py-3 rounded-xl text-sm transition-colors disabled:opacity-60"
               >
                 {cancelBooking.isPending ? 'Đang gửi...' : 'Gửi yêu cầu hủy'}

@@ -62,7 +62,7 @@ const AppRoutes = () => {
         <Route path="/booking/payment-result" element={<PaymentResult />} />
 
         {/* My Bookings — Passenger quản lý đặt chỗ */}
-        <Route path="/my-bookings" element={<MyBookings />} />
+        <Route path="/bookings" element={<MyBookings />} />
       </Route>
 
       {/* Admin — mỗi trang tự wrap AdminLayout bên trong */}

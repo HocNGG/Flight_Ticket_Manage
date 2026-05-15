@@ -58,15 +58,44 @@ export function useCancelBooking() {
     mutationFn: ({
       bookingId,
       reason,
-      requestedRefundAmount,
+      refundAccountNumber,
+      refundBankName,
     }: {
       bookingId: number;
       reason: string;
-      requestedRefundAmount: number;
+      refundAccountNumber?: string;
+      refundBankName?: string;
     }) =>
       api.post(`/api/bookings/${bookingId}/cancel`, {
         reason,
-        requestedRefundAmount,
+        refundAccountNumber,
+        refundBankName,
       }),
+  });
+}
+
+// 1. Lấy CHI TIẾT 1 booking theo ID (Dùng khi đã đăng nhập hoặc từ kết quả thanh toán)
+// GET /api/bookings/:id/detail
+export function useBookingDetail(bookingId: number | string | null) {
+  return useQuery({
+    queryKey: ['bookingDetail', bookingId],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<any>>(`/api/bookings/${bookingId}/detail`);
+      return res.data?.data;
+    },
+    enabled: !!bookingId, // Chỉ chạy khi có ID
+  });
+}
+
+// 2. Tra cứu booking theo Mã Code PNR (Dành cho khách vãng lai chưa đăng nhập)
+// GET /api/bookings/code/:code
+export function useBookingByCode(code: string | null) {
+  return useQuery({
+    queryKey: ['bookingByCode', code],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<any>>(`/api/bookings/code/${code}`);
+      return res.data?.data;
+    },
+    enabled: !!code, // Chỉ chạy khi người dùng nhập code
   });
 }

@@ -92,14 +92,22 @@ export type Booking = {
     contactName: string;
     bookingCode: string;
     bookingDate: string;
-    status: 'PENDING' | 'CONFIRMED' | 'CANCELLED';
+    status: 'PENDING' | 'PENDING_PAYMENT' | 'CONFIRMED' | 'PAID' | 'CANCELLED';
     totalPrice: number;
     flight: {
         flightId: number;
         flightNumber: string;
         departureTime: string;
         arrivalTime: string;
+        airline?: { name: string };
+        route?: {
+            departureAirport: { airportCode: string; city: string };
+            arrivalAirport: { airportCode: string; city: string };
+        };
     };
     passengers: any[];
+    refund?: {
+        status: string;
+    };
 };
 

@@ -69,6 +69,13 @@ export const PaymentResult = () => {
   const bookingIdParam = searchParams.get('bookingId');
   const reasonParam = searchParams.get('reason');
 
+  const isFailedUrl =
+    status === 'failed' ||
+    status === '0' ||
+    status === '-49' ||
+    status === 'cancelled' ||
+    status?.toLowerCase() === 'cancel';
+
   const { data: booking, isLoading: loading } = useQuery({
     queryKey: ['bookingDetail', bookingIdParam],
     queryFn: async () => {
@@ -80,33 +87,37 @@ export const PaymentResult = () => {
     enabled: !!bookingIdParam,
     staleTime: 0,
     retry: 2,
+    refetchInterval: (query) => {
+      if (isFailedUrl) return false;
+      const currentStatus = query.state.data?.status;
+      if (currentStatus === 'PENDING' || currentStatus === 'PENDING_PAYMENT') {
+        return 2000;
+      }
+      return false;
+    },
   });
 
-  const isSuccess =
-    status === 'success' ||
-    status === '1' ||
-    status?.toLowerCase() === 'paid';
+  const isPaid = booking?.status === 'PAID' || booking?.status === 'CONFIRMED';
+  const isPending = booking?.status === 'PENDING' || booking?.status === 'PENDING_PAYMENT';
 
-  const isFailed =
-    status === 'failed' ||
-    status === '0' ||
-    status === 'cancelled' ||
-    status?.toLowerCase() === 'cancel';
+  const isFetchingOrPolling = loading || (booking && isPending && !isFailedUrl);
 
-  if (loading) {
+  if (isFetchingOrPolling) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-surface">
         <div className="flex flex-col items-center gap-4 text-gray-400">
           <Loader2 className="w-10 h-10 animate-spin text-red" />
-          <p className="font-medium">Đang kiểm tra kết quả thanh toán...</p>
+          <p className="font-medium">
+            {booking && isPending ? 'Đang chờ xác nhận từ cổng thanh toán...' : 'Đang kiểm tra kết quả thanh toán...'}
+          </p>
         </div>
       </div>
     );
   }
 
-  // Determine final state from booking data or query params
-  const finalSuccess = isSuccess || booking?.status === 'PAID';
-  const finalFailed = isFailed || (booking && booking.status !== 'PAID' && booking.status !== 'PENDING_PAYMENT');
+  // Determine final state ONLY from DB status to prevent fake payment
+  const finalSuccess = isPaid;
+  const finalFailed = isFailedUrl || (booking && !isPaid && !isPending);
 
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-12 pb-32 bg-surface">
