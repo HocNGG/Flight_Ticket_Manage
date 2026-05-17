@@ -27,11 +27,12 @@ type BookingDetail = {
   bookingId: number;
   bookingCode: string;
   flight: {
-    flightCode: string;
+    flightCode?: string;
+    flightNumber?: string;
     departureTime: string;
     arrivalTime: string;
-    departureAirport?: string;
-    arrivalAirport?: string;
+    departureAirport?: any;
+    arrivalAirport?: any;
   };
   passengers: Array<{
     passengerCode: string;
@@ -65,16 +66,16 @@ export const PaymentResult = () => {
   const navigate = useNavigate();
 
   // ZaloPay redirect query params
-  const status = searchParams.get('status'); // 'success' | 'failed' | null
-  const bookingIdParam = searchParams.get('bookingId');
+  const status = searchParams.get('status'); // '1' (thành công), khác 1 là thất bại
+  const apptransid = searchParams.get('apptransid');
   const reasonParam = searchParams.get('reason');
 
-  const isFailedUrl =
-    status === 'failed' ||
-    status === '0' ||
-    status === '-49' ||
-    status === 'cancelled' ||
-    status?.toLowerCase() === 'cancel';
+  // Lấy ra Booking ID từ chuỗi "260517_26_1779034540305" -> lấy "26"
+  // Hỗ trợ cả tham số bookingId cũ (nếu có)
+  const bookingIdParam = apptransid ? apptransid.split('_')[1] : searchParams.get('bookingId');
+
+  // Nếu có status trên URL mà khác 1 và khác success thì coi là failed
+  const isFailedUrl = status !== null && status !== '1' && status !== 'success';
 
   const { data: booking, isLoading: loading } = useQuery({
     queryKey: ['bookingDetail', bookingIdParam],
@@ -89,7 +90,8 @@ export const PaymentResult = () => {
     retry: 2,
     refetchInterval: (query) => {
       if (isFailedUrl) return false;
-      const currentStatus = query.state.data?.status;
+      const data = query.state.data as any;
+      const currentStatus = data?.status || data?.bookingStatus;
       if (currentStatus === 'PENDING' || currentStatus === 'PENDING_PAYMENT') {
         return 2000;
       }
@@ -97,8 +99,13 @@ export const PaymentResult = () => {
     },
   });
 
-  const isPaid = booking?.status === 'PAID' || booking?.status === 'CONFIRMED';
-  const isPending = booking?.status === 'PENDING' || booking?.status === 'PENDING_PAYMENT';
+  // Backend trả về `bookingStatus` thay vì `status`
+  const dbStatus = (booking?.status || (booking as any)?.bookingStatus || '').toUpperCase();
+  const isPaid = dbStatus === 'PAID' || dbStatus === 'CONFIRMED';
+  const isPending = dbStatus === 'PENDING' || dbStatus === 'PENDING_PAYMENT';
+
+  // Debug để dễ theo dõi
+  console.log('URL Status:', status, '| DB Status:', dbStatus, '| isPaid:', isPaid, '| isPending:', isPending);
 
   const isFetchingOrPolling = loading || (booking && isPending && !isFailedUrl);
 
@@ -142,15 +149,28 @@ const SuccessView = ({
   navigate: ReturnType<typeof useNavigate>;
 }) => {
   const bookingCode = booking?.bookingCode ?? '---';
-  const flightCode = booking?.flight?.flightCode ?? '---';
+  const flightCode = booking?.flight?.flightCode || booking?.flight?.flightNumber || '---';
   const departureTime = booking?.flight?.departureTime ?? '';
   const arrivalTime = booking?.flight?.arrivalTime ?? '';
   const totalPrice = booking?.totalPrice ?? 0;
   const passengers = booking?.passengers ?? [];
   const contactEmail = booking?.contactEmail ?? '';
   const contactPhone = booking?.contactPhone ?? '';
-  const departureAirport = booking?.flight?.departureAirport ?? '';
-  const arrivalAirport = booking?.flight?.arrivalAirport ?? '';
+  
+  const getExtractedAirportCode = (airport: any) => {
+    if (!airport) return '';
+    if (typeof airport === 'string') return airport;
+    return airport.airportCode || airport.city || '';
+  };
+  
+  const departureAirport = getExtractedAirportCode(booking?.flight?.departureAirport);
+  const arrivalAirport = getExtractedAirportCode(booking?.flight?.arrivalAirport);
+
+  const displayPrice = typeof totalPrice === 'string' 
+    ? totalPrice 
+    : formatPrice(Number(totalPrice) || 0);
+  
+  const hasPrice = Boolean(totalPrice && (typeof totalPrice === 'string' || Number(totalPrice) > 0));
 
   return (
     <div className="flex flex-col items-center">
@@ -226,15 +246,17 @@ const SuccessView = ({
               {passengers.length > 0 && (
                 <div className="space-y-3 border-t border-gray-100 pt-4">
                   <p className="text-xs font-bold text-gray-400 uppercase tracking-widest">Hành khách</p>
-                  {passengers.map((p) => (
-                    <div key={p.passengerCode} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
+                  {passengers.map((p, idx) => (
+                    <div key={p.passengerCode || idx} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-3">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
                           <User className="w-4 h-4 text-green-600" />
                         </div>
                         <div>
                           <p className="text-sm font-bold text-gray-800">{p.fullName}</p>
-                          <p className="text-[10px] text-gray-400">{p.passengerCode}</p>
+                          {(p.passengerCode || (p as any).passportNumber) && (
+                            <p className="text-[10px] text-gray-400">{p.passengerCode || (p as any).passportNumber}</p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2 bg-white border border-gray-100 rounded-lg px-3 py-1.5">
@@ -248,10 +270,10 @@ const SuccessView = ({
             </div>
 
             {/* Price footer */}
-            {totalPrice > 0 && (
+            {hasPrice && (
               <div className="border-t border-dashed border-gray-200 px-6 py-4 bg-gray-50 flex justify-between items-center">
                 <span className="text-sm font-bold text-gray-500 uppercase tracking-widest">Tổng tiền</span>
-                <span className="text-2xl font-black text-green-600">{formatPrice(totalPrice)}</span>
+                <span className="text-2xl font-black text-green-600">{displayPrice}</span>
               </div>
             )}
           </div>
@@ -333,7 +355,7 @@ const SuccessView = ({
 
           <button
             id="btn-view-my-bookings"
-            onClick={() => navigate('/my-bookings')}
+            onClick={() => navigate('/bookings')}
             className="w-full flex items-center justify-center gap-2 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-colors"
           >
             <Ticket className="w-4 h-4" />
@@ -459,7 +481,7 @@ const FailedView = ({
 
         <button
           id="btn-view-my-bookings-failed"
-          onClick={() => navigate('/my-bookings')}
+          onClick={() => navigate('/bookings')}
           className="w-full flex items-center justify-center gap-2 border-2 border-gray-200 hover:border-gray-300 text-gray-600 hover:text-gray-800 font-bold py-4 rounded-xl transition-colors"
         >
           <Ticket className="w-4 h-4" />
@@ -493,7 +515,7 @@ const UnknownView = ({ navigate }: { navigate: ReturnType<typeof useNavigate> })
     <div className="flex flex-col gap-3 w-full">
       <button
         id="btn-view-my-bookings-unknown"
-        onClick={() => navigate('/my-bookings')}
+        onClick={() => navigate('/bookings')}
         className="w-full flex items-center justify-center gap-2 bg-red hover:bg-red/90 text-white font-bold py-4 rounded-xl transition-colors"
       >
         <Ticket className="w-4 h-4" />

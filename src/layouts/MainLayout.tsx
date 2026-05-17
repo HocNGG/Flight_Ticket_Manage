@@ -28,10 +28,27 @@ const MainLayout = () => {
 
           {!isAuthPage && (
             <nav className="hidden md:flex items-center gap-8">
-              <Link to="/search" className="text-sm font-semibold text-red border-b-2 border-red py-1">Search</Link>
-              <Link to="/bookings" className="text-sm font-medium text-gray-500 hover:text-black transition-colors">My Bookings</Link>
-              <Link to="/deals" className="text-sm font-medium text-gray-500 hover:text-black transition-colors">Deals</Link>
-              <Link to="/help" className="text-sm font-medium text-gray-500 hover:text-black transition-colors">Help</Link>
+              {[
+                { path: '/search', label: 'Search' },
+                { path: '/bookings', label: 'My Bookings' },
+                { path: '/deals', label: 'Deals' },
+                { path: '/help', label: 'Help' },
+              ].map((item) => {
+                const isActive = location.pathname.includes(item.path) || (item.path === '/search' && location.pathname === '/');
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`py-1 transition-colors ${
+                      isActive
+                        ? 'text-sm font-semibold text-red border-b-2 border-red'
+                        : 'text-sm font-medium text-gray-500 hover:text-black border-b-2 border-transparent'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           )}
 

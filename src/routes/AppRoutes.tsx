@@ -58,8 +58,9 @@ const AppRoutes = () => {
         {/* Booking Journey */}
         <Route path="/booking/seat" element={<SeatSelection />} />
         <Route path="/booking/payment" element={<Payment />} />
-        {/* ZaloPay redirect về đây sau khi thanh toán: ?status=success|failed&bookingId=... */}
-        <Route path="/booking/payment-result" element={<PaymentResult />} />
+        {/* ZaloPay redirect về đây sau khi thanh toán: ?status=1&apptransid=... */}
+        <Route path="/payment-result" element={<PaymentResult />} />
+        <Route path="/booking/payment-result" element={<Navigate to="/payment-result" replace />} />
 
         {/* My Bookings — Passenger quản lý đặt chỗ */}
         <Route path="/bookings" element={<MyBookings />} />
