@@ -12,18 +12,30 @@ export function useLogin() {
             authApi.login(email, password),
         onSuccess: async (res) => {
             const { accessToken, refreshToken } = res.data.data;
-            // Bước 1: lưu token → axios interceptor dùng để gắn Authorization header
+
+            // Bước 1: lưu token (JWT không chứa role, không decode)
             setToken(accessToken, refreshToken);
 
-            // Bước 2: gọi /api/users/me để lấy thông tin user (fullName, email, phone)
+            // Bước 2: gọi /api/users/me để lấy thông tin user + role
+            let role: string = 'passenger';
             try {
                 const meRes = await authApi.getMe();
-                setUser(meRes.data.data); // lưu vào Zustand → Navbar tự re-render
+                const userProfile = meRes.data.data; // { email, fullName, phone, role }
+                setUser(userProfile); // setUser() sẽ tự động sync role vào state
+                role = userProfile.role ?? 'passenger';
             } catch {
                 // Không lấy được profile không sao — token vẫn hợp lệ
             }
 
-            navigate('/search');
+            // Bước 3: Chuyển hướng dựa theo role
+            const normalizedRole = role.toLowerCase();
+            if (normalizedRole === 'admin') {
+                navigate('/admin/dashboard');
+            } else if (normalizedRole === 'staff') {
+                navigate('/staff/cancel-requests');
+            } else {
+                navigate('/search');
+            }
         },
     });
 }

@@ -20,10 +20,13 @@ export interface RegisterResponse {
     status: string;
 }
 
+export type UserRole = 'passenger' | 'admin' | 'staff';
+
 export interface UserProfile {
     email: string;
     fullName: string;
     phone: string;
+    role: UserRole; // Trả về từ GET /api/users/me
 }
 
 
