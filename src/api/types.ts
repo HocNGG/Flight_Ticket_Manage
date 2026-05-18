@@ -119,3 +119,11 @@ export type Airport = {
     city: string; 
     country: string 
 };
+
+export type Airline = {
+  airlineId: number
+  code: string;   // API field
+  name: string;   // API field
+  country: string;
+  establishedYear: number;
+};

@@ -1,40 +1,35 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Plus, Pencil, Trash2, Search, X, Check } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
+import type { Airline } from '../../../api/types';
+import { airlineApi, type CreateAirline } from '../../../api/airlineApi';
 
-// API response type: GET /api/airlines
-type Airline = {
-  airlineId: number;
-  airlineCode: string;   // API field
-  airlineName: string;   // API field
-  country: string;
-  foundedYear: number;
-};
 
-// API: POST/PUT /api/airlines request body
-type AirlineForm = {
-  airlineCode: string;
-  airlineName: string;
-  country: string;
-  foundedYear: number;
-};
+
+type AirlineForm = CreateAirline;
+
 
 // Mock data theo đúng API response structure
 const mockAirlines: Airline[] = [
-  { airlineId: 1, airlineCode: 'VN', airlineName: 'Vietnam Airlines', country: 'Vietnam', foundedYear: 1990 },
-  { airlineId: 2, airlineCode: 'VJ', airlineName: 'VietJet Air', country: 'Vietnam', foundedYear: 2011 },
-  { airlineId: 3, airlineCode: 'QH', airlineName: 'Bamboo Airways', country: 'Vietnam', foundedYear: 2019 },
-  { airlineId: 4, airlineCode: 'BL', airlineName: 'Pacific Airlines', country: 'Vietnam', foundedYear: 1991 },
+  { airlineId: 1, code: 'VN', name: 'Vietnam Airlines', country: 'Vietnam', establishedYear: 1990 },
+  { airlineId: 2, code: 'VJ', name: 'VietJet Air', country: 'Vietnam', establishedYear: 2011 },
+  { airlineId: 3, code: 'QH', name: 'Bamboo Airways', country: 'Vietnam', establishedYear: 2019 },
+  { airlineId: 4, code: 'BL', name: 'Pacific Airlines', country: 'Vietnam', establishedYear: 1991 },
 ];
 
 const defaultForm: AirlineForm = {
-  airlineCode: '',
-  airlineName: '',
+  code: '',
+  name: '',
   country: '',
-  foundedYear: new Date().getFullYear(),
+  establishedYear: 0,
 };
 
 export const AirlineManagement = () => {
+  const [loading, setLoading] = useState(false);
+
+  const [saving, setSaving] = useState(false);
+  const [deleting, setDeleting] =useState<number | null>(null);
+
   const [airlines, setAirlines] = useState<Airline[]>(mockAirlines);
   const [search, setSearch] = useState('');
 
@@ -50,53 +45,119 @@ export const AirlineManagement = () => {
   const [deleteId, setDeleteId] = useState<number | null>(null);
 
   const [successMsg, setSuccessMsg] = useState('');
-
+  const [errorMsg, setErrorMsg] = useState('');
   const showSuccess = (msg: string) => {
     setSuccessMsg(msg);
     setTimeout(() => setSuccessMsg(''), 3000);
   };
-
+  const showError = (msg: string) => {
+    setErrorMsg(msg);
+    setTimeout(() => {
+      setErrorMsg('');
+    }, 3000);
+  };
+  const fetchAll = useCallback(async () => {
+    setLoading(true);
+    try {
+      const { data } =await airlineApi.getAll();
+      if (data.success &&data.data) {setAirlines(data.data);}
+    } catch (err) {
+      console.error(err);
+      showError(
+        'Không thể tải danh sách hãng bay'
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+  
+  useEffect(() => {fetchAll();}, [fetchAll]);
+  
   const filteredAirlines = airlines.filter(
     (a) =>
-      a.airlineName.toLowerCase().includes(search.toLowerCase()) ||
-      a.airlineCode.toLowerCase().includes(search.toLowerCase()) ||
+      a.name.toLowerCase().includes(search.toLowerCase()) ||
+      a.code.toLowerCase().includes(search.toLowerCase()) ||
       a.country.toLowerCase().includes(search.toLowerCase()),
   );
 
   // POST /api/airlines
-  const handleCreate = () => {
-    if (!createForm.airlineCode.trim() || !createForm.airlineName.trim()) return;
-    const newAirline: Airline = {
-      airlineId: Date.now(),
-      ...createForm,
-      airlineCode: createForm.airlineCode.toUpperCase(),
-    };
-    setAirlines((prev) => [...prev, newAirline]);
-    setShowCreateModal(false);
-    setCreateForm(defaultForm);
-    showSuccess(`Hãng bay "${newAirline.airlineName}" đã được tạo thành công.`);
+  const handleCreate = async () => {
+    if (!createForm.code.trim() ||!createForm.name.trim()) {
+      showError('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+    setSaving(true);
+    try {
+      const { data } = await airlineApi.create({
+          ...createForm,
+          code : createForm.code.toUpperCase()
+        });
+      if (data.success) {
+        showSuccess(
+          `Hãng bay "${createForm.name}" đã được tạo thành công`
+        );
+        setShowCreateModal(false);
+        setCreateForm(defaultForm);
+        await fetchAll();
+      } else {
+        showError(data.message ||'Tạo hãng bay thất bại');
+      }
+    } catch (err: any) {
+      showError(err?.response?.data?.message ||'Không thể kết nối server');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // PUT /api/airlines/{id}
-  const handleEdit = () => {
+  const handleEdit = async () => {
     if (!editAirline) return;
-    setAirlines((prev) =>
-      prev.map((a) =>
-        a.airlineId === editAirline.airlineId
-          ? { ...a, ...editForm, airlineCode: editForm.airlineCode.toUpperCase() }
-          : a,
-      ),
-    );
-    setEditAirline(null);
-    showSuccess(`Đã cập nhật hãng bay "${editForm.airlineName}".`);
+    setSaving(true);
+    try {
+      const { data } =await airlineApi.update(
+          editAirline.airlineId,
+          {
+            ...editForm,
+            code :editForm.code.toUpperCase()
+          }
+        );
+
+      if (data.success) {
+        showSuccess(
+          `Đã cập nhật hãng bay "${editForm.name}"`
+        );
+        setEditAirline(null);
+        await fetchAll();
+      } else {
+        showError(data.message ||'Cập nhật thất bại')
+      }
+    } catch (err: any) {
+      showError(err?.response?.data?.message ||'Không thể kết nối server');
+    } finally {
+      setSaving(false);
+    }
   };
 
   // DELETE /api/airlines/{id}
-  const handleDelete = () => {
-    const found = airlines.find((a) => a.airlineId === deleteId);
-    setAirlines((prev) => prev.filter((a) => a.airlineId !== deleteId));
-    setDeleteId(null);
-    showSuccess(`Đã xóa hãng bay "${found?.airlineName}".`);
+  const handleDelete = async () => {
+    if (deleteId === null) return
+    setDeleting(deleteId);
+    try {
+      const found =airlines.find((a) => a.airlineId === deleteId);
+      const { data } = await airlineApi.remove(deleteId);
+      if (data.success) {
+        setAirlines((prev) => prev.filter((a) => a.airlineId !== deleteId));
+        showSuccess(`Đã xóa hãng bay "${found?.name}"`);
+        setDeleteId(null);
+      } else {
+        showError(data.message ||'Xóa thất bại');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showError(err?.response?.data?.message ||'Không thể kết nối server');
+    } finally {
+      setDeleting(null);
+    }
   };
 
   return (
@@ -110,6 +171,13 @@ export const AirlineManagement = () => {
           </div>
         )}
 
+        {/* Error Toast */}
+        {errorMsg && (
+          <div className="fixed top-6 right-6 z-50 bg-red-600 text-white px-6 py-3 rounded-2xl shadow-lg flex items-center gap-3 text-sm font-semibold animate-pulse">
+            <X className="w-4 h-4" /> {errorMsg}
+          </div>
+        )}
+
         {/* Header */}
         <div className="rounded-[2rem] bg-white p-8 shadow-sm border border-gray-200">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-6">
@@ -117,7 +185,7 @@ export const AirlineManagement = () => {
               <p className="text-sm font-semibold uppercase tracking-[0.27em] text-gray-400">Quản trị viên</p>
               <h1 className="mt-3 text-4xl font-black tracking-tight text-gray-900">Quản lý Hãng Bay</h1>
               <p className="mt-2 text-sm text-gray-500 max-w-xl">
-                Thêm, chỉnh sửa và xóa hãng hàng không. Dữ liệu đồng bộ với API <code className="text-xs bg-gray-100 px-1 rounded">/api/airlines</code>.
+                Thêm, chỉnh sửa và xóa hãng hàng không. 
               </p>
             </div>
             <button
@@ -137,7 +205,7 @@ export const AirlineManagement = () => {
             { label: 'Tổng hãng bay', value: airlines.length, color: 'border-red' },
             { label: 'Việt Nam', value: airlines.filter((a) => a.country === 'Vietnam').length, color: 'border-blue-400' },
             { label: 'Quốc tế', value: airlines.filter((a) => a.country !== 'Vietnam').length, color: 'border-gray-400' },
-            { label: 'Mã hãng', value: '2-3 ký tự', color: 'border-gold' },
+            { label: 'Mã hãng', value: '2-5 ký tự', color: 'border-gold' },
           ].map(({ label, value, color }) => (
             <div key={label} className={`rounded-2xl bg-white p-5 border-l-4 ${color} border border-gray-100 shadow-sm`}>
               <p className="text-xs font-bold uppercase tracking-widest text-gray-400">{label}</p>
@@ -179,12 +247,12 @@ export const AirlineManagement = () => {
                   <tr key={airline.airlineId} className="hover:bg-gray-50 transition-colors">
                     <td className="py-4">
                       <span className="inline-block bg-red/10 text-red font-black text-sm px-3 py-1 rounded-full">
-                        {airline.airlineCode}
+                        {airline.code}
                       </span>
                     </td>
-                    <td className="py-4 font-semibold text-gray-900">{airline.airlineName}</td>
+                    <td className="py-4 font-semibold text-gray-900">{airline.name}</td>
                     <td className="py-4 text-gray-600">{airline.country}</td>
-                    <td className="py-4 text-gray-600">{airline.foundedYear}</td>
+                    <td className="py-4 text-gray-600">{airline.establishedYear}</td>
                     <td className="py-4">
                       <div className="flex items-center gap-2">
                         <button
@@ -192,10 +260,10 @@ export const AirlineManagement = () => {
                           onClick={() => {
                             setEditAirline(airline);
                             setEditForm({
-                              airlineCode: airline.airlineCode,
-                              airlineName: airline.airlineName,
+                              code: airline.code,
+                              name: airline.name,
                               country: airline.country,
-                              foundedYear: airline.foundedYear,
+                              establishedYear: airline.establishedYear,
                             });
                           }}
                           className="rounded-full border border-gray-200 bg-white p-2 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition"
@@ -244,7 +312,7 @@ export const AirlineManagement = () => {
       {/* ── Edit Modal ── */}
       {editAirline && (
         <Modal
-          title={`Chỉnh sửa: ${editAirline.airlineName}`}
+          title={`Chỉnh sửa: ${editAirline.name}`}
           subtitle={`API: PUT /api/airlines/${editAirline.airlineId}`}
           onClose={() => setEditAirline(null)}
           onConfirm={handleEdit}
@@ -300,12 +368,12 @@ const AirlineFormFields = ({
       {/* airlineCode — API field */}
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
-          Mã hãng (airlineCode) <span className="text-red">*</span>
+          Mã hãng  <span className="text-red">*</span>
         </label>
         <input
           type="text"
-          value={form.airlineCode}
-          onChange={(e) => onChange({ ...form, airlineCode: e.target.value.toUpperCase() })}
+          value={form.code}
+          onChange={(e) => onChange({ ...form, code: e.target.value.toUpperCase() })}
           placeholder="VN, VJ, QH..."
           maxLength={3}
           className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10 font-mono"
@@ -315,12 +383,12 @@ const AirlineFormFields = ({
       {/* airlineName — API field */}
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
-          Tên hãng bay (airlineName) <span className="text-red">*</span>
+          Tên hãng bay  <span className="text-red">*</span>
         </label>
         <input
           type="text"
-          value={form.airlineName}
-          onChange={(e) => onChange({ ...form, airlineName: e.target.value })}
+          value={form.name}
+          onChange={(e) => onChange({ ...form, name: e.target.value })}
           placeholder="Vietnam Airlines"
           className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
         />
@@ -329,7 +397,7 @@ const AirlineFormFields = ({
       {/* country — API field */}
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
-          Quốc gia (country)
+          Quốc gia 
         </label>
         <input
           type="text"
@@ -343,12 +411,12 @@ const AirlineFormFields = ({
       {/* foundedYear — API field */}
       <div>
         <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">
-          Năm thành lập (foundedYear)
+          Năm thành lập
         </label>
         <input
           type="number"
-          value={form.foundedYear}
-          onChange={(e) => onChange({ ...form, foundedYear: Number(e.target.value) })}
+          value={form.establishedYear}
+          onChange={(e) => onChange({ ...form, establishedYear: Number(e.target.value) })}
           min={1900}
           max={new Date().getFullYear()}
           className="w-full rounded-2xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red focus:ring-2 focus:ring-red/10"
@@ -359,7 +427,7 @@ const AirlineFormFields = ({
     <div className="bg-blue-50 border border-blue-100 rounded-xl p-3">
       <p className="text-xs text-blue-600 font-medium">
         <strong>API request body:</strong>{' '}
-        <code className="font-mono">{`{ airlineCode, airlineName, country, foundedYear }`}</code>
+        <code className="font-mono">{`{airlineCode, airlineName, country, foundedYear}`}</code>
       </p>
     </div>
   </div>
