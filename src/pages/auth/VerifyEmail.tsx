@@ -1,52 +1,115 @@
+// pages/auth/VerifyEmail.tsx
+// Khi user click link trong email → FE gọi BE verify → redirect /login
+
 import { useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
-import authApi from '../../api/authApi';
-import { CheckCircle } from 'lucide-react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useQuery } from '@tanstack/react-query';
+import api from '../../api/axiosInstance';
+import type { ApiResponse } from '../../api/types';
+import { CheckCircle, XCircle, Loader2 } from 'lucide-react';
 
 export const VerifyEmail = () => {
-    const [searchParams] = useSearchParams();
-    const token = searchParams.get('token');
-    const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const token = searchParams.get('token');
 
-    useEffect(() => {
-        if (token) {
-            authApi.verifyEmail(token)
-                .then(() => {
+  const { isLoading, isSuccess, isError } = useQuery({
+    queryKey: ['verify-email', token],
+    queryFn: async () => {
+      const res = await api.get<ApiResponse<string>>(
+        `/api/auth/verify-email?token=${token}`,
+      );
+      return res.data;
+    },
+    enabled: !!token,
+    retry: false,
+    staleTime: Infinity,
+  });
 
-                    setTimeout(() => navigate('/login'), 10000);
-                })
-                .catch((error) => {
-                    console.error('Lỗi xác thực:', error);
-                });
-        }
-    }, [token, navigate]);
+  // Tự động redirect về /login sau 3s nếu thành công
+  useEffect(() => {
+    if (isSuccess) {
+      const timer = setTimeout(() => navigate('/login'), 3000);
+      return () => clearTimeout(timer);
+    }
+  }, [isSuccess, navigate]);
 
-    // Giao diện tĩnh: CHỈ hiển thị thành công
-    return (
-        <div className="flex flex-col items-center justify-center min-h-screen bg-gray-50">
-            <div className="bg-white p-8 rounded-2xl shadow-lg max-w-md w-full text-center hover:shadow-xl transition-shadow">
-                
-                {/* Icon Check màu xanh lá */}
-                <CheckCircle className="w-16 h-16 text-green-500 mx-auto mb-4 animate-bounce" />
-                
-                <h2 className="text-2xl font-black text-gray-900 mb-2">
-                    Tuyệt vời! 🎉
-                </h2>
-                
-                <p className="text-sm font-medium text-gray-500 mb-6 leading-relaxed">
-                    Tài khoản của bạn đã được kích hoạt thành công. <br/>
-                    Hệ thống đang tự động chuyển hướng...
-                </p>
+  return (
+    <div className="min-h-screen bg-surface flex items-center justify-center px-4">
+      <div className="bg-white rounded-[2rem] shadow-xl shadow-black/5 border border-gray-100 p-12 max-w-md w-full text-center">
 
-                {/* Nút bấm trong trường hợp họ không muốn đợi 3 giây */}
-                <button 
-                    onClick={() => navigate('/login')}
-                    className="bg-red-600 text-white px-8 py-3 rounded-full font-bold hover:bg-red-700 transition-colors w-full"
-                >
-                    Đi tới Đăng nhập ngay
-                </button>
-
+        {/* Loading */}
+        {isLoading && (
+          <>
+            <div className="flex justify-center mb-6">
+              <Loader2 className="w-16 h-16 text-red animate-spin" />
             </div>
-        </div>
-    );
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+              Đang xác thực...
+            </h1>
+            <p className="text-gray-500 text-sm">Vui lòng chờ trong giây lát.</p>
+          </>
+        )}
+
+        {/* Success */}
+        {isSuccess && (
+          <>
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-green-100 flex items-center justify-center">
+                <CheckCircle className="w-9 h-9 text-green-500" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+              Xác thực thành công!
+            </h1>
+            <p className="text-gray-500 text-sm mb-8">
+              Email của bạn đã được xác thực. Đang chuyển về trang đăng nhập...
+            </p>
+            <button
+              onClick={() => navigate('/login')}
+              className="w-full bg-red text-white hover:bg-reddark transition-colors rounded-xl h-12 font-bold text-sm tracking-widest uppercase"
+            >
+              Đăng nhập ngay
+            </button>
+          </>
+        )}
+
+        {/* Error / No token */}
+        {(isError || !token) && !isLoading && (
+          <>
+            <div className="flex justify-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-red/10 flex items-center justify-center">
+                <XCircle className="w-9 h-9 text-red" />
+              </div>
+            </div>
+            <h1 className="text-2xl font-black text-gray-900 tracking-tight mb-2">
+              Xác thực thất bại
+            </h1>
+            <p className="text-gray-500 text-sm mb-2">
+              {!token
+                ? 'Không tìm thấy token xác thực.'
+                : 'Link đã hết hạn hoặc không hợp lệ.'}
+            </p>
+            <p className="text-xs text-gray-400 mb-8">
+              Vui lòng đăng ký lại hoặc liên hệ hỗ trợ.
+            </p>
+            <div className="flex gap-3">
+              <button
+                onClick={() => navigate('/signup')}
+                className="flex-1 border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors rounded-xl h-12 font-bold text-sm"
+              >
+                Đăng ký lại
+              </button>
+              <button
+                onClick={() => navigate('/login')}
+                className="flex-1 bg-red text-white hover:bg-reddark transition-colors rounded-xl h-12 font-bold text-sm"
+              >
+                Đăng nhập
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
 };

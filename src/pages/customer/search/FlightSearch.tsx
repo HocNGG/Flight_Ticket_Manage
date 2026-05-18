@@ -3,82 +3,68 @@ import { useState,useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import DateInput from '../../../components/customer/search/DateInput';
 import PassengerInput from '../../../components/customer/search/PassengerInput';
-import type { AirportGeneral } from '../../../types/flight/airport';
-import airportApi from '../../../api/airportApi';
-import flightApi from '../../../api/flightApi';
-import AirportDropdown from '../../../components/customer/search/AirportDropdownProp';
-import type { FlightSearchRequest } from '../../../types/flight/flight';
+import CabinInput from '../../../components/customer/search/CabinInput';
+import { useAirports } from '../../../hooks/useFlights';
+import { useSearchStore } from '../../../store/useSearchStore';
+
+const toAirportCode = (value: string) => {
+  const trimmed = value.trim();
+  const codeInBracket = trimmed.match(/\(([A-Za-z]{3})\)\s*$/);
+  if (codeInBracket) return codeInBracket[1].toUpperCase();
+  if (/^[A-Za-z]{3}$/.test(trimmed)) return trimmed.toUpperCase();
+  return '';
+};
+
+const getTodayDate = () => new Date().toISOString().slice(0, 10);
 
 export const FlightSearch = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(false);
-  const [from, setFrom] = useState('');
-  const [to, setTo] = useState('');
+  const { setSearchParams } = useSearchStore();
+
+  // Local form state — chỉ dùng trong trang này
+  const [departure, setDeparture] = useState('');
+  const [arrival, setArrival] = useState('');
   const [departureDate, setDepartureDate] = useState('');
-  const [returnDate, setReturnDate] = useState('');
-  const [isRoundTrip, setIsRoundTrip] = useState(false);
-  const [passengerCount,setPassengerCount]=useState(1);
-  const [airports, setAirports] = useState<AirportGeneral[]>([]);
+  const [passengerCount, setPassengerCount] = useState(1);
+  const [seatClass, setSeatClass] = useState<'ECONOMY' | 'BUSINESS' | 'FIRST'>('ECONOMY');
 
-  useEffect(() => {
-    const fetchData = async () => {
-      setLoading(true);
-      try {
-        const airportRes = await airportApi.getAirportsGeneral();
-        setAirports(airportRes.data);
-      } catch (error) {
-        console.error("Lỗi khi tải dữ liệu:", error);
-      } finally
-      {
-        setLoading(false);
-      }
-    };
+  // React Query: gọi 1 lần khi mount, cache 30 phút
+  const { isLoading: loadingAirports } = useAirports();
 
-    fetchData();
-  }, []);
+  // airports & airportOptions sẽ dùng khi DropdownInputOff được nâng cấp nhận prop options
 
-  const handleSearch = async () => {
-    const searchData: FlightSearchRequest = {
-      departure: from,
-      arrival: to,
-      departureDate: departureDate, 
-      passengerCount: passengerCount, 
-      roundTrip: isRoundTrip,
-      returnDate: isRoundTrip ? returnDate : undefined
-    };
+  // canSearch: không cho search khi airports chưa tải hoặc form chưa điền đủ
+  const departureCode = toAirportCode(departure);
+  const arrivalCode = toAirportCode(arrival);
+  const isValidDate = departureDate !== '' && departureDate >= getTodayDate();
+  const canSearch = !loadingAirports
+    && departureCode !== ''
+    && arrivalCode !== ''
+    && departureCode !== arrivalCode
+    && isValidDate;
 
-    const response = await flightApi.searchFlight(searchData);
-    if (response.data) {
-      const query = new URLSearchParams({
-        from,
-        to,
-        date: departureDate,
-        passengerCount:passengerCount.toString(),
-        roundTrip: isRoundTrip.toString(),
-      });
-      if (isRoundTrip && returnDate) query.append('return', returnDate);
-      navigate(`/results?${query.toString()}`);
-    }
+  const handleSearch = () => {
+    if (!canSearch) return;
+    const params = { departure: departureCode, arrival: arrivalCode, departureDate, passengerCount, seatClass };
+
+    // Lưu vào Zustand để FlightResults + FlightDetail dùng lại
+    setSearchParams(params);
+
+    // Navigate với URL params — user có thể F5 hoặc copy link
+    const query = new URLSearchParams({
+      departure: departureCode,
+      arrival: arrivalCode,
+      departureDate,
+      passengerCount: String(passengerCount),
+      seatClass,
+    });
+    navigate(`/results?${query.toString()}`);
   };
-  
-  const canSearch = from !== '' && to !== '' && departureDate !== '';
-  if (loading) {
-    return (
-      <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center justify-center bg-[#f9fafb]">
-        {/* Vòng xoay Spinner */}
-        <div className="w-16 h-16 border-4 border-gray-200 border-t-red rounded-full animate-spin mb-4"></div>
-        {/* Chữ nhấp nháy */}
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-sm animate-pulse">
-          Đang chuẩn bị chuyến bay...
-        </p>
-      </div>
-    );
-  }
+
   return (
     <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center">
       {/* Hero Section */}
       <div className="w-full max-w-[1280px] mx-auto px-6 py-16 flex flex-col items-center relative">
-        {/* Background decorative elements or text could go here */}
 
         <h1 className="text-5xl md:text-[5rem] font-black tracking-tighter uppercase text-center mb-4 leading-none text-dark">
           WHERE TO <span className="text-red italic">NEXT?</span>
@@ -87,80 +73,41 @@ export const FlightSearch = () => {
           Experience the kinetic horizon. Redefining the velocity of your journey with editorial precision.
         </p>
 
-        {/* Search Form Pill */}
+        {/* Search Form */}
         <div className="bg-white rounded-[2rem] shadow-xl shadow-black/5 p-6 w-full max-w-5xl z-10 border border-gray-100">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-2">
-            {/* Departure */}
-            <div className="relative ">
-              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1">Departure</label>
-              <AirportDropdown 
-                value={from} 
-                onChange={setFrom} 
-                options={airports}
-                placeholder="City or Airport"
-                icon={<PlaneTakeoff className="w-5 h-5 text-red" />} 
-              />
+          {/* Row 1: Departure, Arrival, Dates */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
+            <div className="col-span-1 md:col-span-1 relative">
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Departure</label>
+              <DropdownInputOff value={departure} onChange={setDeparture} />
             </div>
 
-            {/* Destination */}
-            <div className="relative">
-              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1">Destination</label>
-              <AirportDropdown 
-                value={to} 
-                onChange={setTo} 
-                options={airports}
-                placeholder="Where are you heading"
-                icon={<PlaneLanding className="w-5 h-5 text-gold1" />} 
-              />
+            <div className="col-span-1 md:col-span-1 relative">
+              <label className="text-[11px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Destination</label>
+              <DropdownInputLanding value={arrival} onChange={setArrival} />
             </div>
-            <div className="relative flex flex-col justify-end ">
-              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1 text-gray-400">Travelers</label>
-              <PassengerInput 
-                value={passengerCount} 
-                onChange={setPassengerCount} 
-              />
-            </div>
+
+            <DateInput
+              departureDate={departureDate}
+              returnDate={''}
+              onDepartureDateChange={setDepartureDate}
+              onReturnDateChange={() => { }}
+            />
           </div>
 
-          <div className="flex flex-col md:flex-row gap-6 items-end">
-            <div className="w-full md:w-32 shrink-0">
-              <label className="text-[11px] uppercase font-bold tracking-widest block mb-2 px-1 text-gray-400 text-left">Type</label>
-              <button
-                type="button"
-                onClick={() => {
-                  const nextState = !isRoundTrip;
-                  setIsRoundTrip(nextState);
-                  if (!nextState) setReturnDate('');
-                }}
-                className={`w-full h-14 rounded-xl border-2 transition-all flex flex-col items-center justify-center gap-1 ${
-                  isRoundTrip ? 'border-red bg-red/5 text-red' : 'border-gray-100 bg-surface text-gray-400 hover:border-gray-200'
-                }`}
-              >
-                <span className="text-[9px] font-black uppercase leading-none">Round Trip</span>
-                <div className={`w-7 h-3.5 rounded-full relative transition-colors ${isRoundTrip ? 'bg-red' : 'bg-gray-300'}`}>
-                  <div className={`absolute top-0.5 w-2.5 h-2.5 bg-white rounded-full transition-all ${isRoundTrip ? 'right-0.5' : 'left-0.5'}`} />
-                </div>
-              </button>
-            </div>
-            {/* Dates */}
-            <div className="flex-[2] w-full">
-              <DateInput
-                departureDate={departureDate}
-                returnDate={returnDate}
-                isRoundTrip={isRoundTrip}
-                onDepartureDateChange={setDepartureDate}
-                onReturnDateChange={setReturnDate}
-              />
-            </div>
-            <div className="flex-[1] w-full">
+          {/* Row 2: Passengers, Cabin, Search button */}
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+            <PassengerInput value={passengerCount} onChange={setPassengerCount} />
+            <CabinInput value={seatClass} onChange={(val) => setSeatClass(val as 'ECONOMY' | 'BUSINESS' | 'FIRST')} />
+
+            <div className="col-span-1 md:col-span-2 relative mt-4 md:mt-0">
               <button
                 onClick={handleSearch}
                 disabled={!canSearch}
-                className={`w-full rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2 transition-all ${
-                  canSearch
-                    ? 'bg-red text-white hover:bg-red-700 shadow-lg shadow-red/20'
-                    : 'bg-gray-100 text-gray-400 cursor-not-allowed'
-                }`}
+                className={`w-full rounded-xl h-14 font-bold text-sm tracking-wider uppercase flex items-center justify-center gap-2 transition-colors ${canSearch
+                    ? 'bg-red text-white hover:bg-reddark'
+                    : 'bg-gray-200 text-gray-500 cursor-not-allowed'
+                  }`}
               >
                 Search Flights
                 <ArrowRight className="w-4 h-4" />
@@ -169,27 +116,39 @@ export const FlightSearch = () => {
           </div>
         </div>
 
-        {/* Destinations */}
+        {/* Popular Destinations */}
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6 w-full max-w-5xl mt-16 pb-20">
-          <DestinationCard city="London" price="$499" imgBg="bg-blue-200" />
-          <DestinationCard city="Sydney" price="$820" imgBg="bg-indigo-950" />
-          <DestinationCard city="Tokyo" price="$675" imgBg="bg-red-100" />
-          <DestinationCard city="Dubai" price="$540" imgBg="bg-amber-100" />
+          <DestinationCard city="Hà Nội" code="HAN" price="1,200,000 ₫" imgBg="bg-blue-200" />
+          <DestinationCard city="Đà Nẵng" code="DAD" price="890,000 ₫" imgBg="bg-indigo-950" />
+          <DestinationCard city="Phú Quốc" code="PQC" price="1,450,000 ₫" imgBg="bg-red-100" />
+          <DestinationCard city="TP. HCM" code="SGN" price="750,000 ₫" imgBg="bg-amber-100" />
         </div>
       </div>
     </div>
   );
 };
 
-const DestinationCard = ({ city, price, imgBg }: { city: string, price: string, imgBg: string }) => (
+const DestinationCard = ({
+  city,
+  code,
+  price,
+  imgBg,
+}: {
+  city: string;
+  code: string;
+  price: string;
+  imgBg: string;
+}) => (
   <div className="bg-white rounded-[2rem] p-4 shadow-md shadow-black/5 hover:shadow-xl transition-shadow cursor-pointer flex flex-col group border border-transparent hover:border-gray-100">
     <div className={`w-full aspect-[4/5] rounded-[1.5rem] ${imgBg} mb-4 overflow-hidden relative`}>
-      {/* Real app would have actual images */}
       <div className="absolute inset-0 bg-black/10 group-hover:bg-transparent transition-colors"></div>
+      <div className="absolute top-3 left-3 bg-white/90 backdrop-blur-sm rounded-full px-2 py-0.5 text-[10px] font-bold text-gray-700">
+        {code}
+      </div>
     </div>
     <div className="px-2 pb-2">
       <h3 className="font-black text-lg text-gray-900 leading-tight">{city}</h3>
-      <p className="text-red text-xs font-bold uppercase tracking-wider mt-1">From {price}</p>
+      <p className="text-red text-xs font-bold uppercase tracking-wider mt-1">Từ {price}</p>
     </div>
   </div>
 );

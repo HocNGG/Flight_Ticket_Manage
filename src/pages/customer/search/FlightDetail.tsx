@@ -1,261 +1,225 @@
-import { ArrowLeft, PlaneTakeoff, PlaneLanding, ShieldCheck, ArrowRight, Check, Plane } from 'lucide-react';
+import {
+  ArrowLeft,
+  PlaneTakeoff,
+  PlaneLanding,
+  ShieldCheck,
+  ArrowRight,
+  Check,
+  Clock,
+  Users,
+  Plane,
+} from 'lucide-react';
+import { useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { policies } from '../../../data/flightPolicies';
 import { Policies } from '../../../components/customer/detail/Policies';
 import { AmenitiesFeatures } from '../../../components/customer/detail/AmenitiesFeatures';
-import { useEffect, useState } from 'react';
-import flightApi from '../../../api/flightApi';
-import type { FlightDTO } from '../../../types/flight/flight';
-import amenityApi from '../../../api/amenityApi';
-export interface AmenityItem {
-  type: string;
-  title: string;
-  description: string;
-}
+import { amenities } from '../../../data/flightAmen';
+import { useFlightDetail, useSeatClasses } from '../../../hooks/useFlights';
+import type { SeatClass } from '../../../api/types';
+
+
+const formatTime = (iso: string) =>
+  new Date(iso).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+
+const formatDate = (iso: string) =>
+  new Date(iso).toLocaleDateString('vi-VN', { day: '2-digit', month: 'short', year: 'numeric' });
+
+const formatPrice = (price: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+
 export const FlightDetail = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const { id } = useParams<{ id: string }>();
+  const [selectedClass, setSelectedClass] = useState<SeatClass | null>(null);
+  const { data: flight, isLoading, isError } = useFlightDetail(id);
+  const { data: seatClasses, isLoading: isLoadingSeatClasses } = useSeatClasses();
 
-  const { id } = useParams();
-  const flightId = Number(id);
-  const [flight, setFlight] = useState<FlightDTO|null>(null);
-  const [amenities, setAmenities] = useState<AmenityItem[]>([]);
-  useEffect(() => {
-    const fetchData = async () => {
-      try {
-        const [flightResponse,amenityResponse] = await Promise.all([
-          flightApi.getFlightDetail(flightId),
-          amenityApi.getAllService()
-        ]);
-        const mappedData = amenityResponse.data.map((item: any) => ({
-          type: item.code.toUpperCase(), 
-          title: item.name,
-          description: item.description
-        }));
-        setFlight(flightResponse.data);
-        setAmenities(mappedData)
-      } catch (error) {
-        console.log(error);
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchData();
-  }, [flightId]);
-  
-  const formatFlightTime = (dateInput?: string | Date) => {
-    if (!dateInput) return { time: '--:--', period: '', date: '' };
-    const date = new Date(dateInput);
-    
-    if (isNaN(date.getTime())) return { time: '--:--', period: '', date: '' };
-
-    const time = date.toLocaleTimeString('en-US', {
-      hour: '2-digit',
-      minute: '2-digit',
-      hour12: true
-    }).split(' ')[0];
-    
-    const period = date.getHours() >= 12 ? 'PM' : 'AM';
-    
-    const formattedDate = date.toLocaleDateString('en-GB', {
-      day: '2-digit',
-      month: 'short',
-      year: 'numeric'
-    });
-
-    return { time, period, date: formattedDate };
-  };
-  /**
- * Định dạng số thành chuỗi tiền tệ
- * @param amount - Số tiền cần định dạng
- * @param currency - Mã tiền tệ (VND, USD, v.v.) - Mặc định là VND
- * @param locale - Ngôn ngữ hiển thị (vi-VN, en-US, v.v.) - Mặc định là vi-VN
- */
-  const formatCurrency = (
-    amount: number | string | undefined,
-    currency: string = 'VND',
-    locale: string = 'vi-VN'
-  ): string => {
-    if (amount === undefined || amount === null) return '0 ₫';
-
-    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numericAmount)) return '0 ₫';
-
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: currency === 'VND' ? 0 : 2,
-    }).format(numericAmount);
-  };
-  const dep = formatFlightTime(flight?.departureTime);
-  const arr = formatFlightTime(flight?.arrivalTime);
-  if (loading) {
+  if (isLoading || isLoadingSeatClasses) {
     return (
-      <div className="min-h-[calc(100vh-80px)] w-full flex flex-col items-center justify-center bg-[#f9fafb]">
-        {/* Vòng xoay Spinner */}
-        <div className="w-16 h-16 border-4 border-gray-200 border-t-red rounded-full animate-spin mb-4"></div>
-        {/* Chữ nhấp nháy */}
-        <p className="text-gray-500 font-bold uppercase tracking-widest text-sm animate-pulse">
-          Đang tải thông tin chuyến bay
-        </p>
+      <div className="flex items-center justify-center py-32">
+        <div className="w-10 h-10 border-4 border-red border-t-transparent rounded-full animate-spin" />
       </div>
     );
   }
-  const firstClass = Object.values(flight?.seats?.seatsByClass || {})[0];
-  const firstPrice = firstClass?.price ? firstClass.price : 0;
-  const tax = firstPrice*0.1 || 0;
-  const sumPrice = firstPrice + tax || 0;
+
+  if (isError || !flight) {
+    return (
+      <div className="text-center py-32">
+        <p className="text-gray-700 font-bold">Không thể tải thông tin chuyến bay</p>
+      </div>
+    );
+  }
+
+  // Lấy class được chọn (mặc định ECONOMY)
+  const activeClasses = seatClasses ?? [];
+  const currentClass = selectedClass ?? activeClasses.find((c) => c.className === 'ECONOMY') ?? activeClasses[0];
+  const totalPrice = flight.basePrice * (currentClass?.priceMultiplier ?? 1);
+
+  const handleBook = () => {
+    navigate('/booking/seat', {
+      state: {
+        flightId: id || flight.flightId,
+        seatClass: currentClass?.className ?? 'ECONOMY',
+        flightCode: flight.flightCode,
+        departureAirport: flight.departureAirport,
+        arrivalAirport: flight.arrivalAirport,
+        departureTime: flight.departureTime,
+        arrivalTime: flight.arrivalTime,
+        basePrice: flight.basePrice, // truyền basePrice gốc, SeatSelection sẽ tính lại
+      },
+    });
+  };
+
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-6 pb-24">
-      <button onClick={() => navigate(-1)} className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors uppercase tracking-widest mb-8">
+      <button
+        onClick={() => navigate(-1)}
+        className="flex items-center gap-2 text-sm font-bold text-gray-500 hover:text-gray-900 transition-colors uppercase tracking-widest mb-8"
+      >
         <ArrowLeft className="w-4 h-4 text-red" />
-        Back to search results
+        Quay lại kết quả
       </button>
 
-       {/* Stepper Divider */}
-            <div className="flex items-center justify-between w-full relative py-6 my-2">
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
-              <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[35%] h-0.5 bg-red"></div>
-
-              <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
-              <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">02</div>
-              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">03</div>
-              <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
-
-              <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 2: Selection</span>
-            </div>
+      {/* Stepper */}
+      <div className="flex items-center justify-between w-full relative py-6 my-2">
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[55%] h-0.5 bg-red"></div>
+        <StepDot done /><StepDot done /><StepDot active label="03" /><StepDot label="04" />
+        <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">
+          Bước 3: Chi tiết chuyến bay
+        </span>
+      </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
 
-        {/* Left Column - Flight Details */}
+        {/* Left — Flight Info */}
         <div className="flex-1 space-y-6">
 
-          {/* Main Flight Info Card */}
-          <div className="bg-[#fcfcfc] rounded-[2rem] p-10 border border-gray-100 flex flex-col md:flex-row shadow-sm gap-10">
-            <div className="flex-1 flex flex-col relative pb-8 md:pb-0 md:pr-8 md:border-r border-gray-200 border-dashed">
-              {/* HEADER: Flight Number & Airline */}
-              <div className="flex items-center justify-between mb-10">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-xl bg-gray-50 border border-gray-100 flex items-center justify-center shadow-sm">
-                    <Plane className="w-6 h-6 text-red" />
-                  </div>
-                  <div className="flex flex-col md:flex-row md:items-center md:gap-4">
-                    <h3 className="text-xl font-bold text-gray-900 leading-none">
-                      {flight?.airline.name}
-                    </h3>
-                    {/* Thanh ngăn cách giữa tên hãng và mã chuyến bay */}
-                    <div className="hidden md:block w-px h-4 bg-black"></div>
-                    <span className="text-sm font-bold text-red tracking-widest uppercase">
-                      Flight {flight?.flightNumber}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              {/* Điểm đi */}
-              <div className="flex items-center gap-6 mb-12">
-                <div className="w-16 h-16 rounded-2xl bg-red text-white flex items-center justify-center flex-shrink-0 shadow-lg shadow-red/20">
-                  <PlaneTakeoff className="w-8 h-8" />
+          {/* Flight Route Card */}
+          <div className="bg-[#fcfcfc] rounded-[2rem] p-8 border border-gray-100 shadow-sm">
+            {/* Flight code badge */}
+            <div className="flex items-center justify-between mb-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-red text-white flex items-center justify-center font-black text-sm">
+                  {flight.airline.airlineName.substring(0, 2).toUpperCase()}
                 </div>
                 <div>
-                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">{flight?.departureAirport.airportCode}</h2>
-                  <p className="text-gray-500 font-medium">{flight?.departureAirport.city}</p>
+                  <p className="font-black text-gray-900">{flight.airline.airlineName}</p>
+                  <p className="text-xs text-gray-500">{flight.aircraft.model}</p>
                 </div>
               </div>
-
-              <div className="absolute left-8 top-[150px] bottom-[64px] w-0.5 bg-red hidden lg:block z-0">
-                <div className="absolute top-1/2 -left-3 -translate-y-1/2 w-6 h-6 bg-white border-2 border-gray-100 rounded-full flex items-center justify-center text-gold shadow-sm">
-                  <Plane className="w-3 h-3 rotate-90" />
-                </div>
-              </div>
-              
-              {/* Điểm đến */}
-              <div className="flex items-center gap-6">
-                <div className="w-16 h-16 rounded-2xl bg-gray-200 text-gray-500 flex items-center justify-center flex-shrink-0">
-                  <PlaneLanding className="w-8 h-8" />
-                </div>
-                <div>
-                  <h2 className="text-4xl font-black text-gray-900 tracking-tight">{flight?.arrivalAirport.airportCode}</h2>
-                  <p className="text-gray-500 font-medium">{flight?.arrivalAirport.city}</p>
-                </div>
+              <div className="bg-white rounded-full px-3 py-1 text-[10px] font-bold text-gray-900 shadow-sm border border-gray-100 flex items-center gap-2">
+                <div className="w-2 h-2 rounded-full bg-gold"></div>
+                {flight.flightCode}
               </div>
             </div>
 
-            <div className="md:w-96 pt-8 md:pt-0 md:pl-4 flex flex-col justify-between relative py-4">
-              <div className="flex justify-between items-start mb-8 mt-6 md:mt-0">
-                {/* Departure */}
-                <div className="flex flex-col items-start">
-                  <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.2em]">Departure</p>
-                  <p className="text-5xl font-black text-gray-950 leading-none tracking-tight">
-                    {dep.time || '08:00'} 
-                    <span className="text-lg font-bold text-gray-400 align-super">{dep.period || 'AM'}</span>
-                  </p>
-                  <p className="text-sm font-bold text-red tracking-tight">{dep.date || '19 Apr 2026'}</p>
+            <div className="flex flex-col md:flex-row gap-8">
+              {/* Departure */}
+              <div className="flex-1 flex flex-col items-center md:items-start gap-1">
+                <div className="w-12 h-12 rounded-2xl bg-red text-white flex items-center justify-center mb-2">
+                  <PlaneTakeoff className="w-6 h-6" />
                 </div>
-
-                {/* Arrival */}
-                <div className="flex flex-col items-end text-right">
-                  <p className="text-[11px] font-bold text-gray-400 uppercase tracking-[0.2em]">Arrival</p>
-                  <p className="text-5xl font-black text-gray-950 leading-none tracking-tight">
-                    {arr.time || '10:05'} <span className="text-lg font-bold text-gray-400 align-super">{arr.period || 'AM'}</span>
-                  </p>
-                  <p className="text-sm font-bold text-gray-500 tracking-tight">{arr.date || '19 Apr 2026'}</p>
-                </div>
+                <p className="text-4xl font-black text-gray-900">{formatTime(flight.departureTime)}</p>
+                <p className="text-lg font-bold text-gray-700">{flight.departureAirport.code}</p>
+                <p className="text-sm text-gray-500">{flight.departureAirport.name}</p>
+                <p className="text-xs text-gray-400">{formatDate(flight.departureTime)}</p>
               </div>
 
-              {/* Duration & Stops */}
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-2 text-sm font-bold text-gray-900">
-                  <span className="text-xl">⏱</span> {flight?.duration || '7h 10m'}
+              {/* Duration */}
+              <div className="flex flex-col items-center justify-center gap-2 py-4">
+                <p className="text-[10px] font-bold text-gold uppercase tracking-widest">{flight.duration}</p>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 rounded-full bg-gray-300" />
+                  <div className="w-16 md:w-24 h-0.5 bg-gray-200 relative">
+                    <Plane className="w-4 h-4 text-red absolute left-1/2 -translate-x-1/2 -translate-y-1/2" />
+                  </div>
+                  <div className="w-2 h-2 rounded-full bg-gray-300" />
                 </div>
-                <div className="bg-[#f0e6d2] text-gold text-[10px] font-bold px-3 py-1 rounded">
-                  NON-STOP
+                <span className="text-[10px] font-bold text-red uppercase">Bay thẳng</span>
+              </div>
+
+              {/* Arrival */}
+              <div className="flex-1 flex flex-col items-center md:items-end gap-1">
+                <div className="w-12 h-12 rounded-2xl bg-gray-200 text-gray-500 flex items-center justify-center mb-2">
+                  <PlaneLanding className="w-6 h-6" />
                 </div>
+                <p className="text-4xl font-black text-gray-900">{formatTime(flight.arrivalTime)}</p>
+                <p className="text-lg font-bold text-gray-700">{flight.arrivalAirport.code}</p>
+                <p className="text-sm text-gray-500">{flight.arrivalAirport.name}</p>
+                <p className="text-xs text-gray-400">{formatDate(flight.arrivalTime)}</p>
+              </div>
+            </div>
+
+            {/* Info row */}
+            <div className="flex gap-6 mt-8 pt-6 border-t border-gray-100">
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Clock className="w-4 h-4 text-gray-400" />
+                <span>{flight.duration}</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Users className="w-4 h-4 text-gray-400" />
+                <span>Còn {flight.availableSeats} chỗ</span>
+              </div>
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <Plane className="w-4 h-4 text-gray-400" />
+                <span>{flight.aircraft.model}</span>
               </div>
             </div>
           </div>
 
           <AmenitiesFeatures amenitiesList={amenities} />
           <Policies policies={policies} />
-
         </div>
 
-        {/* Right Column - Booking Summary Form */}
+        {/* Right — Booking Form */}
         <aside className="w-full lg:w-[400px] flex-shrink-0 space-y-6">
-
           <div className="bg-white rounded-[2rem] border border-gray-100 shadow-xl shadow-black/5 overflow-hidden">
-            <div className="bg-red p-8 text-white relative overflow-hidden">
-              {/* Decorative background shape */}
-              <div className="absolute -right-20 -top-20 w-64 h-64 bg-white opacity-5 rounded-full blur-2xl pointer-events-none"></div>
 
-              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Total Fare</p>
-              <div className="flex items-baseline">
-                <span className="text-6xl font-black tracking-tighter">{formatCurrency(sumPrice)}</span>
+            {/* Price Header */}
+            <div className="bg-red p-8 text-white relative overflow-hidden">
+              <div className="absolute -right-20 -top-20 w-64 h-64 bg-white opacity-5 rounded-full blur-2xl pointer-events-none"></div>
+              <p className="text-[10px] font-bold uppercase tracking-widest opacity-80 mb-2">Tổng giá vé</p>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-black tracking-tighter">
+                  {formatPrice(totalPrice)}
+                </span>
               </div>
+              <p className="text-white/70 text-xs mt-2">/ người · đã bao gồm thuế phí</p>
             </div>
 
             <div className="p-8 pb-4">
-              <div className="space-y-4 text-sm font-medium border-b border-gray-100 pb-6">
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Base Fare (1 Adult)</span>
-                  <span className="text-gray-900 font-bold">{formatCurrency(firstPrice)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-500">Taxes and Fees</span>
-                  <span className="text-gray-900 font-bold">{formatCurrency(tax)}</span>
-                </div>
-              </div>
-
-              <div className="flex justify-between items-center py-6 border-b border-gray-100">
-                <span className="text-[11px] font-bold uppercase tracking-widest text-red">Seat Selection</span>
-                <span className="text-[10px] font-bold bg-gray-100 text-gray-600 px-2 py-1 rounded">Free Choice</span>
+              {/* Seat Class Selection */}
+              <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-3">
+                Chọn hạng ghế
+              </p>
+              <div className="space-y-2 mb-6">
+                {activeClasses.map((cls) => (
+                  <button
+                    key={cls.seatClassId}
+                    type="button"
+                    onClick={() => setSelectedClass(cls)}
+                    className={`w-full text-left rounded-xl border px-4 py-3 transition ${
+                      currentClass?.seatClassId === cls.seatClassId
+                        ? 'border-red bg-red/5'
+                        : 'border-gray-200 hover:border-gray-300'
+                    }`}
+                  >
+                    <div className="flex items-center justify-between">
+                      <span className="font-semibold text-sm text-gray-900">{cls.description}</span>
+                      <span className="text-xs font-bold text-red">{formatPrice(flight.basePrice * cls.priceMultiplier)}</span>
+                    </div>
+                    <p className="text-[11px] text-gray-500 mt-0.5">{cls.className}</p>
+                  </button>
+                ))}
               </div>
 
               <button
-                onClick={() => navigate('/booking/seat', { state: { flightId: flightId } })}
-                className="w-full mt-6 bg-red text-white hover:bg-reddark transition-colors rounded-xl h-14 font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 shadow-lg shadow-red/30"
+                onClick={handleBook}
+                className="w-full bg-red text-white hover:bg-reddark transition-colors rounded-xl h-14 font-bold text-sm tracking-widest uppercase flex items-center justify-center gap-2 shadow-lg shadow-red/30"
               >
-                Book This Flight
+                Đặt chuyến bay này
                 <ArrowRight className="w-4 h-4" />
               </button>
 
@@ -264,40 +228,37 @@ export const FlightDetail = () => {
                   <ShieldCheck className="w-4 h-4" />
                 </div>
                 <div>
-                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 mb-1">Best Price Guarantee</p>
-                  <p className="text-[10px] text-gray-500">Find it cheaper elsewhere and we'll refund the difference.</p>
+                  <p className="text-[10px] font-bold uppercase tracking-widest text-gray-900 mb-1">Cam kết giá tốt nhất</p>
+                  <p className="text-[10px] text-gray-500">Tìm thấy giá rẻ hơn? Chúng tôi hoàn lại phần chênh lệch.</p>
                 </div>
               </div>
 
               <div className="flex justify-center gap-6 mt-6 pb-2">
                 <div className="text-center text-gray-400">
                   <span className="text-lg block mb-1">💳</span>
-                  <span className="text-[8px] font-bold">SECURE</span>
+                  <span className="text-[8px] font-bold">BẢO MẬT</span>
                 </div>
                 <div className="text-center text-gray-400">
                   <span className="text-lg block mb-1">✔️</span>
-                  <span className="text-[8px] font-bold">OFFICIAL</span>
+                  <span className="text-[8px] font-bold">CHÍNH THỨC</span>
                 </div>
                 <div className="text-center text-gray-400">
                   <span className="text-lg block mb-1">🎧</span>
-                  <span className="text-[8px] font-bold">24/7 HELP</span>
+                  <span className="text-[8px] font-bold">HỖ TRỢ 24/7</span>
                 </div>
               </div>
             </div>
           </div>
-
-          <div className="rounded-[2rem] overflow-hidden relative shadow-lg group cursor-pointer border border-transparent hover:border-dark/10 transition-colors">
-            <div className="absolute inset-0 bg-gradient-to-tr from-indigo-900/90 to-transparent z-10"></div>
-            <img src="https://images.unsplash.com/photo-1517400508447-f8dd518b86db?auto=format&fit=crop&q=80" alt="Wing" className="w-full h-[200px] object-cover transition-transform duration-700 group-hover:scale-105" />
-            <div className="absolute bottom-6 left-6 right-6 z-20">
-              <h3 className="text-2xl font-black text-white leading-tight mb-2">Your gateway to the world.</h3>
-              <p className="text-white/80 text-[10px] font-bold tracking-widest uppercase">Fly Editorial Premium</p>
-            </div>
-          </div>
-
         </aside>
-
       </div>
     </div>
   );
 };
+
+const StepDot = ({ done, active, label }: { done?: boolean; active?: boolean; label?: string }) => (
+  <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center relative z-10 ${
+    done ? 'bg-red text-white' : active ? 'bg-white border-2 border-red text-red' : 'bg-white border-2 border-gray-200 text-gray-400'
+  }`}>
+    {done ? <Check className="w-3 h-3" /> : label}
+  </div>
+);

@@ -8,15 +8,9 @@ type DateInputProps = {
   onReturnDateChange: (value: string) => void;
 };
 
-const DateInput = ({ departureDate, returnDate, isRoundTrip, onDepartureDateChange, onReturnDateChange }: DateInputProps) => {
-  const today = new Date().toISOString().split('T')[0];
-  const handleDepartureChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const newDepartureDate = e.target.value;
-    onDepartureDateChange(newDepartureDate);
-    if (returnDate && newDepartureDate > returnDate) {
-      onReturnDateChange('');
-    }
-  };
+const DateInput = ({ departureDate, returnDate, onDepartureDateChange, onReturnDateChange }: DateInputProps) => {
+  const today = new Date().toISOString().slice(0, 10);
+
   return (
     <div className="col-span-1 md:col-span-2 grid grid-cols-2 gap-4">
       {/* Departure */}
@@ -27,8 +21,8 @@ const DateInput = ({ departureDate, returnDate, isRoundTrip, onDepartureDateChan
             type="date"
             min={today}
             value={departureDate}
-            placeholder="Date"
-            onChange={handleDepartureChange}
+            min={today}
+            onChange={(e) => onDepartureDateChange(e.target.value)}
             className="w-full bg-surface rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20 cursor-pointer [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full"
           />
           <CalendarDays className="absolute right-4 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400 pointer-events-none group-focus-within:text-red" />
@@ -44,7 +38,7 @@ const DateInput = ({ departureDate, returnDate, isRoundTrip, onDepartureDateChan
             disabled={!isRoundTrip}
             min={departureDate || today}
             value={returnDate}
-            placeholder='Return'
+            min={departureDate || today}
             onChange={(e) => onReturnDateChange(e.target.value)}
             className={`w-full bg-surface rounded-xl h-14 pl-4 pr-10 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20 ${isRoundTrip ? 'cursor-pointer' : 'cursor-not-allowed'} [&::-webkit-calendar-picker-indicator]:opacity-0 [&::-webkit-calendar-picker-indicator]:absolute [&::-webkit-calendar-picker-indicator]:w-full`}
           />

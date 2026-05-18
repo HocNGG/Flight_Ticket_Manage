@@ -1,28 +1,25 @@
-import axiosClient from './axiosClient';
-import type { ApiResponse } from '../types/api';
+import api from './axiosInstance'
+import type { ApiResponse, LoginResponse, RegisterResponse, UserProfile } from './types'
 
-import type {
-      LoginRequest,
-      LoginResponse,
-      RegisterRequest,
-      RegisterResponse
-} from '../types/auth';
+export const authApi = {
+    login: (email: string, password: string) =>
+        api.post<ApiResponse<LoginResponse>>('/api/auth/login', {
+            email,
+            password
+        }),
 
-const authApi = {
-  login(data: LoginRequest): Promise<ApiResponse<LoginResponse>> {
-    return axiosClient.post('/auth/login', data);
-  },
+    register: (data: {
+        email: string;
+        password: string;
+        fullName: string;
+        phoneNumber: string;
+    }) => api.post<ApiResponse<RegisterResponse>>('/api/auth/register', data),
 
-  register(data: RegisterRequest): Promise<ApiResponse<RegisterResponse>> {
-    return axiosClient.post('/auth/register', data);
-  },
+    requestPasswordReset: (email: string) =>
+        api.post<ApiResponse<null>>(`/api/auth/request-password-reset?email=${email}`),
 
-  verifyEmail(token: string): Promise<ApiResponse<string>> {
-    return axiosClient.get('/auth/verify-email', {
-      params: { token }
-    });
-  },
+    resetPassword: (email: string, otp: string, newPassword: string) =>
+        api.post<ApiResponse<null>>(`/api/auth/reset-password?email=${email}&otp=${otp}&newPassword=${newPassword}`),
+    getMe: () => api.get<ApiResponse<UserProfile>>('/api/users/me'),
 
-};
-
-export default authApi;
+}

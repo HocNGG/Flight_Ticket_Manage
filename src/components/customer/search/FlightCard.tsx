@@ -1,123 +1,71 @@
 import { Plane } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
+import type { FlightResult } from '../../../api/types';
 
-export type FlightCardProps = {
-  airline: string;
-  flightCode: string;
-  departure: string;
-  arrival: string;
-  origin: string;
-  destination: string;
-  duration: string;
-  stops: string;
-  price: number;
-  tag: string;
-  tagColor?: string;
-  logo: string;
-  detailPath: string;
-  onSelect?: () => void;
+type FlightCardProps = {
+  flight: FlightResult;
+  onSelect: () => void;
 };
 
-export const FlightCard = ({
-  airline,
-  departure,
-  arrival,
-  origin,
-  destination,
-  duration,
-  stops,
-  price,
-  tag,
-  tagColor = 'text-gray-500',
-  logo,
-  detailPath,
-  onSelect,
-}: FlightCardProps) => {
-  const navigate = useNavigate();
-  /**
- * Định dạng số thành chuỗi tiền tệ
- * @param amount - Số tiền cần định dạng
- * @param currency - Mã tiền tệ (VND, USD, v.v.) - Mặc định là VND
- * @param locale - Ngôn ngữ hiển thị (vi-VN, en-US, v.v.) - Mặc định là vi-VN
- */
-  const formatCurrency = (
-    amount: number | string | undefined,
-    currency: string = 'VND',
-    locale: string = 'vi-VN'
-  ): string => {
-    if (amount === undefined || amount === null) return '0 ₫';
+const formatTime = (iso: string) => {
+  const d = new Date(iso);
+  return d.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit', hour12: false });
+};
 
-    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numericAmount)) return '0 ₫';
+const formatFlightDate = (iso: string) => {
+  const d = new Date(iso);
+  if (Number.isNaN(d.getTime())) return '';
+  return d.toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric' });
+};
 
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: currency === 'VND' ? 0 : 2,
-    }).format(numericAmount);
-  };
-  const handleButtonClick = (e: React.MouseEvent) => {
-    e.stopPropagation(); // Chặn nổi bọt sự kiện nếu bạn bọc cả card trong thẻ click
-    if (onSelect) {
-      onSelect(); // Nếu có hàm xử lý riêng (để đổi bước 1 -> bước 2)
-    } else {
-      navigate(detailPath); 
-    }
-  };
-  return (
-    <div className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-lg transition-shadow border border-transparent hover:border-red/10 flex flex-col md:flex-row items-center relative overflow-hidden group">
-      <div className="flex items-center flex-1 w-full flex-wrap gap-6 md:gap-0">
-        <div className="w-[120px] flex flex-col justify-center items-center text-center">
-          <div className={`w-10 h-10 rounded-full flex items-center justify-center mb-2 ${logo}`}>
-            <Plane className="w-5 h-5 -rotate-45" />
-          </div>
-          <span className="text-xs font-bold text-gray-900 leading-tight block">{airline}</span>
+const formatPrice = (price: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
+
+export const FlightCard = ({ flight, onSelect }: FlightCardProps) => (
+  <div className="bg-white rounded-[2rem] p-6 shadow-sm hover:shadow-lg transition-shadow border border-transparent hover:border-red/10 flex flex-col md:flex-row items-center relative overflow-hidden group">
+    <div className="flex items-center flex-1 w-full flex-wrap gap-6 md:gap-0">
+      <div className="w-[140px] flex flex-col justify-center items-center text-center">
+        <div className="w-10 h-10 rounded-full bg-red-50 text-red flex items-center justify-center mb-2 font-black text-xs">
+          {flight.airline.airlineCode}
         </div>
-
-        <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-8">
-          <div className="text-2xl font-black text-gray-900">{departure}</div>
-          <div className="text-sm text-gray-500 font-medium">{origin}</div>
-        </div>
-
-        <div className="flex-1 min-w-[140px] px-4 flex flex-col items-center justify-center">
-          <span className="text-[10px] font-bold text-gold mb-1">{duration}</span>
-          <div className="w-full h-0.5 bg-gray-200 relative flex items-center justify-center">
-            {stops !== 'NON-STOP' && <div className="w-1.5 h-1.5 rounded-full bg-red absolute" />}
-            {stops === 'NON-STOP' && <div className="w-full h-0.5 bg-red absolute" />}
-          </div>
-          <span className={`text-[10px] font-bold mt-1 ${stops === 'NON-STOP' ? 'text-red' : 'text-gray-400'}`}>{stops}</span>
-        </div>
-
-        <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-4 relative">
-          <div className="text-2xl font-black text-gray-900">
-            {arrival} <sup className="text-xs text-red font-bold">+1</sup>
-          </div>
-          <div className="text-sm text-gray-500 font-medium">{destination}</div>
-        </div>
+        <span className="text-xs font-bold text-gray-900 leading-tight block">{flight.airline.airlineName}</span>
+        <span className="text-[10px] text-gray-400 font-medium block">{flight.flightCode}</span>
       </div>
 
-      <div className="w-full md:w-auto flex items-center justify-between md:flex-col md:items-end md:pl-8 md:border-l border-gray-100 mt-6 md:mt-0 pt-6 md:pt-0">
-        <div className="absolute top-4 right-6 text-[10px] font-bold uppercase tracking-widest text-right">
-          <span className={tagColor}>{tag}</span>
-        </div>
+      <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-8">
+        <div className="text-2xl font-black text-gray-900">{formatTime(flight.departureTime)}</div>
+        <div className="text-sm text-gray-500 font-medium">{flight.departureAirport.code}</div>
+        <div className="text-[10px] text-gray-400">{flight.departureAirport.name}</div>
+        <div className="text-[10px] text-red font-bold mt-1">Ngày đi: {formatFlightDate(flight.departureTime)}</div>
+      </div>
 
-        <div className="text-right mt-2">
-          <div className="text-3xl font-black text-gray-900">{formatCurrency(price)}</div>
+      <div className="flex-1 min-w-[140px] px-4 flex flex-col items-center justify-center">
+        <span className="text-[10px] font-bold text-gold mb-3">{flight.duration}</span>
+        <div className="w-full h-0.5 bg-red relative flex items-center mt-1">
+          <Plane className="w-4 h-4 text-red absolute left-1/2 -translate-x-1/2 -translate-y-1/2" />
         </div>
+        <span className="text-[15px] font-semibold text-gray-400 mt-1">NON-STOP</span>
+      </div>
 
-        <div className="flex items-center gap-4 mt-3">
-          <label className="flex items-center gap-2 cursor-pointer">
-            <div className="w-4 h-4 rounded border border-gray-300" />
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-500">Compare</span>
-          </label>
-          <button
-            onClick={handleButtonClick}
-            className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-6 py-2.5 font-bold text-sm"
-          >
-            Select Flight
-          </button>
-        </div>
+      <div className="flex-1 min-w-[100px] text-center md:text-left md:pl-4">
+        <div className="text-2xl font-black text-gray-900">{formatTime(flight.arrivalTime)}</div>
+        <div className="text-sm text-gray-500 font-medium">{flight.arrivalAirport.code}</div>
+        <div className="text-[10px] text-gray-400">{flight.arrivalAirport.name}</div>
+        <div className="text-[10px] text-red font-bold mt-1">Ngày đến: {formatFlightDate(flight.arrivalTime)}</div>
       </div>
     </div>
-  );
-};
+
+    <div className="w-full md:w-auto flex items-center justify-between md:flex-col md:items-end md:pl-8 md:border-l border-gray-100 mt-6 md:mt-0 pt-6 md:pt-0">
+      <div className="text-right">
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mb-1">Từ</p>
+        <div className="text-2xl font-black text-gray-900">{formatPrice(flight.basePrice)}</div>
+        <p className="text-[10px] text-gray-400">Còn {flight.availableSeats} chỗ</p>
+      </div>
+      <button
+        onClick={onSelect}
+        className="mt-4 bg-red text-white hover:bg-reddark transition-colors rounded-full px-6 py-2.5 font-bold text-sm"
+      >
+        Chọn
+      </button>
+    </div>
+  </div>
+);

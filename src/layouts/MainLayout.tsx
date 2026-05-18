@@ -1,59 +1,21 @@
-import { useState, useEffect, useRef } from 'react';
-import { Outlet, Link, useLocation,useNavigate } from 'react-router-dom';
-import { User, LogOut, ChevronDown, Settings, UserCircle } from 'lucide-react';
-import type { UserInfoResponse } from '../types/user';
+import { Outlet, Link, useLocation, useNavigate } from 'react-router-dom';
+import { useAuthStore } from '../store/useAuthStore';
+
 const MainLayout = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const isAuthPage = location.pathname.includes('/login') || location.pathname.includes('/signup');
 
-
-  const [user, setUser] = useState<UserInfoResponse| null >(() => {
-    const saved = localStorage.getItem('user_info');
-    return saved ? JSON.parse(saved) : null;
-  });
-  const [isOpen, setIsOpen] = useState(false);
-  const dropdownRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    const syncUser = () => {
-      const saved = localStorage.getItem('user_info');
-      const parsedUser = saved ? JSON.parse(saved) : null;
-      setUser((prevUser: UserInfoResponse|null) => {
-        if (JSON.stringify(prevUser) !== JSON.stringify(parsedUser)) {
-          return parsedUser;
-        }
-        return prevUser;
-      });
-    };
-
-    syncUser();
-
-    window.addEventListener('auth-change', syncUser);
-    window.addEventListener('storage', syncUser);
-
-    const handleClickOutside = (event: MouseEvent) => {
-      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
-        setIsOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClickOutside);
-
-    return () => {
-      window.removeEventListener('auth-change', syncUser);
-      window.removeEventListener('storage', syncUser);
-      document.removeEventListener('mousedown', handleClickOutside);
-    };
-  }, [location.pathname]);
+  // Đọc từ Zustand — tự động re-render ngay khi login/logout
+  const { isAuthenticated, user, logout } = useAuthStore();
 
   const handleLogout = () => {
-    localStorage.removeItem('access_token');
-    localStorage.removeItem('user_info');
-    setUser(null);
-    setIsOpen(false);
+    logout();
     navigate('/login');
-    window.dispatchEvent(new Event('auth-change'));
   };
+
+  // Lấy chữ cái đầu của tên để làm avatar
+  const avatarLetter = user?.fullName?.charAt(0).toUpperCase() ?? 'U';
 
   return (
     <div className="min-h-screen flex flex-col bg-surface">
@@ -66,76 +28,59 @@ const MainLayout = () => {
 
           {!isAuthPage && (
             <nav className="hidden md:flex items-center gap-8">
-              <Link to="/search" className="text-sm font-semibold text-red border-b-2 border-red py-1">Search</Link>
-              <Link to="/bookings" className="text-sm font-medium text-gray-500 hover:text-black transition-colors">My Bookings</Link>
-              <Link to="/deals" className="text-sm font-medium text-gray-500 hover:text-black transition-colors">Deals</Link>
-              <Link to="/help" className="text-sm font-medium text-gray-500 hover:text-black transition-colors">Help</Link>
+              {[
+                { path: '/search', label: 'Search' },
+                { path: '/bookings', label: 'My Bookings' },
+                { path: '/deals', label: 'Deals' },
+                { path: '/help', label: 'Help' },
+              ].map((item) => {
+                const isActive = location.pathname.includes(item.path) || (item.path === '/search' && location.pathname === '/');
+                return (
+                  <Link
+                    key={item.path}
+                    to={item.path}
+                    className={`py-1 transition-colors ${
+                      isActive
+                        ? 'text-sm font-semibold text-red border-b-2 border-red'
+                        : 'text-sm font-medium text-gray-500 hover:text-black border-b-2 border-transparent'
+                    }`}
+                  >
+                    {item.label}
+                  </Link>
+                );
+              })}
             </nav>
           )}
 
-          {!isAuthPage ? (
-            <div className="relative" ref={dropdownRef}>
-              {user ? (
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => setIsOpen(!isOpen)}
-                    className="flex items-center gap-3 bg-gray-50 hover:bg-gray-100 px-4 py-2 rounded-full transition-all duration-300 border border-gray-200"
-                  >
-                    <div className="w-7 h-7 bg-red rounded-full flex items-center justify-center text-white shadow-sm">
-                      <User className="w-4 h-4" />
-                    </div>
-                    <span className="text-sm font-bold text-gray-700">
-                      Hi, {user.fullName || 'Guest'}
-                    </span>
-                    <ChevronDown className={`w-4 h-4 text-gray-400 transition-transform ${isOpen ? 'rotate-180' : ''}`} />
-                  </button>
-
-                  {/* DROPDOWN MENU */}
-                  {isOpen && (
-                    <div className="absolute top-full left-0 right-0 w-full mt-2 w-56 bg-white rounded-2xl shadow-xl border border-gray-100 py-2 animate-in fade-in zoom-in duration-200 origin-top-right">
-                      <Link
-                        to="/profile"
-                        onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red/5 hover:text-red transition-colors"
-                      >
-                        <UserCircle className="w-4 h-4" />
-                        My Profile
-                      </Link>
-
-                      <Link
-                        to="/settings"
-                        onClick={() => setIsOpen(false)}
-                        className="flex items-center gap-3 px-4 py-3 text-sm font-medium text-gray-600 hover:bg-red/5 hover:text-red transition-colors"
-                      >
-                        <Settings className="w-4 h-4" />
-                        Settings
-                      </Link>
-
-                      <div className="border-t border-gray-50 mt-1 pt-1">
-                        <button
-                          onClick={handleLogout}
-                          className="w-full flex items-center gap-3 px-4 py-3 text-sm font-bold text-red hover:bg-red/5 transition-colors"
-                        >
-                          <LogOut className="w-4 h-4" />
-                          Logout
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                <Link to="/login" className="bg-red text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-reddark transition-colors">
-                  Login
-                </Link>
-              )}
+          {/* Góc phải: thay đổi theo trạng thái đăng nhập */}
+          {isAuthPage ? (
+            <Link to="/search" className="text-sm font-semibold text-red">Back to Search</Link>
+          ) : isAuthenticated ? (
+            // ✅ Đã đăng nhập: hiện avatar + tên + Logout
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-full bg-red text-white flex items-center justify-center font-bold text-sm flex-shrink-0">
+                {avatarLetter}
+              </div>
+              <span className="text-sm font-semibold text-gray-800 hidden md:block">
+                {user?.fullName ?? 'Traveler'}
+              </span>
+              <button
+                onClick={handleLogout}
+                className="text-xs font-bold text-gray-400 hover:text-red transition-colors uppercase tracking-widest"
+              >
+                Logout
+              </button>
             </div>
           ) : (
-            <Link to="/search" className="text-sm font-semibold text-red">Back to Search</Link>
+            // ❌ Chưa đăng nhập: nút Login
+            <Link to="/login" className="bg-red text-white px-6 py-2.5 rounded-full text-sm font-semibold hover:bg-reddark transition-colors">
+              Login
+            </Link>
           )}
         </div>
       </header>
 
-      {/* Main Content (Outlet renders the child routes) */}
+      {/* Main Content */}
       <main className="flex-1 w-full bg-surface">
         <Outlet />
       </main>

@@ -1,492 +1,460 @@
 // SeatSelection.tsx
-// Component chính cho trang chọn ghế
-// Tập trung vào UI, logic được tách vào hook useSeatSelection
+// Tích hợp API: GET /api/flights/:id/seats + POST /api/bookings
 
-import { Clock, Plane, ShieldCheck , Check, Mail } from 'lucide-react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { Clock, Plane, ShieldCheck, Check } from 'lucide-react';
+import { useEffect } from 'react';
+import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SeatButton } from '../../../components/customer/booking/Seat';
 import { useSeatSelection } from '../../../hooks/useSeatSelection';
+import { seatClasses, type SeatClassCode, mapApiSeatClass } from '../../../data/flightSeat';
 import { Enhance } from '../../../components/customer/booking/Enhance';
-import type { CreateBookingRequest } from '../../../types/booking/booking';
-import { useEffect, useState } from 'react';
-import type { PassengerInfo } from '../../../types/passenger/passenger';
-import type { BookingPassengerRequest } from '../../../types/booking/bookingPassenger';
-import type { SeatDetailDTO } from '../../../types/flight/seat';
-import type { ServiceOptionDTO } from '../../../types/option/serviceoption';
-import serviceApi from '../../../api/serviceApi';
+import { enhanceList } from '../../../data/filghtEnhance';
+import { useFlightSeats } from '../../../hooks/useFlights';
+import { useCreateBooking } from '../../../hooks/useBookings';
+import { useState } from 'react';
+
+// PassengerForm khớp với BE PassengerRequest
+type PassengerForm = {
+  fullName: string;        // BE: fullName
+  gender: 'MALE' | 'FEMALE';
+  dateOfBirth: string;
+  passportNumber: string;  // BE: bắt buộc
+  nationality: string;
+};
+
+type ContactForm = {
+  contactName: string;
+  contactEmail: string;
+  contactPhone: string;
+};
+
+// State từ FlightDetail navigate
+type BookingState = {
+  flightId?: string | number;
+  seatClass?: string;
+  flightCode?: string;
+  departureAirport?: { code: string; name: string };
+  arrivalAirport?: { code: string; name: string };
+  departureTime?: string;
+  arrivalTime?: string;
+  basePrice?: number;
+};
+
+const formatPrice = (price: number) =>
+  new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(price);
 
 export const SeatSelection = () => {
   const location = useLocation();
   const navigate = useNavigate();
-  const flightId = location.state?.flightId;
+  const location = useLocation();
+  const bookingState = location.state as BookingState | null;
 
-  const [services, setServices] = useState<ServiceOptionDTO[]>([]);
-  
-  const { 
-    selectedSeats, 
-    seatRows, 
-    aircraftInfo, 
-    handleSelectSeat: handleSelectSeatFromHook, 
-    loading, 
-    seatStatusLabel 
-  } = useSeatSelection(flightId);
-  useEffect(() => {
-    const fetchServices = async () => {
-      try {
-        const response = await serviceApi.getAllService(); 
-        if (response.data) {
-          setServices(response.data);
-        }
-      } catch (error) {
-        console.error("Failed to fetch services:", error);
-      }
-    };
-    fetchServices();
-  }, []);
-  const [bookingData, setBookingData] = useState<CreateBookingRequest>({
-    contactEmail: '',
-    contactPhone: '',
-    contactName: '',
-    flightId: flightId || 0,
-    passengers: []
+  // Convert API seat class (ECONOMY/BUSINESS/FIRST) → internal code (economy/business/first)
+  const selectedSeatClass: SeatClassCode = bookingState?.seatClass
+    ? mapApiSeatClass(bookingState.seatClass)
+    : 'economy';
+  const selectedClassConfig = seatClasses.find((item) => item.code === selectedSeatClass);
+
+  // Form passenger — kớp với BE PassengerRequest
+  const [passenger, setPassenger] = useState<PassengerForm>({
+    fullName: '',
+    gender: 'MALE',
+    dateOfBirth: '',
+    passportNumber: '',
+    nationality: 'VN',
   });
 
-  const onSeatClick = (seat: SeatDetailDTO | null) => {
-    if (!seat || seat.status.toUpperCase() !== 'AVAILABLE') return;
+  // Contact info
+  const [contact, setContact] = useState<ContactForm>({
+    contactName: '',
+    contactEmail: '',
+    contactPhone: '',
+  });
 
-    handleSelectSeatFromHook(seat);
-
-    setBookingData(prev => {
-      const isSelected = prev.passengers.find(p => p.flightSeatId === seat.flightSeatId);
-      
-      if (isSelected) {
-        return { ...prev, passengers: prev.passengers.filter(p => p.flightSeatId !== seat.flightSeatId) };
-      } else {
-        const newPassenger: BookingPassengerRequest = {
-          flightSeatId: seat.flightSeatId,
-          passengerData: { fullName: '', dateOfBirth: '', gender: 'MALE', nationality: 'Vietnam' },
-          serviceOptions: [],
-          baggageOptions: []
-        };
-        return { ...prev, passengers: [...prev.passengers, newPassenger] };
-      }
-    });
+  const handlePassengerChange = (field: keyof PassengerForm, value: string) => {
+    setPassenger((prev) => ({ ...prev, [field]: value }));
   };
 
-  const updatePassenger = (index: number, field: keyof PassengerInfo, value: string) => {
-    const newPassengers = [...bookingData.passengers];
-    const pData = { ...newPassengers[index].passengerData, [field]: value };
-    
-    if (field === 'nationality') {
-      value === 'Vietnam' ? delete pData.passportNumber : delete pData.cccd;
-    } 
-
-    newPassengers[index].passengerData = pData;
-    setBookingData({ ...bookingData, passengers: newPassengers });
+  const handleContactChange = (field: keyof ContactForm, value: string) => {
+    setContact((prev) => ({ ...prev, [field]: value }));
   };
-  
-  const toggleService = (pIdx: number, sId: number) => {
-    setBookingData(prev => {
-      // 1. Tạo bản sao sâu của mảng passengers
-      const newPassengers = [...prev.passengers];
-      
-      // 2. Lấy passenger cụ thể
-      const passenger = { ...newPassengers[pIdx] };
-      
-      // 3. Xử lý mảng dịch vụ
-      const currentServices = [...passenger.serviceOptions];
-      const index = currentServices.findIndex(s => s.serviceOptionId === sId);
 
-      if (index > -1) {
-        currentServices.splice(index, 1); // Xóa nếu đã có
-      } else {
-        currentServices.push({ serviceOptionId: sId, quantity: 1 }); // Thêm mới
-      }
+  // Fetch sơ đồ ghế từ API — chỉ chạy khi có flightId
+  const { data: apiSeats = [], isLoading: isLoadingSeats } = useFlightSeats(bookingState?.flightId);
 
-      passenger.serviceOptions = currentServices;
-      newPassengers[pIdx] = passenger;
+  // Hook chọn ghế — nhận API seats thật
+  const { selectedSeat, selectedSeatId, seatRows, handleSelectSeat, seatStatusLabel } =
+    useSeatSelection(selectedSeatClass, bookingState?.basePrice ?? 0, apiSeats);
 
-      return { ...prev, passengers: newPassengers };
-    });
+  // Tạo booking mutation
+  const createBooking = useCreateBooking();
+
+  // ✅ useEffect phải gọi TRƯỚC conditional return (Rules of Hooks)
+  useEffect(() => {
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }, []);
+
+  // Guard: redirect nếu thiếu state cần thiết
+  if (!bookingState?.flightId || !selectedClassConfig) {
+    return <Navigate to="/search" replace />;
+  }
+
+  // Tính giá theo hạng ghế đang chọn
+  const ticketPrice = bookingState?.basePrice
+    ? bookingState.basePrice * (selectedClassConfig.priceMultiplier ?? 1)
+    : 0;
+
+  const handleProceedToPayment = () => {
+    if (!selectedSeat || selectedSeatId === null) {
+      alert('Vui lòng chọn ghế trước khi tiếp tục.');
+      return;
+    }
+    if (!passenger.fullName || !passenger.dateOfBirth || !passenger.passportNumber || !passenger.nationality) {
+      alert('Vui lòng điền đầy đủ thông tin hành khách (họ tên, ngày sinh, hộ chiếu, quốc tịch).');
+      return;
+    }
+    if (!contact.contactName || !contact.contactEmail || !contact.contactPhone) {
+      alert('Vui lòng điền đầy đủ thông tin liên hệ.');
+      return;
+    }
+
+    createBooking.mutate(
+      {
+        flightId: Number(bookingState.flightId),
+        contactName: contact.contactName,
+        contactEmail: contact.contactEmail,
+        contactPhone: contact.contactPhone,
+        passengers: [
+          {
+            flightSeatId: selectedSeatId,         // ID thực từ API
+            passengerData: {
+              fullName: passenger.fullName,
+              gender: passenger.gender,
+              dateOfBirth: passenger.dateOfBirth,
+              passportNumber: passenger.passportNumber,
+              nationality: passenger.nationality,
+            },
+          },
+        ],
+      },
+      {
+        onSuccess: (res) => {
+          const { bookingId, bookingCode, totalPrice } = res.data.data;
+          navigate('/booking/payment', {
+            state: {
+              bookingId,
+              bookingCode,
+              totalPrice,
+              flightId: bookingState.flightId,
+              flightCode: bookingState.flightCode,
+              seatClass: bookingState.seatClass,
+              selectedSeat,
+              passenger,
+              contact,
+            },
+          });
+        },
+        onError: (err: any) => {
+          const msg = err?.response?.data?.message || 'Không thể tạo đặt chỗ. Vui lòng thử lại.';
+          alert(msg);
+        },
+      },
+    );
   };
-   /**
- * Định dạng số thành chuỗi tiền tệ
- * @param amount - Số tiền cần định dạng
- * @param currency - Mã tiền tệ (VND, USD, v.v.) - Mặc định là VND
- * @param locale - Ngôn ngữ hiển thị (vi-VN, en-US, v.v.) - Mặc định là vi-VN
- */
-  const formatCurrency = (
-    amount: number | string | undefined,
-    currency: string = 'VND',
-    locale: string = 'vi-VN'
-  ): string => {
-    if (amount === undefined || amount === null) return '0 ₫';
 
-    const numericAmount = typeof amount === 'string' ? parseFloat(amount) : amount;
-    if (isNaN(numericAmount)) return '0 ₫';
-
-    return new Intl.NumberFormat(locale, {
-      style: 'currency',
-      currency: currency,
-      minimumFractionDigits: currency === 'VND' ? 0 : 2,
-    }).format(numericAmount);
-  };
-  const totalServicesPrice = bookingData.passengers.reduce((acc, p) => {
-    return acc + p.serviceOptions.reduce((pAcc, opt) => {
-      const sDetail = services.find(s => s.serviceId === opt.serviceOptionId);
-      return pAcc + (sDetail?.price || 0);
-    }, 0);
-  }, 0);
-  const totalSeatPrice = selectedSeats.reduce((sum, s) => sum + s.price, 0);
-  const taxFee = totalSeatPrice*0.1;
-  const finalAmount = totalSeatPrice + totalServicesPrice + taxFee;
-  if (loading) return <div className="p-20 text-center">Loading Seat Map...</div>;
   return (
     <div className="w-full max-w-[1280px] mx-auto px-6 py-8 pb-32">
-      
+
       {/* Header */}
       <div className="mb-10 flex flex-col md:flex-row md:items-end justify-between">
         <div>
-          <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase">SEAT SELECTION</h1>
+          <h1 className="text-4xl md:text-5xl font-black text-gray-900 tracking-tighter uppercase">CHỌN GHẾ</h1>
+          {bookingState?.flightCode && (
+            <p className="text-gray-500 font-medium mt-2">
+              {bookingState.flightCode} · {bookingState.departureAirport?.code} → {bookingState.arrivalAirport?.code}
+            </p>
+          )}
         </div>
       </div>
 
-      {/* Stepper Divider */}
+      {/* Stepper */}
       <div className="flex items-center justify-between w-full relative py-6 my-2">
         <div className="absolute left-0 top-1/2 -translate-y-1/2 w-full h-0.5 bg-gray-200"></div>
-        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[55%] h-0.5 bg-red"></div>
-
-        <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
-        <div className="w-6 h-6 rounded-full bg-red text-white flex items-center justify-center relative z-10"><Check className="w-3 h-3" /></div>
-        <div className="w-6 h-6 rounded-full bg-white border-2 border-red text-red text-[10px] font-bold flex items-center justify-center relative z-10 bg-white">03</div>
-        <div className="w-6 h-6 rounded-full bg-white text-gray-400 text-[10px] font-bold flex items-center justify-center relative z-10 border-2 border-gray-200">04</div>
-
-        <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">Step 3: Selection & information</span>
+        <div className="absolute left-0 top-1/2 -translate-y-1/2 w-[75%] h-0.5 bg-red"></div>
+        <StepDot done /><StepDot done /><StepDot done /><StepDot active label="04" />
+        <span className="relative z-10 bg-surface pl-4 text-[10px] font-bold uppercase tracking-widest text-dark">
+          Bước 4: Chọn ghế & Thông tin
+        </span>
       </div>
 
       <div className="flex flex-col lg:flex-row gap-8">
-        {/* Left Column - Main Content */}
+
+        {/* Left Column */}
         <div className="flex-1">
+
           {/* SEAT MAP */}
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden mb-8">
             <div className="flex justify-between items-start mb-12">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Main Cabin</h2>
-                <p className="text-xs text-gray-500 font-medium">{aircraftInfo || "Boeing 787-9 Dreamliner"}</p>
+                <h2 className="text-xl font-bold text-gray-900">Khoang: {selectedClassConfig.label}</h2>
+                <p className="text-xs text-gray-500 font-medium">{bookingState?.flightCode || 'Sơ đồ ghế'}</p>
               </div>
-              
               <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> AVAILABLE</div>
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red rounded-sm"></div> SELECTED</div>
-                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> OCCUPIED</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-100 rounded-sm"></div> Trống</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-red rounded-sm"></div> Đã chọn</div>
+                <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> Đã đặt</div>
               </div>
             </div>
 
-          {/* Seat Map Container */}
-          <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
-            <div className="space-y-4">
-              {/* Render các hàng ghế */}
-              {seatRows.map((rowSeats, rowIndex) => (
-                <div key={`row-${rowIndex}`} className="flex gap-2 items-center px-4 justify-center">
-                  {/* Số hàng */}
-                  <span className="w-6 text-right text-gray-300 mr-2 text-[10px] font-bold uppercase tracking-tighter">
-                    {rowIndex + 1}
-                  </span>
-
-                  {/* Danh sách ghế trong hàng */}
-                  {rowSeats.map((seat, seatIndex) => (
-                    <SeatButton
-                      key={seat ? seat.flightSeatId : `aisle-${rowIndex}-${seatIndex}`}
-                      seat={seat}
-                      isSelected={selectedSeats.some(s => s.flightSeatId === seat?.flightSeatId)}
-                      onSelect={() => onSeatClick(seat)}
-                    />
+            {/* Seat Map */}
+            <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
+              {isLoadingSeats ? (
+                <div className="flex items-center justify-center h-40">
+                  <div className="w-8 h-8 border-4 border-red border-t-transparent rounded-full animate-spin" />
+                </div>
+              ) : seatRows.length === 0 ? (
+                <div className="flex items-center justify-center h-40 text-sm text-gray-400">
+                  Không có ghế khả dụng cho hạng này
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {seatRows.map((rowData) => (
+                    <div key={rowData.rowNumber} className="flex gap-2 items-center px-4">
+                      <span className="w-6 text-right text-gray-300 mr-2 text-xs">{rowData.rowNumber}</span>
+                      {rowData.seats.map((seat, seatIndex) => (
+                        <SeatButton
+                          key={seat ? seat.id : `aisle-${seatIndex}`}
+                          seat={seat}
+                          isSelected={seat?.id === selectedSeat}
+                          disabledByClass={Boolean(seat && seat.seatClass !== selectedSeatClass)}
+                          onSelect={handleSelectSeat}
+                        />
+                      ))}
+                    </div>
                   ))}
                 </div>
-              ))}
+              )}
             </div>
-          </div>
-
-          <div className="mt-8 pt-6 border-t border-dashed border-gray-100 text-center">
-            <span className="text-sm font-bold text-red uppercase tracking-widest animate-fadeIn">
-              {seatStatusLabel}
-            </span>
-          </div>
-        </div>
-
-        {/* CONTACT INFORMATION  */}
-        <section className="bg-white rounded-[2rem] p-8 shadow-sm border border-gray-100 mb-8">
-          <h3 className="text-lg font-bold mb-6 flex items-center gap-2">
-            <Mail className="w-5 h-5 text-red" /> CONTACT INFORMATION
-          </h3>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Full Name</label>
-              <input 
-                placeholder="Johnathan Doe" 
-                className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
-                onChange={e => setBookingData({...bookingData, contactName: e.target.value})}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Email Address</label>
-              <input 
-                placeholder="john.doe@example.com" 
-                className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
-                onChange={e => setBookingData({...bookingData, contactEmail: e.target.value})}
-              />
-            </div>
-            <div className="space-y-1">
-              <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">Phone Number</label>
-              <input 
-                placeholder="(+84) 00-0000-000" 
-                className="w-full bg-[#f3f4f6] border-none rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:ring-2 focus:ring-red/20 focus:bg-white transition-all outline-none"
-                onChange={e => setBookingData({...bookingData, contactPhone: e.target.value})}
-              />
-            </div>
+            <div className="mt-4 text-sm font-semibold text-gray-600">{seatStatusLabel}</div>
           </div>
         </section>  
 
 
-        {/* PASSENGER DETAILS FORM */}
-        <div className="mb-16">
-          <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Information Checklist</p>
-          <h2 className="text-3xl font-black text-gray-900 tracking-tight mb-8">Passenger Details Required</h2>
+          {/* PASSENGER DETAILS */}
+          <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
+            <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Thông tin hành khách</p>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đặt vé</h2>
 
-          <div className="flex flex-col md:flex-row gap-8">
-               <div className="flex-1 space-y-4">
-                  <p className="text-sm text-gray-500 font-medium mb-6 leading-relaxed max-w-sm">
-                    Ensure your details match your passport exactly to avoid boarding issues. Standard international travel regulations apply.
-                  </p>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              {/* fullName */}
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Họ và tên <span className="text-red">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={passenger.fullName}
+                  onChange={(e) => handlePassengerChange('fullName', e.target.value)}
+                  placeholder="Nguyễn Văn A"
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
 
-                  <div className="bg-white rounded-xl p-4 flex gap-4 border border-gray-100 shadow-sm">
-                    <Plane className="w-5 h-5 text-red flex-shrink-0" />
-                    <div>
-                      <p className="font-bold text-sm text-gray-900">Passport Validity</p>
-                      <p className="text-[10px] text-gray-500">Must be valid for at least 6 months after arrival.</p>
-                    </div>
-                  </div>
-                  <div className="bg-white rounded-xl p-4 flex gap-4 border border-gray-100 shadow-sm">
-                    <ShieldCheck className="w-5 h-5 text-red flex-shrink-0" />
-                    <div>
-                      <p className="font-bold text-sm text-gray-900">Official Documentation</p>
-                      <p className="text-[10px] text-gray-500">All names must match government issued IDs.</p>
-                    </div>
-                  </div>
-               </div>
+              {/* dateOfBirth */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Ngày sinh <span className="text-red">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={passenger.dateOfBirth}
+                  onChange={(e) => handlePassengerChange('dateOfBirth', e.target.value)}
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
 
-               <div className="flex-[2] bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm">
-                  <div className="flex-1 w-full space-y-4">
-                    {bookingData.passengers.length === 0 ? (
-                      <div className="bg-gray-50 border-2 border-dashed border-gray-200 rounded-2xl p-8 text-center">
-                        <p className="text-gray-400 font-bold uppercase text-[10px] tracking-widest">Select a seat to start</p>
-                      </div>
-                    ) : (
-                      bookingData.passengers.map((passenger, idx) => (
-                        <section 
-                          key={passenger.flightSeatId} 
-                          className="bg-white rounded-[1.5rem] p-5 shadow-sm border border-gray-100 b-w-full animate-fadeIn"
-                        >
-                          {/* Header */}
-                          <div className="flex justify-between items-center mb-4 pb-2 border-b border-gray-50">
-                            <h3 className="font-black text-gray-900 text-xs tracking-tight">
-                              PASSENGER #{idx + 1}
-                            </h3>
-                            <span className="text-[10px] font-bold text-red bg-red/5 px-3 py-0.5 rounded-full border border-red/10">
-                              SEAT {selectedSeats.find(s => s.flightSeatId === passenger.flightSeatId)?.seatNumber}
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-1 md:grid-cols-6 gap-3">
-                            {/* Full Name */}
-                            <div className="md:col-span-3">
-                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Full Legal Name</label>
-                              <input 
-                                placeholder="Jonathan Doe" 
-                                className="w-full bg-[#f3f4f6] border-none rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/30 focus:bg-white transition-all outline-none"
-                                onChange={e => updatePassenger(idx, 'fullName', e.target.value.toUpperCase())} 
-                              />
-                            </div>
+              {/* gender */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Giới tính <span className="text-red">*</span>
+                </label>
+                <select
+                  value={passenger.gender}
+                  onChange={(e) => handlePassengerChange('gender', e.target.value)}
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none appearance-none"
+                >
+                  <option value="MALE">Nam</option>
+                  <option value="FEMALE">Nữ</option>
+                </select>
+              </div>
 
-                            {/* Gender -*/}
-                            <div className="md:col-span-3">
-                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Gender</label>
-                              <div className="flex gap-2">
-                                {['MALE', 'FEMALE'].map((gender) => (
-                                  <button
-                                    key={gender}
-                                    type="button"
-                                    onClick={() => updatePassenger(idx, 'gender', gender)}
-                                    className={`flex-1 h-10 rounded-lg text-[9px] font-black tracking-widest transition-all border ${
-                                      passenger.passengerData.gender === gender 
-                                      ? 'bg-red text-white border-red shadow-sm' 
-                                      : 'bg-[#f3f4f6] text-gray-400 border-transparent hover:bg-gray-200'
-                                    }`}
-                                  >
-                                    {gender}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
+              {/* passportNumber */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Số hộ chiếu <span className="text-red">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={passenger.passportNumber}
+                  onChange={(e) => handlePassengerChange('passportNumber', e.target.value)}
+                  placeholder="B12345678"
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
 
-                            {/* Date of Birth */}
-                            <div className="md:col-span-2">
-                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Date of Birth</label>
-                              <input 
-                                type="date" 
-                                className="w-full bg-[#f3f4f6] border-none rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/30 focus:bg-white transition-all outline-none"
-                                onChange={e => updatePassenger(idx, 'dateOfBirth', e.target.value)} 
-                              />
-                            </div>
-
-                            {/* Nationality */}
-                            <div className="md:col-span-2">
-                              <label className="text-[9px] font-bold text-gray-800 uppercase tracking-wider block mb-1 ml-1">Nationality</label>
-                              <select 
-                                className="w-full bg-[#f3f4f6] border-none rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/30 focus:bg-white transition-all outline-none cursor-pointer"
-                                onChange={e => updatePassenger(idx, 'nationality', e.target.value)}
-                                defaultValue="Vietnam"
-                              >
-                                <option value="Vietnam">Vietnam</option>
-                                <option value="Other">Other</option>
-                              </select>
-                            </div>
-
-                            {/* Identification (CCCD/Passport) */}
-                            <div className="md:col-span-2 animate-slideDown">
-                              <label className="text-[9px] font-bold text-red uppercase tracking-wider block mb-1 ml-1">
-                                {passenger.passengerData.nationality === 'Vietnam' ? 'CCCD' : 'Passport Number'}
-                              </label>
-                              <input 
-                                placeholder={passenger.passengerData.nationality === 'Vietnam' ? "001203xxxxxx" : "P12345678"} 
-                                className="w-full bg-[#f3f4f6] border border-red/20 rounded-lg h-10 px-3 text-xs font-semibold text-gray-800 focus:ring-1 focus:ring-red/40 focus:bg-white transition-all outline-none shadow-inner"
-                                onChange={e => updatePassenger(idx, 
-                                  passenger.passengerData.nationality === 'Vietnam' ? 'cccd' : 'passportNumber', 
-                                  e.target.value
-                                )} 
-                              />
-                            </div>
-                          </div>
-                          <div className="mt-4 relative z-20"> {/* Thêm relative z-20 ở đây */}
-                            <p className="text-[9px] font-bold text-gray-400 uppercase tracking-widest mb-3">
-                              Personal Extras
-                            </p>
-                            <Enhance 
-                              enhanceList={services} 
-                              onAdd={(s) => toggleService(idx, s.serviceId)}
-                              selectedServices={passenger.serviceOptions.map(s => s.serviceOptionId)}
-                            />
-                          </div>
-                        </section>
-                      ))
-                    )}
-                  </div>
-                
-               </div>
+              {/* nationality */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Quốc tịch <span className="text-red">*</span>
+                </label>
+                <select
+                  value={passenger.nationality}
+                  onChange={(e) => handlePassengerChange('nationality', e.target.value)}
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none appearance-none"
+                >
+                  <option value="VN">Việt Nam</option>
+                  <option value="US">United States</option>
+                  <option value="GB">United Kingdom</option>
+                  <option value="JP">Japan</option>
+                  <option value="KR">South Korea</option>
+                  <option value="CN">China</option>
+                </select>
+              </div>
             </div>
+          </div>
+
+          {/* CONTACT INFO */}
+          <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
+            <div className="flex items-center gap-3 mb-1">
+              <Plane className="w-4 h-4 text-red" />
+              <p className="text-red text-[10px] font-bold uppercase tracking-widest">Thông tin liên hệ</p>
+            </div>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Người liên hệ</h2>
+            <p className="text-sm text-gray-500 mb-6">Vé điện tử sẽ được gửi đến email này.</p>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+              <div className="md:col-span-2">
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Tên liên hệ <span className="text-red">*</span>
+                </label>
+                <input
+                  type="text"
+                  value={contact.contactName}
+                  onChange={(e) => handleContactChange('contactName', e.target.value)}
+                  placeholder="Nguyễn Văn A"
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Email <span className="text-red">*</span>
+                </label>
+                <input
+                  type="email"
+                  value={contact.contactEmail}
+                  onChange={(e) => handleContactChange('contactEmail', e.target.value)}
+                  placeholder="example@email.com"
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+
+              <div>
+                <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
+                  Số điện thoại <span className="text-red">*</span>
+                </label>
+                <input
+                  type="tel"
+                  value={contact.contactPhone}
+                  onChange={(e) => handleContactChange('contactPhone', e.target.value)}
+                  placeholder="0123456789"
+                  className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+            </div>
+
+            <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mt-5 flex gap-3">
+              <ShieldCheck className="w-5 h-5 text-blue-500 flex-shrink-0" />
+              <p className="text-xs text-blue-700">Tên hành khách phải khớp chính xác với thông tin trên giấy tờ tùy thân khi làm thủ tục.</p>
+            </div>
+          </div>
+
+          {/* Enhance */}
+          <Enhance enhanceList={enhanceList} />
+
+          <div className="flex justify-center md:justify-end mt-8">
+            <button
+              onClick={handleProceedToPayment}
+              disabled={createBooking.isPending}
+              className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md flex items-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+            >
+              {createBooking.isPending ? (
+                <>
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                  Đang tạo đặt chỗ...
+                </>
+              ) : (
+                'Tiến hành thanh toán'
+              )}
+            </button>
           </div>
         </div>
 
-        {/* Right Column - Summary */}
+        {/* Right Column — Summary */}
         <aside className="w-full lg:w-[320px] flex-shrink-0 space-y-6">
-           
-           {/* Timer Card */}
-           <div className="bg-[#fdf8ed] border border-[#f0e6d2] rounded-2xl p-6 shadow-sm">
-             <div className="flex items-start gap-4 mb-3">
-               <div className="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center flex-shrink-0">
-                 <Clock className="w-4 h-4" />
-               </div>
-               <div>
-                 <h3 className="font-bold text-gray-900 leading-tight">HOLDING YOUR SEAT</h3>
-                 <p className="text-gold font-black tracking-widest text-[10px] uppercase mt-1">14:59 REMAINING</p>
-               </div>
-             </div>
-             <p className="text-xs text-gray-600 font-medium">We've reserved Seat 13B for you. Complete your booking within the time limit to secure this price.</p>
-           </div>
 
-           {/* Price Summary Card */}
-           <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm relative overflow-hidden sticky top-[100px]">
-             
-             <h3 className="text-xl font-bold text-gray-900 mb-6">Price Summary</h3>
-             
-             <div className="space-y-6 text-xs font-medium border-b border-gray-100 pb-6">
-            {bookingData.passengers.map((passenger, idx) => {
-              const seatInfo = selectedSeats.find(s => s.flightSeatId === passenger.flightSeatId);
-              return (
-                <div key={idx} className="space-y-2">
-                  {/* Tên hành khách & Ghế */}
-                  <div className="flex justify-between items-center">
-                    <span className="text-[15px] font-black text-gray-900  tracking-tighter">
-                      Passenger #{idx + 1}: {passenger.passengerData.fullName || "Guest"}
-                    </span>
-                    <span className="text-gray-900 font-bold">
-                      {seatInfo?.seatNumber || 'N/A'}
-                    </span>
-                    <span className="text-gray-900 font-bold">
-                      {formatCurrency(seatInfo?.price || 0)}
-                    </span>
-                  </div>
-
-                  {/* Liệt kê các dịch vụ đã chọn của khách này */}
-                  <div className="mt-2 space-y-1.5 border-l-2 border-gray-50 ml-1 pl-3">
-                  {passenger.serviceOptions.map((opt) => {
-                    const service = services.find(s => s.serviceId === opt.serviceOptionId);
-                    if (!service) return null;
-                    return (
-                      <div key={opt.serviceOptionId} className="flex justify-between items-center animate-slideRight">
-                        <span className="text-gray-500 text-[10px] flex items-center gap-1">
-                          <Check className="w-2.5 h-2.5 text-red" /> {service.serviceName}
-                        </span>
-                        <span className="text-red font-bold text-[10px]">
-                          {formatCurrency(service.price)}
-                        </span>
-                      </div>
-                    );
-                  })}
-                </div>
-                </div>
-              );
-            })}
-
-            {/* Thuế & Phí (Tính chung hoặc riêng tùy logic của bạn) */}
-            <div className="flex justify-between pt-2 border-t border-gray-50">
-              <span className="text-gray-500 uppercase text-[9px] tracking-widest">Taxes & Fees</span>
-              <span className="text-gray-900 font-bold">{formatCurrency(taxFee)}</span>
+          {/* Timer Card */}
+          <div className="bg-[#fdf8ed] border border-[#f0e6d2] rounded-2xl p-6 shadow-sm">
+            <div className="flex items-start gap-4 mb-3">
+              <div className="w-8 h-8 rounded-full bg-gold text-white flex items-center justify-center flex-shrink-0">
+                <Clock className="w-4 h-4" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-900 leading-tight">GIỮ CHỖ CỦA BẠN</h3>
+                <p className="text-gold font-black tracking-widest text-[10px] uppercase mt-1">14:59 CÒN LẠI</p>
+              </div>
             </div>
+            <p className="text-xs text-gray-600 font-medium">Hoàn tất đặt chỗ trong thời gian quy định để giữ mức giá này.</p>
           </div>
 
-          {/* TỔNG CỘNG */}
-          <div className="flex justify-between items-end pt-6">
-            <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Total Amount</span>
-            <div className="text-right">
-              <span className="text-2xl font-black text-gray-900">
-                {/* totalSeatPrice nên bao gồm: Ghế + Dịch vụ + Thuế */}
-                {formatCurrency(finalAmount)}
-              </span>
-              <p className="text-[8px] font-bold text-gray-400 tracking-widest uppercase text-right mt-1">
-                ALL INCLUSIVE
-              </p>
+          {/* Price Summary */}
+          <div className="bg-white rounded-[2rem] p-6 border border-gray-100 shadow-sm sticky top-[100px]">
+            <h3 className="text-xl font-bold text-gray-900 mb-6">Tóm tắt giá</h3>
+
+            <div className="space-y-4 text-xs font-medium border-b border-gray-100 pb-6">
+              <div className="flex justify-between">
+                <span className="text-gray-500">Giá vé ({selectedClassConfig.label})</span>
+                <span className="text-gray-900 font-bold">{formatPrice(ticketPrice)}</span>
+              </div>
+              {selectedSeat && (
+                <div className="flex justify-between">
+                  <span className="text-gray-500">Ghế {selectedSeat}</span>
+                  <span className="text-red font-bold">Đã chọn</span>
+                </div>
+              )}
+              <div className="flex justify-between">
+                <span className="text-gray-500">Hạng ghế</span>
+                <span className="text-gray-900 font-bold">{selectedClassConfig.label}</span>
+              </div>
+            </div>
+
+            <div className="flex justify-between items-end pt-6">
+              <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400">Tổng cộng</span>
+              <div className="text-right">
+                <span className="text-2xl font-black text-gray-900">{formatPrice(ticketPrice)}</span>
+                <p className="text-[8px] font-bold text-gray-400 tracking-widest uppercase text-right mt-1">ĐÃ BAO GỒM THUẾ</p>
+              </div>
             </div>
           </div>
-
-             {/* Promo Image inside sidebar now */}
-             <div className="rounded-[1rem] overflow-hidden relative shadow-sm group cursor-pointer border border-transparent mt-8">
-               <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent z-10"></div>
-               <img src="https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?auto=format&fit=crop&q=80" alt="Japan" className="w-full h-[120px] object-cover transition-transform duration-700 group-hover:scale-105" />
-               <div className="absolute bottom-4 left-4 right-4 z-20">
-                 <h3 className="text-xs font-bold text-white leading-tight">Your Japanese adventure is just a few steps away.</h3>
-               </div>
-            </div>
-            <div className="flex justify-center  mt-8">
-                <button onClick={() => navigate('/booking/payment')} className="bg-red text-white hover:bg-reddark transition-colors rounded-full px-8 py-3.5 font-bold text-sm shadow-md">
-                  Payment & Extras 
-                </button>
-              </div>       
-           </div>
         </aside>
-
       </div>
     </div>
   );
 };
 
+const StepDot = ({ done, active, label }: { done?: boolean; active?: boolean; label?: string }) => (
+  <div className={`w-6 h-6 rounded-full text-[10px] font-bold flex items-center justify-center relative z-10 ${done ? 'bg-red text-white' : active ? 'bg-white border-2 border-red text-red' : 'bg-white border-2 border-gray-200 text-gray-400'
+    }`}>
+    {done ? <Check className="w-3 h-3" /> : label}
+  </div>
+);

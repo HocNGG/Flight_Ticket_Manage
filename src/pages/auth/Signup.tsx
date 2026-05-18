@@ -1,142 +1,164 @@
-import { PlaneTakeoff, Loader2 } from 'lucide-react';
+import { PlaneTakeoff } from 'lucide-react';
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useForm } from 'react-hook-form'; // Import Hook
-import { toast } from 'react-toastify';
-import authApi from '../../api/authApi';
-import type { RegisterRequest } from '../../types/auth';
-
-interface RegisterFormData extends RegisterRequest {
-    confirmPassword: string;
-}
+import { Link } from 'react-router-dom';
+import { useRegister } from '../../hooks/useAuth';
 
 export const Signup = () => {
-    const [isLoading, setIsLoading] = useState<boolean>(false);
-    const navigate = useNavigate();
+  const [form, setForm] = useState({
+    fullName: '',
+    email: '',
+    phoneNumber: '',
+    password: '',
+  });
+  const [submitted, setSubmitted] = useState(false);
 
-    // Khởi tạo React Hook Form
-    const { 
-        register, 
-        handleSubmit, 
-        watch, 
-        formState: { errors } 
-    } = useForm<RegisterFormData>();
+  const registerMutation = useRegister();
 
-    // Hàm xử lý khi dữ liệu đã hợp lệ
-    const onSubmit = async (data: RegisterFormData) => {
-        setIsLoading(true);
-        try {
-            // Chỉ gửi những trường mà API cần (loại bỏ confirmPassword)
-            const { confirmPassword:_, ...registerData } = data;
-            
-            const response = await authApi.register(registerData);
-            if (response.success) {
-                toast.success("Đăng ký thành công. Vui lòng xác nhận lại email để kích hoạt tài khoản của bạn.");
-                navigate('/login');
-            }
-        } catch (error : unknown) {
-             console.error('Signup error:', error);
-        } finally {
-            setIsLoading(false);
-        }
-    };
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    registerMutation.reset(); // Xóa lỗi cũ mỗi khi user gõ lại
+    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+  };
 
-    return (
-        <div className="min-h-[calc(100vh-80px)] w-full flex items-center justify-center p-6 pb-24 relative overflow-hidden">
-            <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-100 to-surface -z-10"></div>
-            
-            <div className="w-full max-w-[420px] bg-white rounded-[2rem] p-8 md:p-12 shadow-2xl relative">
-                <h1 className="text-3xl font-black text-gray-900 mb-2">Register</h1>
-                <p className="text-sm font-medium text-gray-500 mb-8">Begin your premium journey.</p>
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    registerMutation.mutate(form, {
+      onSuccess: () => setSubmitted(true),
+    });
+  };
 
-                <form className="space-y-5" onSubmit={handleSubmit(onSubmit)}>
-                    
-                    {/* Email */}
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1 px-1">Email</label>
-                        <input
-                            {...register("email", { 
-                                required: "Email là bắt buộc",
-                                pattern: { value: /^\S+@\S+$/i, message: "Email không đúng định dạng" }
-                            })}
-                            placeholder="flyer@aviation.com"
-                            className={`w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold focus:outline-none focus:ring-2 ${errors.email ? 'ring-red/50' : 'focus:ring-red/20'}`}
-                        />
-                        {errors.email && <span className="text-[10px] text-red-500 mt-1 ml-1">{errors.email.message}</span>}
-                    </div>
+  // Lấy thông báo lỗi từ server, fallback về thông báo mặc định
+  const errorMsg = registerMutation.error
+    ? (registerMutation.error as any)?.response?.data?.message || 'Đăng ký thất bại.'
+    : '';
 
-                    {/* Full Name */}
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1 px-1">Full Name</label>
-                        <input
-                            {...register("fullName", { required: "Vui lòng nhập họ tên" })}
-                            placeholder="Johnathan Doe"
-                            className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red/20"
-                        />
-                        {errors.fullName && <span className="text-[10px] text-red-500 mt-1 ml-1">{errors.fullName.message}</span>}
-                    </div>
+  return (
+    <div className="min-h-[calc(100vh-80px)] w-full flex items-center justify-center p-6 pb-24 relative overflow-hidden">
 
-                    {/* Phone Number */}
-                    <div>
-                        <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1 px-1">Phone Number</label>
-                        <input
-                            {...register("phoneNumber", { required: "Vui lòng nhập số điện thoại" })}
-                            placeholder="0123456789"
-                            className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red/20"
-                        />
-                    </div>
+      {/* Background decoration */}
+      <div className="absolute top-0 left-0 w-full h-full bg-gradient-to-br from-gray-100 to-surface -z-10"></div>
+      <div className="absolute -top-[20%] -right-[10%] w-[50%] h-[70%] bg-red-50 rounded-full blur-[120px] -z-10 opacity-60"></div>
 
-                    {/* Passwords Group */}
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1 px-1">Password</label>
-                            <input
-                                type="password"
-                                {...register("password", { 
-                                    required: "Trường này là bắt buộc", 
-                                    minLength: { value: 6, message: "Mật khẩu phải có tối thiểu 6 ký tự" } 
-                                })}
-                                placeholder="••••••"
-                                className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red/20"
-                            />
-                        </div>
-                        <div>
-                            <label className="text-[10px] font-bold text-gray-500 uppercase block mb-1 px-1">Confirm Password</label>
-                            <input  
-                                type="password"
-                                {...register("confirmPassword", { 
-                                    required: "Trường này là bắt buộc", 
-                                    validate: (value) => value === watch('password') || "Không khớp với mật khẩu đăng ký"
-                                })}
-                                placeholder="••••••"
-                                className="w-full bg-surface rounded-xl h-12 px-4 text-sm font-semibold focus:outline-none focus:ring-2 focus:ring-red/20"
-                            />
-                        </div>
-                    {(errors.password || errors.confirmPassword) && (
-                        <p className="text-[10px] text-red-500 ml-1">
-                            {errors.password?.message || errors.confirmPassword?.message}
-                        </p>
-                    )}
+      <div className="w-full max-w-[420px] bg-white rounded-[2rem] p-8 md:p-12 shadow-2xl shadow-black/5 relative hover:shadow-red/5 transition-shadow duration-500">
 
-                    <button
-                        type="submit"
-                        disabled={isLoading}
-                        className="w-full bg-[#E8E8E8] text-red hover:bg-[#dedede] transition-all rounded-full h-14 font-bold text-sm flex items-center justify-center gap-2 mt-4 disabled:opacity-50"
-                    >
-                        {isLoading ? <Loader2 className="animate-spin" /> : (
-                            <>
-                                Join Membership
-                                <PlaneTakeoff className="w-5 h-5 -rotate-45" />
-                            </>
-                        )}
-                    </button>
-                </form>
+        {/* Decorative corner shape */}
+        <div className="absolute top-0 right-0 w-16 h-16 bg-surface rounded-bl-full -z-10"></div>
 
-                <div className="mt-8 border-t border-gray-100 pt-6 text-center">
-                    <p className="text-xs font-medium text-gray-500">
-                        Already a member? <Link to="/login" className="text-red font-bold hover:underline text-red-600">Log in</Link>
-                    </p>
-                </div>
+        {submitted ? (
+          // ✅ Thành công: yêu cầu xác thực email
+          <div className="text-center py-4">
+            <div className="w-16 h-16 bg-green-50 rounded-full flex items-center justify-center mx-auto mb-4">
+              <PlaneTakeoff className="w-8 h-8 text-green-500" />
             </div>
-        </div>
-    );
+            <h2 className="text-2xl font-black text-gray-900 mb-2">Đăng ký thành công!</h2>
+            <p className="text-sm text-gray-500 leading-relaxed">
+              Vui lòng kiểm tra email <span className="font-bold text-gray-800">{form.email}</span> để xác thực tài khoản trước khi đăng nhập.
+            </p>
+            <Link
+              to="/login"
+              className="mt-6 inline-block text-red font-bold text-sm hover:underline"
+            >
+              Về trang đăng nhập
+            </Link>
+          </div>
+        ) : (
+          <>
+            <h1 className="text-3xl font-black text-gray-900 tracking-tight mb-2">Register</h1>
+            <p className="text-sm font-medium text-gray-500 mb-8">Begin your premium journey.</p>
+
+            <form className="space-y-5" onSubmit={handleSubmit}>
+              {/* Error message — lấy từ registerMutation.error */}
+              {errorMsg && (
+                <div className="bg-red-50 border border-red-200 text-red-700 text-xs font-medium rounded-xl px-4 py-3">
+                  {errorMsg}
+                </div>
+              )}
+              {/* Full Name */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2 px-1">
+                  Full Name
+                </label>
+                <input
+                  type="text"
+                  name="fullName"
+                  value={form.fullName}
+                  onChange={handleChange}
+                  placeholder="Nguyễn Văn A"
+                  required
+                  className="w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+
+              {/* Email */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2 px-1">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  name="email"
+                  value={form.email}
+                  onChange={handleChange}
+                  placeholder="flyer@aviation.com"
+                  required
+                  className="w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+
+              {/* Phone Number — required by API */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2 px-1">
+                  Phone Number
+                </label>
+                <input
+                  type="tel"
+                  name="phoneNumber"
+                  value={form.phoneNumber}
+                  onChange={handleChange}
+                  placeholder="0123456789"
+                  required
+                  className="w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label className="text-[10px] font-bold text-gray-500 uppercase tracking-widest block mb-2 px-1">
+                  Create Password
+                </label>
+                <input
+                  type="password"
+                  name="password"
+                  value={form.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                  className="w-full bg-surface rounded-xl h-14 px-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+                />
+              </div>
+
+              <p className="text-[10px] text-gray-400 leading-relaxed pt-1">
+                By registering, you agree to our Terms of Carriage and Privacy Policy regarding your personal data.
+              </p>
+
+              <button
+                type="submit"
+                disabled={registerMutation.isPending}
+                className="w-full bg-[#E8E8E8] text-red hover:bg-[#dedede] transition-colors rounded-full h-14 font-bold text-sm tracking-wider flex items-center justify-center gap-2 mt-4 disabled:opacity-60"
+              >
+                {registerMutation.isPending ? 'Registering...' : 'Join Membership'}
+                <PlaneTakeoff className="w-5 h-5 -rotate-45" />
+              </button>
+            </form>
+
+            <div className="mt-8 border-t border-gray-100 pt-6 text-center">
+              <p className="text-xs font-medium text-gray-500">
+                Already a member? <Link to="/login" className="text-red font-bold hover:underline">Log in</Link>
+              </p>
+            </div>
+          </>
+        )}
+      </div>
+
+    </div>
+  );
 };

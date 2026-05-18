@@ -1,9 +1,10 @@
 import { Users } from 'lucide-react';
 
-interface PassengerInputProps {
+type PassengerInputProps = {
   value: number;
-  onChange: (value: number) => void;
-}
+  onChange: (val: number) => void;
+};
+
 const PassengerInput = ({ value, onChange }: PassengerInputProps) => {
   return (
     <div className="col-span-1 relative">
@@ -12,10 +13,10 @@ const PassengerInput = ({ value, onChange }: PassengerInputProps) => {
         <input
           type="number"
           min="1"
+          max="9"
           value={value}
-          onChange={(e) => onChange(parseInt(e.target.value) || 1)}
-          placeholder="1 Passenger"
-          className="w-full bg-surface rounded-xl h-14 pl-12 pr-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
+          onChange={(e) => onChange(Math.max(1, Number(e.target.value)))}
+          className="w-full bg-surface rounded-xl h-14 pl-10 pr-4 text-sm font-semibold text-gray-800 focus:outline-none focus:ring-2 focus:ring-red/20"
         />
       </div>
     </div>
