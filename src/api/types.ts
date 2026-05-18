@@ -26,13 +26,6 @@ export interface UserProfile {
     phone: string;
 }
 
-// Flight Search
-export interface Airport {
-    airportCode: string;
-    airportName: string;
-    city?: string;
-    country?: string;
-}
 
 export interface FlightResult {
     flightId: number;
@@ -117,4 +110,12 @@ export type Aircraft = {
     model: string;
     manufacturer: string;
     totalSeats: number;
+};
+
+export type Airport = { 
+    airportId: number; 
+    airportCode: string; 
+    airportName: string; 
+    city: string; 
+    country: string 
 };

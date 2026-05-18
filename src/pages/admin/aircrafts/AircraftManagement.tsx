@@ -2,9 +2,9 @@ import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Search, X, Loader2, Cpu } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
 import { aircraftApi } from '../../../api/aircraftApi';
+import type { Aircraft } from '../../../api/types';
 
 // GET /api/aircrafts | POST /api/aircrafts | PUT /api/aircrafts/{id} | DELETE /api/aircrafts/{id}
-type Aircraft = { aircraftId: number; model: string; manufacturer: string; totalSeats: number };
 type Form = Omit<Aircraft, 'aircraftId'>;
 const EMPTY: Form = { model: '', manufacturer: '', totalSeats: 180 };
 
@@ -15,8 +15,6 @@ const MOCK: Aircraft[] = [
   { aircraftId: 4, model: 'Airbus A321', manufacturer: 'Airbus', totalSeats: 220 },
 ];
 
-const token = () => localStorage.getItem('accessToken') ?? '';
-const authH = () => ({ Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' });
 
 export const AircraftManagement = () => {
   const [items, setItems] = useState<Aircraft[]>(MOCK);

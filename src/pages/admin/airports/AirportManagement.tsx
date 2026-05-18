@@ -1,9 +1,30 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Search, X, Loader2, MapPin } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
+import { airportApi } from '../../../api/airportApi';
+import type { Airport } from '../../../api/types';
 
-// GET /api/airports | POST /api/airports | PUT /api/airports/{id} | DELETE /api/airports/{id}
-type Airport = { airportId: number; airportCode: string; airportName: string; city: string; country: string };
+type FieldProps = {
+  label: string
+  value: string
+  placeholder?: string
+  onChange: (value: string) => void
+}
+const Field = ({ label,value,placeholder,onChange}: FieldProps) => {
+    return (
+      <div>
+        <label className="block text-xs font-bold text-gray-600 mb-1">{label}</label>
+        <input
+          value={value}
+          onChange={(e) =>
+            onChange(e.target.value)
+          }
+          placeholder={placeholder}
+          className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30"
+        />
+      </div>
+    )
+  }
 type Form = Omit<Airport, 'airportId'>;
 const EMPTY: Form = { airportCode: '', airportName: '', city: '', country: 'Vietnam' };
 
@@ -14,8 +35,6 @@ const MOCK: Airport[] = [
   { airportId: 4, airportCode: 'CXR', airportName: 'Sân bay Cam Ranh', city: 'Khánh Hòa', country: 'Vietnam' },
 ];
 
-const token = () => localStorage.getItem('accessToken') ?? '';
-const authH = () => ({ Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' });
 
 export const AirportManagement = () => {
   const [airports, setAirports] = useState<Airport[]>(MOCK);
@@ -33,11 +52,22 @@ export const AirportManagement = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/airports', { headers: authH() });
-      const j = await r.json();
-      if (j.success && j.data) setAirports(j.data);
-    } catch { /* mock */ }
-    setLoading(false);
+      const { data } = await airportApi.getAll();
+
+      if (data.success && data.data) {
+        setAirports(data.data);
+      }
+
+    } catch (err) {
+      console.error(err);
+
+      showToast(
+        'Không thể tải danh sách sân bay',
+        'error'
+      );
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -49,31 +79,84 @@ export const AirportManagement = () => {
     if (!form.airportCode || !form.airportName || !form.city) { showToast('Vui lòng điền đầy đủ thông tin', 'error'); return; }
     setSaving(true);
     try {
-      const url = modal === 'edit' ? `/api/airports/${editItem!.airportId}` : '/api/airports';
-      const r = await fetch(url, { method: modal === 'edit' ? 'PUT' : 'POST', headers: authH(), body: JSON.stringify(form) });
-      const j = await r.json();
-      if (j.success) { showToast(modal === 'edit' ? 'Cập nhật thành công' : 'Tạo thành công', 'success'); setModal(null); fetchAll(); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch {
-      // mock success
-      if (modal === 'edit') setAirports(p => p.map(a => a.airportId === editItem!.airportId ? { ...editItem!, ...form } : a));
-      else setAirports(p => [...p, { ...form, airportId: Date.now() }]);
-      showToast(modal === 'edit' ? 'Cập nhật thành công' : 'Tạo thành công', 'success');
-      setModal(null);
+      let response;
+      if (modal === 'edit') {
+        response = await airportApi.update(
+          editItem!.airportId,
+          form
+        );
+      } else {
+        response = await airportApi.create(form);
+      }
+
+      const { data } = response;
+
+      if (data.success) {
+        showToast(
+          modal === 'edit'
+            ? 'Cập nhật thành công'
+            : 'Tạo thành công',
+          'success'
+        );
+
+        setModal(null);
+
+        await fetchAll();
+
+      } else {
+        showToast(
+          data.message ?? 'Có lỗi xảy ra',
+          'error'
+        );
+      }
+
+    } catch (err: any) {
+      console.error(err);
+
+      showToast(
+        err?.response?.data?.message ||
+        'Không thể kết nối server',
+        'error'
+      );
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const del = async (id: number) => {
     if (!confirm('Bạn có chắc muốn xóa sân bay này?')) return;
     setDeleting(id);
     try {
-      const r = await fetch(`/api/airports/${id}`, { method: 'DELETE', headers: authH() });
-      const j = await r.json();
-      if (j.success) { showToast('Xóa thành công', 'success'); setAirports(p => p.filter(a => a.airportId !== id)); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch { setAirports(p => p.filter(a => a.airportId !== id)); showToast('Xóa thành công', 'success'); }
-    setDeleting(null);
+      const { data } = await airportApi.remove(id);
+
+      if (data.success) {
+        setAirports(prev =>
+          prev.filter(a => a.airportId !== id)
+        );
+
+        showToast(
+          'Xóa thành công',
+          'success'
+        );
+
+      } else {
+        showToast(
+          data.message ?? 'Xóa thất bại',
+          'error'
+        );
+      }
+
+    } catch (err: any) {
+      console.error(err);
+
+      showToast(
+        err?.response?.data?.message ||
+        'Không thể kết nối server',
+        'error'
+      );
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const filtered = airports.filter(a =>
@@ -82,14 +165,6 @@ export const AirportManagement = () => {
     a.city.toLowerCase().includes(search.toLowerCase())
   );
 
-  const Field = ({ label, field, placeholder }: { label: string; field: keyof Form; placeholder?: string }) => (
-    <div>
-      <label className="block text-xs font-bold text-gray-600 mb-1">{label}</label>
-      <input value={form[field]} onChange={e => setForm(p => ({ ...p, [field]: e.target.value }))}
-        placeholder={placeholder}
-        className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" />
-    </div>
-  );
 
   return (
     <AdminLayout>
@@ -161,28 +236,68 @@ export const AirportManagement = () => {
           )}
         </div>
 
-        {modal && (
-          <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
-            <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
-              <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h3 className="font-bold text-gray-900">{modal === 'edit' ? 'Cập nhật sân bay' : 'Thêm sân bay mới'}</h3>
-                <button onClick={() => setModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
-              </div>
-              <div className="p-6 space-y-4">
-                <Field label="Mã sân bay *" field="airportCode" placeholder="VD: SGN" />
-                <Field label="Tên sân bay *" field="airportName" placeholder="VD: Sân bay Tân Sơn Nhất" />
-                <Field label="Thành phố *" field="city" placeholder="VD: Hồ Chí Minh" />
-                <Field label="Quốc gia" field="country" placeholder="VD: Vietnam" />
-                <div className="flex gap-3 pt-2">
-                  <button onClick={() => setModal(null)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">Hủy</button>
-                  <button onClick={save} disabled={saving} className="flex-1 bg-red hover:bg-red/90 text-white rounded-xl py-2.5 text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
-                    {saving && <Loader2 className="w-4 h-4 animate-spin" />} {modal === 'edit' ? 'Cập nhật' : 'Thêm mới'}
-                  </button>
+          {modal && (
+            <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
+              <div className="bg-white rounded-2xl shadow-xl w-full max-w-md">
+                <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
+                  <h3 className="font-bold text-gray-900">{modal === 'edit' ? 'Cập nhật sân bay' : 'Thêm sân bay mới'}</h3>
+                  <button onClick={() => setModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
+                </div>
+                <div className="p-6 space-y-4">
+                  <Field
+                    label="Mã sân bay *"
+                    value={form.airportCode}
+                    onChange={(value) =>
+                      setForm((p) => ({
+                        ...p,
+                        airportCode: value
+                      }))
+                    }
+                    placeholder="VD: SGN"
+                  />
+                  <Field
+                    label="Tên sân bay *"
+                    value={form.airportName}
+                    onChange={(value) =>
+                      setForm((p) => ({
+                        ...p,
+                        airportName: value
+                      }))
+                    }
+                    placeholder="VD: Sân bay Tân Sơn Nhất"
+                  />
+                  <Field
+                    label="Thành phố *"
+                    value={form.city}
+                    onChange={(value) =>
+                      setForm((p) => ({
+                        ...p,
+                        city: value
+                      }))
+                    }
+                    placeholder="VD: Hồ Chí Minh"
+                  />
+                  <Field
+                    label="Quốc gia"
+                    value={form.country}
+                    onChange={(value) =>
+                      setForm((p) => ({
+                        ...p,
+                        country: value
+                      }))
+                    }
+                    placeholder="VD: Vietnam"
+                  />
+                  <div className="flex gap-3 pt-2">
+                    <button onClick={() => setModal(null)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50 transition-colors">Hủy</button>
+                    <button onClick={save} disabled={saving} className="flex-1 bg-red hover:bg-red/90 text-white rounded-xl py-2.5 text-sm font-bold transition-colors disabled:opacity-50 flex items-center justify-center gap-2">
+                      {saving && <Loader2 className="w-4 h-4 animate-spin" />} {modal === 'edit' ? 'Cập nhật' : 'Thêm mới'}
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
       </div>
     </AdminLayout>
   );
