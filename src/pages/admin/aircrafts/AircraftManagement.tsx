@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Search, X, Loader2, Cpu } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
+import { aircraftApi } from '../../../api/aircraftApi';
 
 // GET /api/aircrafts | POST /api/aircrafts | PUT /api/aircrafts/{id} | DELETE /api/aircrafts/{id}
 type Aircraft = { aircraftId: number; model: string; manufacturer: string; totalSeats: number };
@@ -23,7 +24,7 @@ export const AircraftManagement = () => {
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [editItem, setEditItem] = useState<Aircraft | null>(null);
-  const [form, setForm] = useState<Form>(EMPTY);
+  const [form, setForm  ] = useState<Form>(EMPTY);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -33,11 +34,16 @@ export const AircraftManagement = () => {
   const fetchAll = useCallback(async () => {
     setLoading(true);
     try {
-      const r = await fetch('/api/aircrafts', { headers: authH() });
-      const j = await r.json();
-      if (j.success && j.data) setItems(j.data);
-    } catch { /* mock */ }
-    setLoading(false);
+      const { data } = await aircraftApi.getAll();
+      if (data.success && data.data) 
+      {
+        setItems(data.data);
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
@@ -49,15 +55,32 @@ export const AircraftManagement = () => {
     if (!form.model || !form.manufacturer) { showToast('Vui lòng điền đầy đủ thông tin', 'error'); return; }
     setSaving(true);
     try {
-      const url = modal === 'edit' ? `/api/aircrafts/${editItem!.aircraftId}` : '/api/aircrafts';
-      const r = await fetch(url, { method: modal === 'edit' ? 'PUT' : 'POST', headers: authH(), body: JSON.stringify(form) });
-      const j = await r.json();
-      if (j.success) { showToast('Thành công', 'success'); setModal(null); fetchAll(); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch {
-      if (modal === 'edit') setItems(p => p.map(a => a.aircraftId === editItem!.aircraftId ? { ...editItem!, ...form } : a));
-      else setItems(p => [...p, { ...form, aircraftId: Date.now() }]);
-      showToast('Thành công', 'success'); setModal(null);
+      let response;
+      if (modal === 'edit') {
+        response = await aircraftApi.update(
+          editItem!.aircraftId,
+          form
+        );
+      } else {
+        response = await aircraftApi.create(form);
+      }
+
+      const { data } = response;
+
+      if (data.success) {
+        showToast('Thành công', 'success');
+        setModal(null);
+        fetchAll();
+      } else {
+        showToast(data.message ?? 'Lỗi', 'error');
+      }
+    } catch(err : any) {
+      console.error(err);
+      showToast(
+        err?.response?.data?.message ||
+        'Không thể kết nối server',
+        'error'
+      );
     }
     setSaving(false);
   };
@@ -66,11 +89,28 @@ export const AircraftManagement = () => {
     if (!confirm('Xóa máy bay này?')) return;
     setDeleting(id);
     try {
-      await fetch(`/api/aircrafts/${id}`, { method: 'DELETE', headers: authH() });
-    } catch { /* ignore */ }
-    setItems(p => p.filter(a => a.aircraftId !== id));
-    showToast('Xóa thành công', 'success');
-    setDeleting(null);
+      const { data } = await aircraftApi.remove(id);
+      if (data.success) {
+        setItems(p =>
+          p.filter(a => a.aircraftId !== id)
+        );
+
+        showToast('Xóa thành công', 'success');
+      } else {
+        showToast(data.message, 'error');
+      }
+
+    } catch (err: any) {
+      console.error(err);
+
+      showToast(
+        err?.response?.data?.message ||
+        'Xóa thất bại',
+        'error'
+      );
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const filtered = items.filter(a =>

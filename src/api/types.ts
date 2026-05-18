@@ -111,3 +111,10 @@ export type Booking = {
     };
 };
 
+// Item trong GET /api/aircrafts
+export type Aircraft = {
+    aircraftId: number;
+    model: string;
+    manufacturer: string;
+    totalSeats: number;
+};
