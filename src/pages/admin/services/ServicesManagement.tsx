@@ -1,42 +1,26 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Loader2, Wrench, Package, Wifi } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
+import type { CreateServicePayload, Service } from '../../../api/types';
+import { serviceApi } from '../../../api/serviceApi';
 
 // GET/POST/PUT/DELETE /api/services
 // GET/POST/PUT/DELETE /api/baggages
 // GET/POST/DELETE /api/amenities
 
-type Service = { serviceId: number; serviceName: string; type: string; description: string; price: number };
 type Baggage = { baggageId: number; baggageName: string; description: string; weight: number; price: number };
 type Amenity = { amenityId: number; amenityName: string; description: string };
-
-const MOCK_SERVICES: Service[] = [
-  { serviceId: 1, serviceName: 'Bữa ăn tiêu chuẩn', type: 'FOOD', description: 'Bữa ăn trên chuyến bay', price: 200000 },
-  { serviceId: 2, serviceName: 'Xe lăn', type: 'ASSISTANCE', description: 'Hỗ trợ xe lăn', price: 0 },
-  { serviceId: 3, serviceName: 'Ghế ưu tiên', type: 'SEAT', description: 'Chọn ghế ưu tiên', price: 150000 },
-];
-const MOCK_BAGGAGES: Baggage[] = [
-  { baggageId: 1, baggageName: '7kg Cabin', description: 'Hành lý xách tay 7kg', weight: 7, price: 0 },
-  { baggageId: 2, baggageName: '20kg Check-in', description: 'Hành lý ký gửi 20kg', weight: 20, price: 300000 },
-  { baggageId: 3, baggageName: '30kg Check-in', description: 'Hành lý ký gửi 30kg', weight: 30, price: 500000 },
-];
-const MOCK_AMENITIES: Amenity[] = [
-  { amenityId: 1, amenityName: 'WiFi', description: 'Dịch vụ WiFi miễn phí' },
-  { amenityId: 2, amenityName: 'Entertainment', description: 'Màn hình giải trí cá nhân' },
-];
-
 const formatPrice = (p: number) => p === 0 ? 'Miễn phí' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
-const token = () => localStorage.getItem('accessToken') ?? '';
-const authH = () => ({ Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' });
+
 
 export const ServicesManagement = () => {
   const [tab, setTab] = useState<'services' | 'baggages' | 'amenities'>('services');
-  const [services, setServices] = useState<Service[]>(MOCK_SERVICES);
-  const [baggages, setBaggages] = useState<Baggage[]>(MOCK_BAGGAGES);
-  const [amenities, setAmenities] = useState<Amenity[]>(MOCK_AMENITIES);
+  const [services, setServices] = useState<Service[]>([]);
+  const [baggages, setBaggages] = useState<Baggage[]>([]);
+  const [amenities, setAmenities] = useState<Amenity[]>([]);
   const [modal, setModal] = useState<'service' | 'baggage' | 'amenity' | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
-  const [svcForm, setSvcForm] = useState({ serviceName: '', type: 'FOOD', description: '', price: 0 });
+  const [svcForm, setSvcForm] = useState<CreateServicePayload>({serviceName: '',type: 'FOOD',description: '',price: 0,});
   const [bagForm, setBagForm] = useState({ baggageName: '', description: '', weight: 0, price: 0 });
   const [amForm, setAmForm] = useState({ amenityName: '', description: '' });
   const [saving, setSaving] = useState(false);
@@ -46,34 +30,50 @@ export const ServicesManagement = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [r1, r2, r3] = await Promise.all([
-        fetch('/api/services', { headers: authH() }),
-        fetch('/api/baggages', { headers: authH() }),
-        fetch('/api/amenities', { headers: authH() }),
+      const [serviceRes] = await Promise.all([
+        serviceApi.getAll(),
       ]);
-      const [j1, j2, j3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
-      if (j1.success && j1.data) setServices(j1.data);
-      if (j2.success && j2.data) setBaggages(j2.data);
-      if (j3.success && j3.data) setAmenities(j3.data);
-    } catch { /* mock */ }
+
+      if (serviceRes.data.success) {
+        setServices(serviceRes.data.data);
+      }
+
+    } catch (err) {
+      console.error(err);
+      showToast('Không thể tải dữ liệu dịch vụ', 'error');
+    }
   }, []);
 
   useEffect(() => { fetchAll(); }, [fetchAll]);
 
   const saveService = async () => {
+    if (!svcForm.serviceName.trim()) { showToast('Tên dịch vụ không được để trống', 'error'); return;}
     setSaving(true);
     try {
-      const url = editId ? `/api/services/${editId}` : '/api/services';
-      const r = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: authH(), body: JSON.stringify(svcForm) });
-      const j = await r.json();
-      if (j.success) { showToast('Thành công', 'success'); setModal(null); fetchAll(); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch {
-      if (editId) setServices(p => p.map(s => s.serviceId === editId ? { ...s, ...svcForm } : s));
-      else setServices(p => [...p, { ...svcForm, serviceId: Date.now() }]);
-      showToast('Thành công', 'success'); setModal(null);
+      let response;
+      if (editId) {
+        response = await serviceApi.update(editId, svcForm);
+      } else {
+        response = await serviceApi.create(svcForm);
+      }
+      const { data } = response;
+
+      if (data.success) {
+        showToast( editId? 'Cập nhật dịch vụ thành công': 'Tạo dịch vụ thành công','success');
+        setModal(null);
+        setSvcForm({serviceName: '',type: 'FOOD',description: '',price: 0,});
+        await fetchAll();
+      } else {
+        showToast(data.message || 'Có lỗi xảy ra', 'error');
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
+
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const saveBaggage = async () => {
@@ -107,9 +107,20 @@ export const ServicesManagement = () => {
   };
 
   const delService = async (id: number) => {
-    if (!confirm('Xóa dịch vụ?')) return;
-    try { await fetch(`/api/services/${id}`, { method: 'DELETE', headers: authH() }); } catch { /* ignore */ }
-    setServices(p => p.filter(s => s.serviceId !== id)); showToast('Đã xóa', 'success');
+    if (!confirm('Xóa dịch vụ này?')) {return;}
+    try {
+      const { data } = await serviceApi.remove(id);
+
+      if (data.success) {setServices(prev =>prev.filter(s => s.serviceId !== id));
+        showToast('Xóa dịch vụ thành công', 'success'); 
+      } else {
+        showToast(data.message || 'Xóa thất bại', 'error');
+      }
+      fetchAll
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
+    }
   };
   const delBaggage = async (id: number) => {
     if (!confirm('Xóa hành lý?')) return;

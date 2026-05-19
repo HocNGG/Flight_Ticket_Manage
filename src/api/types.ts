@@ -155,3 +155,16 @@ export type CreateRoutePayload = Omit<
 >;
 
 export type UpdateRoutePayload = CreateRoutePayload;
+
+export type Service = {
+  serviceId: number;
+  serviceName: string;
+  type: string;
+  description: string;
+  price: number;
+};
+
+export type CreateServicePayload = Omit<
+  Service,
+  | 'serviceId'
+>;
