@@ -127,3 +127,31 @@ export type Airline = {
   country: string;
   establishedYear: number;
 };
+
+export interface FlightRoute {
+  routeId: number;
+
+  departureAirportId: number;
+  arrivalAirportId: number;
+
+  departureAirportCode: string;
+  departureAirportName: string;
+
+  arrivalAirportCode: string;
+  arrivalAirportName: string;
+
+  distance: number;
+
+  duration: string;
+}
+
+export type CreateRoutePayload = Omit<
+  FlightRoute,
+  | 'routeId'
+  | 'departureAirportCode'
+  | 'departureAirportName'
+  | 'arrivalAirportCode'
+  | 'arrivalAirportName'
+>;
+
+export type UpdateRoutePayload = CreateRoutePayload;
