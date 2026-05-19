@@ -168,3 +168,17 @@ export type CreateServicePayload = Omit<
   Service,
   | 'serviceId'
 >;
+
+
+export type Baggage = {
+  baggageOptionId: number;
+  baggageType: string;
+  description: string;
+  price: number;
+  weightLimit: number;
+};
+
+export type CreateBaggagePayload = Omit<
+  Baggage,
+  | 'baggageOptionId'
+>;

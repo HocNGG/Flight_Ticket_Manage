@@ -1,14 +1,14 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Loader2, Wrench, Package, Wifi } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
-import type { CreateServicePayload, Service } from '../../../api/types';
+import type { Baggage, CreateBaggagePayload, CreateServicePayload, Service } from '../../../api/types';
 import { serviceApi } from '../../../api/serviceApi';
+import { baggageApi } from '../../../api/baggageApi';
 
 // GET/POST/PUT/DELETE /api/services
 // GET/POST/PUT/DELETE /api/baggages
 // GET/POST/DELETE /api/amenities
 
-type Baggage = { baggageId: number; baggageName: string; description: string; weight: number; price: number };
 type Amenity = { amenityId: number; amenityName: string; description: string };
 const formatPrice = (p: number) => p === 0 ? 'Miễn phí' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
 
@@ -21,7 +21,7 @@ export const ServicesManagement = () => {
   const [modal, setModal] = useState<'service' | 'baggage' | 'amenity' | null>(null);
   const [editId, setEditId] = useState<number | null>(null);
   const [svcForm, setSvcForm] = useState<CreateServicePayload>({serviceName: '',type: 'FOOD',description: '',price: 0,});
-  const [bagForm, setBagForm] = useState({ baggageName: '', description: '', weight: 0, price: 0 });
+  const [bagForm, setBagForm] =useState<CreateBaggagePayload>({baggageType: '',description: '',weightLimit: 0,price: 0,});
   const [amForm, setAmForm] = useState({ amenityName: '', description: '' });
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -30,17 +30,19 @@ export const ServicesManagement = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [serviceRes] = await Promise.all([
-        serviceApi.getAll(),
-      ]);
+      const [serviceRes, baggageRes] =await Promise.all([serviceApi.getAll(),baggageApi.getAll()]);
 
       if (serviceRes.data.success) {
         setServices(serviceRes.data.data);
       }
 
+      if (baggageRes.data.success) {
+        setBaggages(baggageRes.data.data);
+      }
+
     } catch (err) {
       console.error(err);
-      showToast('Không thể tải dữ liệu dịch vụ', 'error');
+      showToast('Không thể tải dữ liệu ', 'error');
     }
   }, []);
 
@@ -77,19 +79,37 @@ export const ServicesManagement = () => {
   };
 
   const saveBaggage = async () => {
+    if (!bagForm.baggageType.trim()) {showToast('Tên loại hành lý không được để trống','error');return;}
     setSaving(true);
     try {
-      const url = editId ? `/api/baggages/${editId}` : '/api/baggages';
-      const r = await fetch(url, { method: editId ? 'PUT' : 'POST', headers: authH(), body: JSON.stringify(bagForm) });
-      const j = await r.json();
-      if (j.success) { showToast('Thành công', 'success'); setModal(null); fetchAll(); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch {
-      if (editId) setBaggages(p => p.map(b => b.baggageId === editId ? { ...b, ...bagForm } : b));
-      else setBaggages(p => [...p, { ...bagForm, baggageId: Date.now() }]);
-      showToast('Thành công', 'success'); setModal(null);
+      let response;
+      if (editId) {
+        response = await baggageApi.update(editId,bagForm);
+      } else {
+        response = await baggageApi.create(bagForm);
+      }
+
+      const { data } = response;
+
+      if (data.success) {
+        showToast(editId ? 'Cập nhật hành lý thành công': 'Tạo hành lý thành công','success');
+        setModal(null);
+        setBagForm({baggageType: '',description: '',weightLimit: 0,price: 0,});
+        await fetchAll();
+      } else {
+        showToast(
+          data.message || 'Có lỗi xảy ra',
+          'error'
+        );
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
+
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const saveAmenity = async () => {
@@ -116,16 +136,25 @@ export const ServicesManagement = () => {
       } else {
         showToast(data.message || 'Xóa thất bại', 'error');
       }
-      fetchAll
     } catch (err: any) {
       console.error(err);
       showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
     }
   };
   const delBaggage = async (id: number) => {
-    if (!confirm('Xóa hành lý?')) return;
-    try { await fetch(`/api/baggages/${id}`, { method: 'DELETE', headers: authH() }); } catch { /* ignore */ }
-    setBaggages(p => p.filter(b => b.baggageId !== id)); showToast('Đã xóa', 'success');
+    if (!confirm('Xóa hành lý này?')) {return;}
+    try {
+      const { data } =await baggageApi.remove(id);
+      if (data.success) 
+        {setBaggages(prev =>prev.filter(b => b.baggageOptionId !== id));
+        showToast('Xóa hành lý thành công','success');
+      } else {
+        showToast(data.message || 'Xóa thất bại','error');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
+    }
   };
   const delAmenity = async (id: number) => {
     if (!confirm('Xóa tiện nghi?')) return;
@@ -201,27 +230,27 @@ export const ServicesManagement = () => {
         {tab === 'baggages' && (
           <>
             <div className="flex justify-end">
-              <button onClick={() => { setBagForm({ baggageName: '', description: '', weight: 0, price: 0 }); setEditId(null); setModal('baggage'); }}
+              <button onClick={() => { setBagForm({ baggageType: '', description: '', weight: 0, price: 0 }); setEditId(null); setModal('baggage'); }}
                 className="flex items-center gap-2 bg-red hover:bg-red/90 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
                 <Plus className="w-4 h-4" /> Thêm gói hành lý
               </button>
             </div>
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
               {baggages.map(b => (
-                <div key={b.baggageId} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                <div key={b.baggageOptionId} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                   <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center mb-3">
                     <Package className="w-4 h-4 text-blue-600" />
                   </div>
-                  <p className="font-bold text-gray-900">{b.baggageName}</p>
+                  <p className="font-bold text-gray-900">{b.baggageType}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{b.description}</p>
-                  <p className="text-sm font-bold text-blue-600 mt-2">{b.weight} kg</p>
+                  <p className="text-sm font-bold text-blue-600 mt-2">{b.weightLimit} kg</p>
                   <p className={`font-black text-lg mt-1 ${b.price === 0 ? 'text-green-600' : 'text-red'}`}>{formatPrice(b.price)}</p>
                   <div className="flex gap-2 mt-3">
-                    <button onClick={() => { setBagForm({ baggageName: b.baggageName, description: b.description, weight: b.weight, price: b.price }); setEditId(b.baggageId); setModal('baggage'); }}
+                    <button onClick={() => { setBagForm({ baggageType: b.baggageType, description: b.description, weightLimit: b.weightLimit, price: b.price }); setEditId(b.baggageOptionId); setModal('baggage'); }}
                       className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg flex items-center gap-1">
                       <Pencil className="w-3 h-3" /> Sửa
                     </button>
-                    <button onClick={() => delBaggage(b.baggageId)}
+                    <button onClick={() => delBaggage(b.baggageOptionId)}
                       className="text-[10px] font-bold text-red-600 bg-red-50 px-2.5 py-1.5 rounded-lg flex items-center gap-1">
                       <Trash2 className="w-3 h-3" /> Xóa
                     </button>
@@ -306,7 +335,7 @@ export const ServicesManagement = () => {
               </div>
               <div className="p-6 space-y-4">
                 <div><label className="block text-xs font-bold text-gray-600 mb-1">Tên gói *</label>
-                  <input value={bagForm.baggageName} onChange={e => setBagForm(p => ({ ...p, baggageName: e.target.value }))}
+                  <input value={bagForm.baggageType} onChange={e => setBagForm(p => ({ ...p, baggageType: e.target.value }))}
                     placeholder="VD: 20kg Check-in"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" /></div>
                 <div><label className="block text-xs font-bold text-gray-600 mb-1">Mô tả</label>
@@ -314,7 +343,7 @@ export const ServicesManagement = () => {
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="block text-xs font-bold text-gray-600 mb-1">Cân nặng (kg)</label>
-                    <input type="number" value={bagForm.weight} onChange={e => setBagForm(p => ({ ...p, weight: Number(e.target.value) }))}
+                    <input type="number" value={bagForm.weightLimit} onChange={e => setBagForm(p => ({ ...p, weight: Number(e.target.value) }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" /></div>
                   <div><label className="block text-xs font-bold text-gray-600 mb-1">Giá (VND)</label>
                     <input type="number" value={bagForm.price} onChange={e => setBagForm(p => ({ ...p, price: Number(e.target.value) }))}
