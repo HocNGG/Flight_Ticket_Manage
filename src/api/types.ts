@@ -182,3 +182,15 @@ export type CreateBaggagePayload = Omit<
   Baggage,
   | 'baggageOptionId'
 >;
+
+export type Amenity = {
+  amenityId: number;
+  code: string;
+  name: string;
+  description: string;
+};
+
+export type CreateAmenityPayload = Omit<
+  Amenity,
+  | 'amenityId'
+>;

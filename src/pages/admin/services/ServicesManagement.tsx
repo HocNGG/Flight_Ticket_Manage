@@ -1,15 +1,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Loader2, Wrench, Package, Wifi } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
-import type { Baggage, CreateBaggagePayload, CreateServicePayload, Service } from '../../../api/types';
+import type { Amenity, Baggage, CreateAmenityPayload, CreateBaggagePayload, CreateServicePayload, Service } from '../../../api/types';
 import { serviceApi } from '../../../api/serviceApi';
 import { baggageApi } from '../../../api/baggageApi';
+import { amenityApi } from '../../../api/amenityApi';
 
-// GET/POST/PUT/DELETE /api/services
-// GET/POST/PUT/DELETE /api/baggages
-// GET/POST/DELETE /api/amenities
 
-type Amenity = { amenityId: number; amenityName: string; description: string };
 const formatPrice = (p: number) => p === 0 ? 'Miễn phí' : new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
 
 
@@ -22,7 +19,7 @@ export const ServicesManagement = () => {
   const [editId, setEditId] = useState<number | null>(null);
   const [svcForm, setSvcForm] = useState<CreateServicePayload>({serviceName: '',type: 'FOOD',description: '',price: 0,});
   const [bagForm, setBagForm] =useState<CreateBaggagePayload>({baggageType: '',description: '',weightLimit: 0,price: 0,});
-  const [amForm, setAmForm] = useState({ amenityName: '', description: '' });
+  const [amForm, setAmForm] =useState<CreateAmenityPayload>({code: '',name: '',description: ''});
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
@@ -30,7 +27,7 @@ export const ServicesManagement = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [serviceRes, baggageRes] =await Promise.all([serviceApi.getAll(),baggageApi.getAll()]);
+      const [serviceRes, baggageRes,amenityRes] =await Promise.all([serviceApi.getAll(),baggageApi.getAll(),amenityApi.getAll()]);
 
       if (serviceRes.data.success) {
         setServices(serviceRes.data.data);
@@ -38,6 +35,10 @@ export const ServicesManagement = () => {
 
       if (baggageRes.data.success) {
         setBaggages(baggageRes.data.data);
+      }
+
+      if (amenityRes.data.success) {
+        setAmenities(amenityRes.data.data);
       }
 
     } catch (err) {
@@ -113,17 +114,29 @@ export const ServicesManagement = () => {
   };
 
   const saveAmenity = async () => {
+    if (!amForm.code.trim() ||!amForm.name.trim()) {showToast('Vui lòng nhập đầy đủ thông tin','error') ; return;}
     setSaving(true);
     try {
-      const r = await fetch('/api/amenities', { method: 'POST', headers: authH(), body: JSON.stringify(amForm) });
-      const j = await r.json();
-      if (j.success) { showToast('Thành công', 'success'); setModal(null); fetchAll(); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch {
-      setAmenities(p => [...p, { ...amForm, amenityId: Date.now() }]);
-      showToast('Thành công', 'success'); setModal(null);
+      let response;
+      if (editId) { response = await amenityApi.update(editId,amForm);} 
+      else { response = await amenityApi.create(amForm);}
+
+      const { data } = response;
+      if (data.success) {
+        showToast(editId? 'Cập nhật tiện nghi thành công': 'Tạo tiện nghi thành công','success');
+        setModal(null);
+        setAmForm({code: '',name: '',description: '',});
+        await fetchAll();
+      } else {
+        showToast(data.message || 'Có lỗi xảy ra','error');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
+
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const delService = async (id: number) => {
@@ -157,9 +170,20 @@ export const ServicesManagement = () => {
     }
   };
   const delAmenity = async (id: number) => {
-    if (!confirm('Xóa tiện nghi?')) return;
-    try { await fetch(`/api/amenities/${id}`, { method: 'DELETE', headers: authH() }); } catch { /* ignore */ }
-    setAmenities(p => p.filter(a => a.amenityId !== id)); showToast('Đã xóa', 'success');
+    if (!confirm('Xóa tiện nghi này?')) {return;}
+    try {
+      const { data } = await amenityApi.remove(id);
+      if (data.success) {
+        setAmenities(prev =>prev.filter(a => a.amenityId !== id));
+        showToast('Xóa tiện nghi thành công','success' );
+      } else {
+        showToast(data.message || 'Xóa thất bại','error');
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
+    }
   };
 
   const SERVICE_TYPES = ['FOOD', 'ASSISTANCE', 'SEAT', 'LUGGAGE', 'OTHER'];
@@ -193,7 +217,7 @@ export const ServicesManagement = () => {
         {tab === 'services' && (
           <>
             <div className="flex justify-end">
-              <button onClick={() => { setSvcForm({ serviceName: '', type: 'FOOD', description: '', price: 0 }); setEditId(null); setModal('service'); }}
+              <button onClick={() => {setEditId(null); setSvcForm({ serviceName: '', type: 'FOOD', description: '', price: 0 }); setEditId(null); setModal('service'); }}
                 className="flex items-center gap-2 bg-red hover:bg-red/90 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
                 <Plus className="w-4 h-4" /> Thêm dịch vụ
               </button>
@@ -230,7 +254,7 @@ export const ServicesManagement = () => {
         {tab === 'baggages' && (
           <>
             <div className="flex justify-end">
-              <button onClick={() => { setBagForm({ baggageType: '', description: '', weight: 0, price: 0 }); setEditId(null); setModal('baggage'); }}
+              <button onClick={() => { setBagForm({ baggageType: '', description: '', weightLimit: 0, price: 0 }); setEditId(null); setModal('baggage'); }}
                 className="flex items-center gap-2 bg-red hover:bg-red/90 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
                 <Plus className="w-4 h-4" /> Thêm gói hành lý
               </button>
@@ -246,7 +270,7 @@ export const ServicesManagement = () => {
                   <p className="text-sm font-bold text-blue-600 mt-2">{b.weightLimit} kg</p>
                   <p className={`font-black text-lg mt-1 ${b.price === 0 ? 'text-green-600' : 'text-red'}`}>{formatPrice(b.price)}</p>
                   <div className="flex gap-2 mt-3">
-                    <button onClick={() => { setBagForm({ baggageType: b.baggageType, description: b.description, weightLimit: b.weightLimit, price: b.price }); setEditId(b.baggageOptionId); setModal('baggage'); }}
+                    <button onClick={() => { setEditId(null);setBagForm({ baggageType: b.baggageType, description: b.description, weightLimit: b.weightLimit, price: b.price }); setEditId(b.baggageOptionId); setModal('baggage'); }}
                       className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2.5 py-1.5 rounded-lg flex items-center gap-1">
                       <Pencil className="w-3 h-3" /> Sửa
                     </button>
@@ -265,7 +289,7 @@ export const ServicesManagement = () => {
         {tab === 'amenities' && (
           <>
             <div className="flex justify-end">
-              <button onClick={() => { setAmForm({ amenityName: '', description: '' }); setModal('amenity'); }}
+              <button onClick={() => { setEditId(null);setAmForm({ name: '', code:'',description: '' }); setModal('amenity'); }}
                 className="flex items-center gap-2 bg-red hover:bg-red/90 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
                 <Plus className="w-4 h-4" /> Thêm tiện nghi
               </button>
@@ -278,14 +302,29 @@ export const ServicesManagement = () => {
                       <Wifi className="w-4 h-4 text-purple-600" />
                     </div>
                     <div>
-                      <p className="font-bold text-gray-900 text-sm">{a.amenityName}</p>
+                      <p className="font-bold text-gray-900 text-sm">{a.name}</p>
                       <p className="text-xs text-gray-500">{a.description}</p>
                     </div>
                   </div>
-                  <button onClick={() => delAmenity(a.amenityId)}
-                    className="text-[10px] font-bold text-red-600 bg-red-50 p-1.5 rounded-lg flex-shrink-0 ml-2">
+                  <div className="flex gap-2">
+                  <button
+                      onClick={() => {
+                      setAmForm({code: a.code,name: a.name,description: a.description,});
+                      setEditId(a.amenityId);
+                      setModal('amenity');
+                    }}
+                    className="text-[10px] font-bold text-blue-600 bg-blue-50 p-1.5 rounded-lg"
+                  >
+                    <Pencil className="w-3 h-3" />
+                  </button>
+
+                  <button
+                    onClick={() => delAmenity(a.amenityId)}
+                    className="text-[10px] font-bold text-red-600 bg-red-50 p-1.5 rounded-lg"
+                  >
                     <Trash2 className="w-3 h-3" />
                   </button>
+                </div>
                 </div>
               ))}
             </div>
@@ -343,7 +382,7 @@ export const ServicesManagement = () => {
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" /></div>
                 <div className="grid grid-cols-2 gap-3">
                   <div><label className="block text-xs font-bold text-gray-600 mb-1">Cân nặng (kg)</label>
-                    <input type="number" value={bagForm.weightLimit} onChange={e => setBagForm(p => ({ ...p, weight: Number(e.target.value) }))}
+                    <input type="number" value={bagForm.weightLimit} onChange={e => setBagForm(p => ({ ...p, weightLimit: Number(e.target.value) }))}
                       className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" /></div>
                   <div><label className="block text-xs font-bold text-gray-600 mb-1">Giá (VND)</label>
                     <input type="number" value={bagForm.price} onChange={e => setBagForm(p => ({ ...p, price: Number(e.target.value) }))}
@@ -368,8 +407,12 @@ export const ServicesManagement = () => {
                 <button onClick={() => setModal(null)}><X className="w-5 h-5 text-gray-400" /></button>
               </div>
               <div className="p-6 space-y-4">
+                <div><label className="block text-xs font-bold text-gray-600 mb-1">Mã code tiện nghi *</label>
+                  <input value={amForm.code} onChange={e => setAmForm(p => ({ ...p, code: e.target.value }))}
+                    placeholder="VD: WF"
+                    className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" /></div>
                 <div><label className="block text-xs font-bold text-gray-600 mb-1">Tên tiện nghi *</label>
-                  <input value={amForm.amenityName} onChange={e => setAmForm(p => ({ ...p, amenityName: e.target.value }))}
+                  <input value={amForm.name} onChange={e => setAmForm(p => ({ ...p, name: e.target.value }))}
                     placeholder="VD: WiFi"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" /></div>
                 <div><label className="block text-xs font-bold text-gray-600 mb-1">Mô tả</label>
@@ -378,7 +421,7 @@ export const ServicesManagement = () => {
                 <div className="flex gap-3 pt-2">
                   <button onClick={() => setModal(null)} className="flex-1 border border-gray-200 rounded-xl py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50">Hủy</button>
                   <button onClick={saveAmenity} disabled={saving} className="flex-1 bg-red hover:bg-red/90 text-white rounded-xl py-2.5 text-sm font-bold disabled:opacity-50 flex items-center justify-center gap-2">
-                    {saving && <Loader2 className="w-4 h-4 animate-spin" />} Thêm mới
+                    {saving && <Loader2 className="w-4 h-4 animate-spin" />} {editId ? "Cập nhật" : "Thêm mới"}
                   </button>
                 </div>
               </div>
