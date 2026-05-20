@@ -241,3 +241,17 @@ export type PolicyRulePayload = Omit<
   'policyRuleId'
 >;
 
+export type Seat = {
+  seatId: number;
+
+  seatNumber: string;
+
+  aircraftId: number;
+  aircraftModel: string;
+
+  seatClassId: number;
+  seatClassName: string;
+};
+
+export type CreateSeatPayload = Omit<Seat,|'seatId'| 'aircraftModel'| 'seatClassName'>;
+export type UpdateSeatPayload = CreateSeatPayload;

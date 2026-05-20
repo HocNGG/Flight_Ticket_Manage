@@ -1,8 +1,10 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Search, X, Loader2, Armchair } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
-import type { CreateSeatClassPayload, SeatClass } from '../../../api/types';
+import type { Aircraft, CreateSeatClassPayload, CreateSeatPayload, SeatClass } from '../../../api/types';
 import { seatClassApi } from '../../../api/seatClassApi';
+import { seatApi } from '../../../api/seatApi';
+import { aircraftApi } from '../../../api/aircraftApi';
 
 // APIs used:
 // GET/POST/PUT/DELETE /api/seat-classes
@@ -10,29 +12,16 @@ import { seatClassApi } from '../../../api/seatClassApi';
 // GET /api/flight-seats | PATCH /api/flight-seats/{id}/status
 
 type Seat = { seatId: number; seatNumber: string; seatClassName: string; aircraftModel: string };
-type FlightSeat = { flightSeatId: number; flightId: number; seatNumber: string; status: string; price: number };
-
-const formatPrice = (p: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
-const token = () => localStorage.getItem('accessToken') ?? '';
-const authH = () => ({ Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' });
-
-const SEAT_STATUS_OPTIONS = ['AVAILABLE', 'BOOKED', 'BLOCKED', 'MAINTENANCE'];
-const seatStatusColor: Record<string, string> = {
-  AVAILABLE: 'bg-green-100 text-green-700',
-  BOOKED: 'bg-blue-100 text-blue-700',
-  BLOCKED: 'bg-red-100 text-red-700',
-  MAINTENANCE: 'bg-yellow-100 text-yellow-700',
-};
 
 export const SeatManagement = () => {
   const [tab, setTab] = useState<'classes' | 'seats' | 'flightSeats'>('classes');
   const [seatClasses, setSeatClasses] = useState<SeatClass[]>([]);
   const [seats, setSeats] = useState<Seat[]>([]);
-  const [flightSeats, setFlightSeats] = useState<FlightSeat[]>([]);
+  const [aircrafts, setAircrafts] =useState<Aircraft[]>([]);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<'createClass' | 'editClass' | 'createSeat' | null>(null);
   const [classForm, setClassForm] = useState<CreateSeatClassPayload>({className: 'ECONOMY',description: '',priceMultiplier: 1,});
-  const [seatForm, setSeatForm] = useState({ seatNumber: '', seatClassId: '', aircraftId: '' });
+  const [seatForm, setSeatForm] =useState<CreateSeatPayload>({seatNumber: '',aircraftId: 0,seatClassId: 0,});
   const [editClass, setEditClass] = useState<SeatClass | null>(null);
   const [saving, setSaving] = useState(false);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -41,10 +30,16 @@ export const SeatManagement = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const res = await seatClassApi.getAll();
+      const [seatClassRes,seatRes,aircraftRes] = await Promise.all([seatClassApi.getAll(),seatApi.getAll(), aircraftApi.getAll()]);
 
-      if (res.data.success) {
-        setSeatClasses(res.data.data);
+      if (seatClassRes.data.success) {
+        setSeatClasses(seatClassRes.data.data);
+      }
+      if (seatRes.data.success) {
+        setSeats(seatRes.data.data);
+      }
+      if (aircraftRes.data.success) {
+        setAircrafts(aircraftRes.data.data );
       }
     } catch (err) {
       console.error(err);
@@ -84,6 +79,26 @@ export const SeatManagement = () => {
       setSaving(false);
     }
   };
+  const saveSeat = async () => {
+    setSaving(true);
+    try {
+      const response =await seatApi.create(seatForm);
+      const { data } = response;
+      if (data.success) {
+        setSeats(prev => [...prev,data.data]);
+        showToast('Tạo ghế thành công','success');
+        setModal(null);
+        setSeatForm({seatNumber: '',aircraftId: 0,seatClassId: 0,});
+      }
+
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Tạo ghế thất bại','error');
+    } finally {
+      setSaving(false);
+    }
+  };
+
 
   const delClass = async (id: number) => {
     if (!confirm('Xóa hạng ghế này?')) return;
@@ -100,19 +115,23 @@ export const SeatManagement = () => {
     }
   };
 
-  const updateFlightSeatStatus = async (id: number, status: string) => {
-    try {
-      const r = await fetch(`/api/flight-seats/${id}/status?status=${status}`, { method: 'PATCH', headers: authH() });
-      const j = await r.json();
-      if (j.success) showToast('Cập nhật trạng thái thành công', 'success');
-    } catch { showToast('Cập nhật thành công', 'success'); }
-    setFlightSeats(p => p.map(fs => fs.flightSeatId === id ? { ...fs, status } : fs));
-  };
+  const delSeat = async (seatId: number) => {
+    if (!confirm('Xóa ghế này?')) return;
 
+    try {
+      const { data } = await seatApi.remove(seatId);
+
+      if (data.success) {setSeats(prev =>prev.filter(s => s.seatId !== seatId));
+        showToast('Xóa ghế thành công', 'success');
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Xóa thất bại', 'error');
+    }
+  };
   const tabs = [
     { key: 'classes' as const, label: 'Hạng ghế', count: seatClasses.length },
     { key: 'seats' as const, label: 'Ghế (theo máy bay)', count: seats.length },
-    { key: 'flightSeats' as const, label: 'Flight Seats', count: flightSeats.length },
   ];
 
   const filteredSeats = seats.filter(s =>
@@ -121,10 +140,6 @@ export const SeatManagement = () => {
     s.seatClassName.toLowerCase().includes(search.toLowerCase())
   );
 
-  const filteredFlightSeats = flightSeats.filter(fs =>
-    fs.seatNumber.toLowerCase().includes(search.toLowerCase()) ||
-    String(fs.flightId).includes(search)
-  );
 
   return (
     <AdminLayout>
@@ -187,11 +202,21 @@ export const SeatManagement = () => {
         {/* ── Tab: Seats ── */}
         {tab === 'seats' && (
           <>
+            
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm theo số ghế, máy bay..."
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red/30" />
+              <div className="flex items-center justify-between gap-4">
+                {/* Search */}
+                <div className="relative w-full max-w-sm">
+                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+
+                  <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm theo số ghế, máy bay..." className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red/30"/>
+                </div>
+
+                {/* Add seat button */}
+                <button type="button" onClick={() => { setSeatForm({ seatNumber: '',aircraftId: 0,seatClassId: 0,});setModal('createSeat');}}
+                  className="flex items-center gap-2 whitespace-nowrap rounded-xl bg-green-600 px-4 py-2.5 text-sm font-bold text-white hover:bg-green-700 transition-colors">
+                  <Plus className="w-4 h-4" /> Thêm ghế
+                </button>
               </div>
             </div>
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
@@ -213,9 +238,13 @@ export const SeatManagement = () => {
                         </td>
                         <td className="px-4 py-3 text-gray-600 text-xs">{s.aircraftModel}</td>
                         <td className="px-4 py-3">
-                          <button className="text-[10px] font-bold text-red-600 bg-red-50 px-2.5 py-1.5 rounded-lg flex items-center gap-1">
-                            <Trash2 className="w-3 h-3" /> Xóa
-                          </button>
+                            <button
+                              onClick={() => delSeat(s.seatId)}
+                              className="flex items-center gap-1 bg-red hover:bg-red/90 text-white text-xs font-bold px-3 py-2 rounded-lg"
+                            >
+                              <Trash2 className="w-3 h-3" />
+                              Xóa
+                            </button>
                         </td>
                       </tr>
                     ))}
@@ -226,49 +255,6 @@ export const SeatManagement = () => {
           </>
         )}
 
-        {/* ── Tab: Flight Seats ── */}
-        {tab === 'flightSeats' && (
-          <>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-                <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Tìm theo số ghế, flight ID..."
-                  className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red/30" />
-              </div>
-            </div>
-            <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="w-full text-sm">
-                  <thead>
-                    <tr className="border-b border-gray-100 bg-gray-50">
-                      {['Flight ID', 'Số ghế', 'Giá', 'Trạng thái', 'Thay đổi trạng thái'].map(h => (
-                        <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest">{h}</th>
-                      ))}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredFlightSeats.map(fs => (
-                      <tr key={fs.flightSeatId} className="border-b border-gray-50 hover:bg-gray-50">
-                        <td className="px-4 py-3 text-xs font-bold text-gray-600">FL-{fs.flightId}</td>
-                        <td className="px-4 py-3 font-black text-gray-800">{fs.seatNumber}</td>
-                        <td className="px-4 py-3 text-xs font-semibold text-gray-700">{formatPrice(fs.price)}</td>
-                        <td className="px-4 py-3">
-                          <span className={`text-[10px] font-bold px-2.5 py-1 rounded-full ${seatStatusColor[fs.status] ?? 'bg-gray-100 text-gray-600'}`}>{fs.status}</span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <select value={fs.status} onChange={e => updateFlightSeatStatus(fs.flightSeatId, e.target.value)}
-                            className="border border-gray-200 rounded-lg px-2 py-1 text-xs focus:outline-none focus:ring-2 focus:ring-red/30">
-                            {SEAT_STATUS_OPTIONS.map(s => <option key={s} value={s}>{s}</option>)}
-                          </select>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-            </div>
-          </>
-        )}
 
         {/* ── Modal: Seat Class Form ── */}
         {(modal === 'createClass' || modal === 'editClass') && (
@@ -306,6 +292,129 @@ export const SeatManagement = () => {
             </div>
           </div>
         )}
+        {modal === 'createSeat' && (
+            <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
+
+              <div className="w-full max-w-md rounded-2xl bg-white shadow-xl">
+                <div className="flex items-center justify-between border-b border-gray-100 px-6 py-4">
+                  <h3 className="font-bold text-gray-900">
+                    Thêm ghế
+                  </h3>
+                  <button onClick={() => setModal(null)}>
+                    <X className="h-5 w-5 text-gray-400" />
+                  </button>
+                </div>
+
+                <div className="space-y-4 p-6">
+
+                  {/* Seat number */}
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-gray-600">Số ghế</label>
+                    <input
+                      value={seatForm.seatNumber}
+                      onChange={e =>
+                        setSeatForm(prev => ({
+                          ...prev,
+                          seatNumber: e.target.value
+                        }))
+                      }
+                      placeholder="VD: A01"
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30"
+                    />
+                  </div>
+
+                  {/* Aircraft */}
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-gray-600">
+                      Máy bay
+                    </label>
+
+                    <select
+                      value={seatForm.aircraftId}
+                      onChange={e =>
+                        setSeatForm(prev => ({
+                          ...prev,
+                          aircraftId: Number(
+                            e.target.value
+                          )
+                        }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30"
+                    >
+                      <option value={0}>
+                        Chọn máy bay
+                      </option>
+
+                      {aircrafts.map(aircraft => (
+                        <option
+                          key={aircraft.aircraftId}
+                          value={aircraft.aircraftId}
+                        >
+                          {aircraft.model}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Seat class */}
+                  <div>
+                    <label className="mb-1 block text-xs font-bold text-gray-600">
+                      Hạng ghế
+                    </label>
+
+                    <select
+                      value={seatForm.seatClassId}
+                      onChange={e =>
+                        setSeatForm(prev => ({
+                          ...prev,
+                          seatClassId: Number(
+                            e.target.value
+                          )
+                        }))
+                      }
+                      className="w-full rounded-xl border border-gray-200 px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30"
+                    >
+                      <option value={0}>
+                        Chọn hạng ghế
+                      </option>
+
+                      {seatClasses.map(sc => (
+                        <option
+                          key={sc.seatClassId}
+                          value={sc.seatClassId}
+                        >
+                          {sc.className}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div className="flex gap-3 pt-2">
+
+                    <button
+                      onClick={() => setModal(null)}
+                      className="flex-1 rounded-xl border border-gray-200 py-2.5 text-sm font-bold text-gray-600 hover:bg-gray-50"
+                    >
+                      Hủy
+                    </button>
+
+                    <button
+                      onClick={saveSeat}
+                      disabled={saving}
+                      className="flex flex-1 items-center justify-center gap-2 rounded-xl bg-green-600 py-2.5 text-sm font-bold text-white hover:bg-green-700 disabled:opacity-50"
+                    >
+                      {saving && (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      )}
+
+                      Thêm ghế
+                    </button>
+
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
       </div>
     </AdminLayout>
   );
