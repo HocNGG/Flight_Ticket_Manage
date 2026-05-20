@@ -212,3 +212,29 @@ export type DynamicPrice = {
 }
 
 export type DynamicPricePayload = Omit<DynamicPrice,|'priceId'>;
+
+export type Policy = {
+  policyId: number;
+  code: string;
+  name: string;
+  description: string;
+};
+
+export type PolicyPayload = Omit<Policy, 'policyId'>;
+
+export type PolicyRule = {
+  policyRuleId: number;
+  policyId: number;
+
+  hoursBeforeDeparture: number;
+  refundPercentage: number;
+  changeFee: number;
+
+  allowed: boolean;
+};
+
+export type PolicyRulePayload = Omit<
+  PolicyRule,
+  'policyRuleId'
+>;
+
