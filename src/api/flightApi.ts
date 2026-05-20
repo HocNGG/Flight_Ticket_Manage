@@ -69,7 +69,7 @@ const normalizeFlight = (flight: RawFlight, preferredSeatClass: FlightSearchPara
 
     return {
         flightId: flight.flightId,
-        flightCode: flight.flightCode ?? flight.flightNumber ?? `FL-${flight.flightId}`,
+        flightNumber: flight.flightCode ?? flight.flightNumber ?? `FL-${flight.flightId}`,
         departureTime: flight.departureTime,
         arrivalTime: flight.arrivalTime,
         departureAirport: {
@@ -146,7 +146,11 @@ export const flightApi = {
         const response = await api.get<ApiResponse<RawFlight>>(`/api/flights/${id}`);
         return normalizeFlight(response.data.data, 'ECONOMY');
     },
-
+    getAllFlight: async () => 
+    {
+        const res = await api.get<ApiResponse<FlightResult[]>>('/api/flights/all');
+        return res.data;
+    },
     // Hạng ghế — chỉ có priceMultiplier, không có giá cứng
     getSeatClasses: () =>
         api.get<ApiResponse<SeatClass[]>>('/api/seat-classes'),

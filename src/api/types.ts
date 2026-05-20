@@ -29,7 +29,7 @@ export interface UserProfile {
 
 export interface FlightResult {
     flightId: number;
-    flightCode: string;
+    flightNumber: string;
     departureTime: string;
     arrivalTime: string;
     departureAirport: { code: string; name: string };
@@ -197,3 +197,18 @@ export type CreateAmenityPayload = Omit<
 
 
 export type CreateSeatClassPayload  = Omit<SeatClass,|'seatClassId'>;
+
+export type AdjustmentType = 'PERCENTAGE' | 'FIXED_AMOUNT';
+
+export type DynamicPrice = {
+  priceId: number;
+  flightId: number;
+  flightNumber:string;
+  startDate: string;
+  endDate: string;
+
+  adjustmentType: AdjustmentType;
+  adjustmentValue: number;
+}
+
+export type DynamicPricePayload = Omit<DynamicPrice,|'priceId'>;

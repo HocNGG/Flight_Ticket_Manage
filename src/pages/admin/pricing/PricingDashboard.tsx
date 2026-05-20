@@ -1,48 +1,22 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, X, Loader2, TrendingUp, Calendar, Percent, DollarSign } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
+import type { DynamicPrice, DynamicPricePayload, FlightResult } from '../../../api/types';
+import { dynamicPriceApi } from '../../../api/dynamicPrice';
+import { flightApi } from '../../../api/flightApi';
 
-// GET/POST/PUT/DELETE /api/dynamic-prices
-// GET /api/dynamic-prices/active?startDate=...&endDate=...
-// GET /api/seat-classes
-
-type SeatClass = { seatClassId: number; className: string; basePrice: number };
-type DynamicPrice = {
-  priceId: number;
-  seatClassId: number;
-  seatClassName: string;
-  adjustmentType: 'PERCENTAGE' | 'FIXED_AMOUNT';
-  adjustmentValue: number;
-  startDate: string;
-  endDate: string;
-};
-type Form = Omit<DynamicPrice, 'priceId' | 'seatClassName'>;
-
-const EMPTY: Form = { seatClassId: 1, adjustmentType: 'PERCENTAGE', adjustmentValue: 10, startDate: '', endDate: '' };
-
-const MOCK_CLASSES: SeatClass[] = [
-  { seatClassId: 1, className: 'ECONOMY', basePrice: 2500000 },
-  { seatClassId: 2, className: 'BUSINESS', basePrice: 5000000 },
-  { seatClassId: 3, className: 'FIRST', basePrice: 10000000 },
-];
-const MOCK_PRICES: DynamicPrice[] = [
-  { priceId: 1, seatClassId: 1, seatClassName: 'ECONOMY', adjustmentType: 'PERCENTAGE', adjustmentValue: 10, startDate: '2024-06-01T00:00:00', endDate: '2024-06-30T23:59:59' },
-  { priceId: 2, seatClassId: 2, seatClassName: 'BUSINESS', adjustmentType: 'FIXED_AMOUNT', adjustmentValue: 500000, startDate: '2024-07-01T00:00:00', endDate: '2024-07-15T23:59:59' },
-  { priceId: 3, seatClassId: 1, seatClassName: 'ECONOMY', adjustmentType: 'PERCENTAGE', adjustmentValue: -15, startDate: '2024-05-20T00:00:00', endDate: '2024-05-25T23:59:59' },
-];
-
+type Form = DynamicPricePayload;
+const EMPTY_FORM: DynamicPricePayload = { flightId: 0,flightNumber:'',adjustmentType: 'PERCENTAGE',adjustmentValue: 0,startDate: '',endDate: ''};
 const formatPrice = (p: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
 const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('vi-VN') : '---';
 const isActive = (s: string, e: string) => { const now = new Date(); return new Date(s) <= now && now <= new Date(e); };
-const token = () => localStorage.getItem('accessToken') ?? '';
-const authH = () => ({ Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' });
 
 export const PricingDashboard = () => {
-  const [seatClasses, setSeatClasses] = useState<SeatClass[]>(MOCK_CLASSES);
-  const [prices, setPrices] = useState<DynamicPrice[]>(MOCK_PRICES);
+  const [flights, setFlights] = useState<FlightResult[]>([]);
+  const [prices, setPrices] = useState<DynamicPrice[]>([]);
   const [modal, setModal] = useState<'create' | 'edit' | null>(null);
   const [editItem, setEditItem] = useState<DynamicPrice | null>(null);
-  const [form, setForm] = useState<Form>(EMPTY);
+  const [form, setForm] = useState<Form>(EMPTY_FORM);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
@@ -51,50 +25,74 @@ export const PricingDashboard = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [r1, r2] = await Promise.all([
-        fetch('/api/seat-classes', { headers: authH() }),
-        fetch('/api/dynamic-prices', { headers: authH() }),
+      const [priceRes, flightRes] = await Promise.all([
+        dynamicPriceApi.getAll(),
+        flightApi.getAllFlight(),
       ]);
-      const [j1, j2] = await Promise.all([r1.json(), r2.json()]);
-      if (j1.success && j1.data) setSeatClasses(j1.data);
-      if (j2.success && j2.data) setPrices(j2.data);
-    } catch { /* mock */ }
+
+      if (priceRes.success && priceRes.data) {
+        setPrices(priceRes.data);
+      }
+
+      if (flightRes.success && flightRes.data) {
+        setFlights(flightRes.data);
+      }
+    } catch (error) {
+      console.error(error);
+
+      showToast('Không thể tải dữ liệu', 'error');
+    }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => {fetchAll();}, [fetchAll]);
 
-  const openCreate = () => { setForm(EMPTY); setEditItem(null); setModal('create'); };
-  const openEdit = (p: DynamicPrice) => {
-    setForm({ seatClassId: p.seatClassId, adjustmentType: p.adjustmentType, adjustmentValue: p.adjustmentValue, startDate: p.startDate.slice(0, 16), endDate: p.endDate.slice(0, 16) });
-    setEditItem(p); setModal('edit');
+  const openCreate = () => { setForm(EMPTY_FORM); setEditItem(null); setModal('create'); };
+  const openEdit = (price: DynamicPrice) => { 
+    setEditItem(price);
+    setForm({
+      flightId: price.flightId,
+      flightNumber : price.flightNumber,
+      adjustmentType: price.adjustmentType,
+      adjustmentValue: price.adjustmentValue,
+      startDate: price.startDate.slice(0, 16),
+      endDate: price.endDate.slice(0, 16),
+    });
+    setModal('edit');
   };
 
   const save = async () => {
-    if (!form.startDate || !form.endDate) { showToast('Vui lòng chọn thời gian', 'error'); return; }
     setSaving(true);
     try {
-      const url = modal === 'edit' ? `/api/dynamic-prices/${editItem!.priceId}` : '/api/dynamic-prices';
-      const r = await fetch(url, { method: modal === 'edit' ? 'PUT' : 'POST', headers: authH(), body: JSON.stringify(form) });
-      const j = await r.json();
-      if (j.success) { showToast('Thành công', 'success'); setModal(null); fetchAll(); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch {
-      const cls = seatClasses.find(c => c.seatClassId === Number(form.seatClassId));
-      const newP: DynamicPrice = { priceId: Date.now(), seatClassName: cls?.className ?? '', ...form, seatClassId: Number(form.seatClassId) };
-      if (modal === 'edit') setPrices(p => p.map(x => x.priceId === editItem!.priceId ? newP : x));
-      else setPrices(p => [...p, newP]);
-      showToast('Thành công', 'success'); setModal(null);
+      if (modal === 'edit' && editItem) {
+        await dynamicPriceApi.update(editItem.priceId,form,);
+      } else {
+        await dynamicPriceApi.create(form);
+      }
+
+      showToast('Lưu thành công', 'success');
+      setModal(null);
+      fetchAll();
+    } catch (error) {
+      console.error(error)
+      showToast('Có lỗi xảy ra', 'error');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const del = async (id: number) => {
-    if (!confirm('Xóa quy tắc giá này?')) return;
+    if (!confirm('Xóa quy tắc giá này?')) {return;}
     setDeleting(id);
-    try { await fetch(`/api/dynamic-prices/${id}`, { method: 'DELETE', headers: authH() }); } catch { /* ignore */ }
-    setPrices(p => p.filter(x => x.priceId !== id));
-    showToast('Xóa thành công', 'success');
-    setDeleting(null);
+    try {
+      await dynamicPriceApi.delete(id);
+      setPrices((prev) => prev.filter((p) => p.priceId !== id),);
+      showToast('Xóa thành công', 'success');
+    } catch (error) {
+      console.error(error);
+      showToast('Xóa thất bại', 'error');
+    } finally {
+      setDeleting(null);
+    }
   };
 
   const activeCount = prices.filter(p => isActive(p.startDate, p.endDate)).length;
@@ -116,27 +114,29 @@ export const PricingDashboard = () => {
 
         {/* Base price cards */}
         <div>
-          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Giá cơ bản theo hạng ghế</p>
+          <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-3">Giá cơ bản theo chuyến bay</p>
           <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-            {seatClasses.map(c => {
-              const activeRules = prices.filter(p => p.seatClassId === c.seatClassId && isActive(p.startDate, p.endDate));
+            {flights
+            .filter(f => prices.some(p =>p.flightId === f.flightId && isActive(p.startDate, p.endDate)))
+            .map(f => {
+              const activeRules = prices.filter(p => p.flightId === f.flightId && isActive(p.startDate, p.endDate));
               const totalAdj = activeRules.reduce((sum, r) => {
-                if (r.adjustmentType === 'PERCENTAGE') return sum + (c.basePrice * r.adjustmentValue / 100);
+                if (r.adjustmentType === 'PERCENTAGE') return sum + (f.basePrice * r.adjustmentValue / 100);
                 return sum + r.adjustmentValue;
               }, 0);
-              const effectivePrice = c.basePrice + totalAdj;
+              const effectivePrice = f.basePrice + totalAdj;
               const colors: Record<string, string> = { ECONOMY: 'bg-green-50 text-green-600', BUSINESS: 'bg-blue-50 text-blue-600', FIRST: 'bg-purple-50 text-purple-600' };
               return (
-                <div key={c.seatClassId} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${colors[c.className] ?? 'bg-gray-100 text-gray-600'}`}>
-                    <Armchair className="w-5 h-5" />
+                <div key={f.flightId} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
+                  <div className={`w-10 h-10 rounded-xl flex items-center justify-center mb-3 ${colors[f.flightNumber] ?? 'bg-gray-100 text-gray-600'}`}>
+                    <Plane className="w-5 h-5" />
                   </div>
-                  <p className="font-black text-gray-900">{c.className}</p>
+                  <p className="font-black text-gray-900">{f.flightNumber}</p>
                   <p className="text-2xl font-black text-red mt-1">{formatPrice(effectivePrice)}</p>
-                  <p className="text-[10px] text-gray-400 mt-0.5">Cơ bản: {formatPrice(c.basePrice)}</p>
+                  <p className="text-[10px] text-gray-400 mt-0.5">Cơ bản: {formatPrice(f.basePrice)}</p>
                   {totalAdj !== 0 && (
                     <p className={`text-xs font-bold mt-1 ${totalAdj > 0 ? 'text-green-600' : 'text-red-600'}`}>
-                      {totalAdj > 0 ? '+' : ''}{formatPrice(totalAdj)} (đang áp dụng)
+                      {totalAdj > 0 ? '+' : ''}{formatPrice(totalAdj)} 
                     </p>
                   )}
                   {activeRules.length > 0 && (
@@ -178,7 +178,7 @@ export const PricingDashboard = () => {
             <table className="w-full text-sm">
               <thead>
                 <tr className="border-b border-gray-100 bg-gray-50">
-                  {['Hạng ghế', 'Loại điều chỉnh', 'Giá trị', 'Thời gian áp dụng', 'Trạng thái', 'Hành động'].map(h => (
+                  {['Chuyến bay', 'Loại điều chỉnh', 'Giá trị', 'Thời gian áp dụng', 'Trạng thái', 'Hành động'].map(h => (
                     <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                   ))}
                 </tr>
@@ -191,7 +191,7 @@ export const PricingDashboard = () => {
                     return (
                       <tr key={p.priceId} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                         <td className="px-4 py-3">
-                          <span className="font-bold text-gray-800 text-xs">{p.seatClassName}</span>
+                          <span className="font-bold text-gray-800 text-xs">{p.flightNumber}</span>
                         </td>
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-1.5">
@@ -245,10 +245,10 @@ export const PricingDashboard = () => {
               </div>
               <div className="p-6 space-y-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Hạng ghế *</label>
-                  <select value={form.seatClassId} onChange={e => setForm(p => ({ ...p, seatClassId: Number(e.target.value) }))}
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Chuyến bay *</label>
+                  <select value={form.flightId} onChange={e => setForm(p => ({ ...p, flightId: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30">
-                    {seatClasses.map(c => <option key={c.seatClassId} value={c.seatClassId}>{c.className}</option>)}
+                    {flights.map(f => <option key={f.flightId} value={f.flightId}>{f.flightNumber}</option>)}
                   </select>
                 </div>
                 <div>
@@ -297,7 +297,7 @@ export const PricingDashboard = () => {
 };
 
 // Needed for base price card
-const Armchair = ({ className }: { className?: string }) => (
+const Plane = ({ className }: { className?: string }) => (
   <svg className={className} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <path d="M19 9V6a2 2 0 0 0-2-2H7a2 2 0 0 0-2 2v3" /><path d="M3 16a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-5a2 2 0 0 0-4 0v1.5a.5.5 0 0 1-.5.5h-9a.5.5 0 0 1-.5-.5V11a2 2 0 0 0-4 0z" /><path d="M5 18v2" /><path d="M19 18v2" />
   </svg>
