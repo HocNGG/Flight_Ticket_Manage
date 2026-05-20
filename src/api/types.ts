@@ -194,3 +194,6 @@ export type CreateAmenityPayload = Omit<
   Amenity,
   | 'amenityId'
 >;
+
+
+export type CreateSeatClassPayload  = Omit<SeatClass,|'seatClassId'>;

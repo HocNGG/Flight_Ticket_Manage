@@ -1,33 +1,16 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Plus, Pencil, Trash2, Search, X, Loader2, Armchair } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
+import type { CreateSeatClassPayload, SeatClass } from '../../../api/types';
+import { seatClassApi } from '../../../api/seatClassApi';
 
 // APIs used:
 // GET/POST/PUT/DELETE /api/seat-classes
 // GET/POST/PUT/DELETE /api/seats  | GET /api/seats/aircraft/{id}
 // GET /api/flight-seats | PATCH /api/flight-seats/{id}/status
 
-type SeatClass = { seatClassId: number; className: string; description: string; basePrice: number };
 type Seat = { seatId: number; seatNumber: string; seatClassName: string; aircraftModel: string };
 type FlightSeat = { flightSeatId: number; flightId: number; seatNumber: string; status: string; price: number };
-
-const MOCK_CLASSES: SeatClass[] = [
-  { seatClassId: 1, className: 'ECONOMY', description: 'Hạng phổ thông', basePrice: 2500000 },
-  { seatClassId: 2, className: 'BUSINESS', description: 'Hạng thương gia', basePrice: 5000000 },
-  { seatClassId: 3, className: 'FIRST', description: 'Hạng nhất', basePrice: 10000000 },
-];
-const MOCK_SEATS: Seat[] = [
-  { seatId: 1, seatNumber: '1A', seatClassName: 'ECONOMY', aircraftModel: 'Boeing 787' },
-  { seatId: 2, seatNumber: '1B', seatClassName: 'ECONOMY', aircraftModel: 'Boeing 787' },
-  { seatId: 3, seatNumber: '10A', seatClassName: 'BUSINESS', aircraftModel: 'Boeing 787' },
-  { seatId: 4, seatNumber: '1A', seatClassName: 'ECONOMY', aircraftModel: 'Airbus A320' },
-];
-const MOCK_FLIGHT_SEATS: FlightSeat[] = [
-  { flightSeatId: 1, flightId: 1, seatNumber: '1A', status: 'AVAILABLE', price: 2500000 },
-  { flightSeatId: 2, flightId: 1, seatNumber: '1B', status: 'BOOKED', price: 2500000 },
-  { flightSeatId: 3, flightId: 1, seatNumber: '10A', status: 'AVAILABLE', price: 5000000 },
-  { flightSeatId: 4, flightId: 2, seatNumber: '1A', status: 'BLOCKED', price: 2500000 },
-];
 
 const formatPrice = (p: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
 const token = () => localStorage.getItem('accessToken') ?? '';
@@ -43,12 +26,12 @@ const seatStatusColor: Record<string, string> = {
 
 export const SeatManagement = () => {
   const [tab, setTab] = useState<'classes' | 'seats' | 'flightSeats'>('classes');
-  const [seatClasses, setSeatClasses] = useState<SeatClass[]>(MOCK_CLASSES);
-  const [seats, setSeats] = useState<Seat[]>(MOCK_SEATS);
-  const [flightSeats, setFlightSeats] = useState<FlightSeat[]>(MOCK_FLIGHT_SEATS);
+  const [seatClasses, setSeatClasses] = useState<SeatClass[]>([]);
+  const [seats, setSeats] = useState<Seat[]>([]);
+  const [flightSeats, setFlightSeats] = useState<FlightSeat[]>([]);
   const [search, setSearch] = useState('');
   const [modal, setModal] = useState<'createClass' | 'editClass' | 'createSeat' | null>(null);
-  const [classForm, setClassForm] = useState({ className: '', description: '', basePrice: 0 });
+  const [classForm, setClassForm] = useState<CreateSeatClassPayload>({className: 'ECONOMY',description: '',priceMultiplier: 1,});
   const [seatForm, setSeatForm] = useState({ seatNumber: '', seatClassId: '', aircraftId: '' });
   const [editClass, setEditClass] = useState<SeatClass | null>(null);
   const [saving, setSaving] = useState(false);
@@ -58,42 +41,63 @@ export const SeatManagement = () => {
 
   const fetchAll = useCallback(async () => {
     try {
-      const [r1, r2, r3] = await Promise.all([
-        fetch('/api/seat-classes', { headers: authH() }),
-        fetch('/api/seats', { headers: authH() }),
-        fetch('/api/flight-seats', { headers: authH() }),
-      ]);
-      const [j1, j2, j3] = await Promise.all([r1.json(), r2.json(), r3.json()]);
-      if (j1.success && j1.data) setSeatClasses(j1.data);
-      if (j2.success && j2.data) setSeats(j2.data);
-      if (j3.success && j3.data) setFlightSeats(j3.data);
-    } catch { /* mock */ }
+      const res = await seatClassApi.getAll();
+
+      if (res.data.success) {
+        setSeatClasses(res.data.data);
+      }
+    } catch (err) {
+      console.error(err);
+      showToast('Không tải được dữ liệu', 'error');
+    }
   }, []);
 
-  useEffect(() => { fetchAll(); }, [fetchAll]);
+  useEffect(() => { fetchAll() }, [fetchAll]);
 
   const saveClass = async () => {
-    if (!classForm.className) { showToast('Điền tên hạng ghế', 'error'); return; }
+    if (!classForm.className.trim()) {showToast('Điền tên hạng ghế', 'error');return;}
     setSaving(true);
     try {
-      const url = modal === 'editClass' ? `/api/seat-classes/${editClass!.seatClassId}` : '/api/seat-classes';
-      const r = await fetch(url, { method: modal === 'editClass' ? 'PUT' : 'POST', headers: authH(), body: JSON.stringify(classForm) });
-      const j = await r.json();
-      if (j.success) { showToast('Thành công', 'success'); setModal(null); fetchAll(); }
-      else showToast(j.message ?? 'Lỗi', 'error');
-    } catch {
-      if (modal === 'editClass') setSeatClasses(p => p.map(c => c.seatClassId === editClass!.seatClassId ? { ...editClass!, ...classForm } : c));
-      else setSeatClasses(p => [...p, { ...classForm, seatClassId: Date.now() }]);
-      showToast('Thành công', 'success'); setModal(null);
+      let response;
+      if (editClass) {
+        response = await seatClassApi.update(editClass.seatClassId,classForm);
+      } else {
+        response = await seatClassApi.create(classForm);
+      }
+
+      const { data } = response;
+
+      if (data.success) {
+        showToast(editClass? 'Cập nhật hạng ghế thành công': 'Tạo hạng ghế thành công','success');
+        setModal(null);
+        setClassForm({className: 'ECONOMY',description: '', priceMultiplier: 1,
+        });
+        setEditClass(null);
+        await fetchAll();
+      } else {
+        showToast(data.message || 'Có lỗi xảy ra', 'error');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Không thể kết nối server','error');
+    } finally {
+      setSaving(false);
     }
-    setSaving(false);
   };
 
   const delClass = async (id: number) => {
     if (!confirm('Xóa hạng ghế này?')) return;
-    try { await fetch(`/api/seat-classes/${id}`, { method: 'DELETE', headers: authH() }); } catch { /* ignore */ }
-    setSeatClasses(p => p.filter(c => c.seatClassId !== id));
-    showToast('Xóa thành công', 'success');
+
+    try {
+      const { data } = await seatClassApi.remove(id);
+
+      if (data.success) {setSeatClasses(prev =>prev.filter(c => c.seatClassId !== id));
+        showToast('Xóa thành công', 'success');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast(err?.response?.data?.message ||'Xóa thất bại','error');
+    }
   };
 
   const updateFlightSeatStatus = async (id: number, status: string) => {
@@ -147,7 +151,7 @@ export const SeatManagement = () => {
         {tab === 'classes' && (
           <>
             <div className="flex justify-end">
-              <button onClick={() => { setClassForm({ className: '', description: '', basePrice: 0 }); setEditClass(null); setModal('createClass'); }}
+              <button onClick={() => { setClassForm({ className: 'ECONOMY', description: '', priceMultiplier: 1 }); setEditClass(null); setModal('createClass'); }}
                 className="flex items-center gap-2 bg-red hover:bg-red/90 text-white text-sm font-bold px-4 py-2.5 rounded-xl transition-colors">
                 <Plus className="w-4 h-4" /> Thêm hạng ghế
               </button>
@@ -160,7 +164,7 @@ export const SeatManagement = () => {
                       <Armchair className="w-5 h-5 text-pink-600" />
                     </div>
                     <div className="flex gap-2">
-                      <button onClick={() => { setClassForm({ className: c.className, description: c.description, basePrice: c.basePrice }); setEditClass(c); setModal('editClass'); }}
+                      <button onClick={() => { setClassForm({ className: c.className, description: c.description, priceMultiplier: c.priceMultiplier }); setEditClass(c); setModal('editClass'); }}
                         className="text-[10px] font-bold text-blue-600 bg-blue-50 px-2 py-1 rounded-lg flex items-center gap-1">
                         <Pencil className="w-2.5 h-2.5" /> Sửa
                       </button>
@@ -172,8 +176,8 @@ export const SeatManagement = () => {
                   </div>
                   <p className="font-black text-gray-900 text-lg">{c.className}</p>
                   <p className="text-xs text-gray-500 mt-0.5">{c.description}</p>
-                  <p className="text-red font-black text-xl mt-3">{formatPrice(c.basePrice)}</p>
-                  <p className="text-[10px] text-gray-400">Giá cơ bản</p>
+                  <p className="text-red font-black text-xl mt-3">{c.priceMultiplier}</p>
+                  <p className="text-[10px] text-gray-400">Hệ số ghế</p>
                 </div>
               ))}
             </div>
@@ -277,7 +281,7 @@ export const SeatManagement = () => {
               <div className="p-6 space-y-4">
                 <div>
                   <label className="block text-xs font-bold text-gray-600 mb-1">Tên hạng ghế *</label>
-                  <input value={classForm.className} onChange={e => setClassForm(p => ({ ...p, className: e.target.value }))}
+                  <input value={classForm.className} onChange={e => setClassForm(p => ({ ...p, className: e.target.value as | 'ECONOMY'| 'BUSINESS'| 'FIRST'| 'PREMIUM_ECONOMY' }))}
                     placeholder="VD: ECONOMY"
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" />
                 </div>
@@ -288,8 +292,8 @@ export const SeatManagement = () => {
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" />
                 </div>
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 mb-1">Giá cơ bản (VND)</label>
-                  <input type="number" value={classForm.basePrice} onChange={e => setClassForm(p => ({ ...p, basePrice: Number(e.target.value) }))}
+                  <label className="block text-xs font-bold text-gray-600 mb-1">Hệ số ghế</label>
+                  <input type="number" value={classForm.priceMultiplier} onChange={e => setClassForm(p => ({ ...p, priceMultiplier: Number(e.target.value) }))}
                     className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-red/30" />
                 </div>
                 <div className="flex gap-3 pt-2">
