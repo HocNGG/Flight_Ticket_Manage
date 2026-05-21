@@ -6,7 +6,7 @@ import { useEffect } from 'react';
 import { Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { SeatButton } from '../../../components/customer/booking/Seat';
 import { useSeatSelection } from '../../../hooks/useSeatSelection';
-import { seatClasses, type SeatClassCode, mapApiSeatClass } from '../../../data/flightSeat';
+
 import { Enhance } from '../../../components/customer/booking/Enhance';
 import { enhanceList } from '../../../data/filghtEnhance';
 import { useFlightSeats } from '../../../hooks/useFlights';
@@ -48,11 +48,19 @@ export const SeatSelection = () => {
   const location = useLocation();
   const bookingState = location.state as BookingState | null;
 
-  // Convert API seat class (ECONOMY/BUSINESS/FIRST) → internal code (economy/business/first)
-  const selectedSeatClass: SeatClassCode = bookingState?.seatClass
-    ? mapApiSeatClass(bookingState.seatClass)
+  const selectedSeatClass = bookingState?.seatClass
+    ? bookingState.seatClass.toLowerCase()
     : 'economy';
-  const selectedClassConfig = seatClasses.find((item) => item.code === selectedSeatClass);
+
+  const getSeatClassLabel = (sc: string) => {
+    const map: Record<string, string> = {
+      economy: 'Hạng Phổ thông',
+      business: 'Hạng Thương gia',
+      first: 'Hạng Nhất',
+      premium_economy: 'Hạng Phổ thông đặc biệt',
+    };
+    return map[sc.toLowerCase()] ?? sc;
+  };
 
   // Form passenger — kớp với BE PassengerRequest
   const [passenger, setPassenger] = useState<PassengerForm>({
@@ -79,11 +87,13 @@ export const SeatSelection = () => {
   };
 
   // Fetch sơ đồ ghế từ API — chỉ chạy khi có flightId
-  const { data: apiSeats = [], isLoading: isLoadingSeats } = useFlightSeats(bookingState?.flightId);
+  const { data: flightSeatsData, isLoading: isLoadingSeats } = useFlightSeats(bookingState?.flightId);
+  const apiSeats = flightSeatsData?.seats ?? [];
+  const seatClassRanges = flightSeatsData?.seatClassRanges ?? [];
 
   // Hook chọn ghế — nhận API seats thật
   const { selectedSeat, selectedSeatId, seatRows, handleSelectSeat, seatStatusLabel } =
-    useSeatSelection(selectedSeatClass, bookingState?.basePrice ?? 0, apiSeats);
+    useSeatSelection(selectedSeatClass, bookingState?.basePrice ?? 0, apiSeats, seatClassRanges);
 
   // Tạo booking mutation
   const createBooking = useCreateBooking();
@@ -94,14 +104,18 @@ export const SeatSelection = () => {
   }, []);
 
   // Guard: redirect nếu thiếu state cần thiết
-  if (!bookingState?.flightId || !selectedClassConfig) {
+  if (!bookingState?.flightId) {
     return <Navigate to="/search" replace />;
   }
 
-  // Tính giá theo hạng ghế đang chọn
-  const ticketPrice = bookingState?.basePrice
-    ? bookingState.basePrice * (selectedClassConfig.priceMultiplier ?? 1)
-    : 0;
+  // Tìm ghế đã chọn từ apiSeats
+  const selectedSeatObj = apiSeats.find((s) => s.seatNumber === selectedSeat);
+
+  // Tính giá theo hạng ghế đang chọn từ apiSeats thực tế hoặc basePrice
+  const classSeats = apiSeats.filter((s) => s.seatClass.toLowerCase() === selectedSeatClass);
+  const ticketPrice = selectedSeatObj 
+    ? selectedSeatObj.price 
+    : (classSeats.length > 0 ? classSeats[0].price : (bookingState?.basePrice ?? 0));
 
   const handleProceedToPayment = () => {
     if (!selectedSeat || selectedSeatId === null) {
@@ -195,7 +209,7 @@ export const SeatSelection = () => {
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm relative overflow-hidden mb-8">
             <div className="flex justify-between items-start mb-12">
               <div>
-                <h2 className="text-xl font-bold text-gray-900">Khoang: {selectedClassConfig.label}</h2>
+                <h2 className="text-xl font-bold text-gray-900">Khoang: {getSeatClassLabel(selectedSeatClass)}</h2>
                 <p className="text-xs text-gray-500 font-medium">{bookingState?.flightCode || 'Sơ đồ ghế'}</p>
               </div>
               <div className="flex gap-4 text-[10px] font-bold uppercase tracking-widest text-gray-500">
@@ -204,6 +218,36 @@ export const SeatSelection = () => {
                 <div className="flex items-center gap-1.5"><div className="w-3 h-3 bg-gray-300 rounded-sm"></div> Đã đặt</div>
               </div>
             </div>
+
+            {/* Cấu trúc hạng ghế của chuyến bay */}
+            {seatClassRanges.length > 0 && (
+              <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-[#fbfbfb] rounded-2xl border border-gray-100">
+                {seatClassRanges.map((range) => {
+                  const isActive = range.className.toLowerCase() === selectedSeatClass;
+                  return (
+                    <div 
+                      key={range.className} 
+                      className={`p-4 rounded-xl transition-all duration-200 ${
+                        isActive 
+                          ? 'bg-white border-2 border-red shadow-sm' 
+                          : 'bg-white/50 border border-gray-100 opacity-60'
+                      }`}
+                    >
+                      <p className="text-xs font-bold text-gray-800">{getSeatClassLabel(range.className)}</p>
+                      <p className="text-[10px] text-gray-400 mt-1 font-semibold">
+                        Hàng: {range.rowStart} - {range.rowEnd}
+                      </p>
+                      <p className="text-xs font-black text-red mt-2">
+                        {formatPrice(range.price)}
+                      </p>
+                      <p className="text-[9px] text-gray-500 mt-1 font-medium">
+                        Còn {range.availableSeats} / {range.totalSeats} ghế
+                      </p>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
 
             {/* Seat Map */}
             <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
@@ -240,7 +284,7 @@ export const SeatSelection = () => {
           {/* PASSENGER DETAILS */}
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Thông tin hành khách</p>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đặt vé</h2>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đi</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* fullName */}
@@ -324,15 +368,15 @@ export const SeatSelection = () => {
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <div className="flex items-center gap-3 mb-1">
               <Plane className="w-4 h-4 text-red" />
-              <p className="text-red text-[10px] font-bold uppercase tracking-widest">Thông tin liên hệ</p>
+              <p className="text-red text-[10px] font-bold uppercase tracking-widest">Thông tin người đặt vé</p>
             </div>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Người liên hệ</h2>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Thông tin người đặt vé</h2>
             <p className="text-sm text-gray-500 mb-6">Vé điện tử sẽ được gửi đến email này.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="md:col-span-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
-                  Tên liên hệ <span className="text-red">*</span>
+                  Họ và tên người đặt vé <span className="text-red">*</span>
                 </label>
                 <input
                   type="text"
@@ -420,7 +464,7 @@ export const SeatSelection = () => {
 
             <div className="space-y-4 text-xs font-medium border-b border-gray-100 pb-6">
               <div className="flex justify-between">
-                <span className="text-gray-500">Giá vé ({selectedClassConfig.label})</span>
+                <span className="text-gray-500">Giá vé ({getSeatClassLabel(selectedSeatClass)})</span>
                 <span className="text-gray-900 font-bold">{formatPrice(ticketPrice)}</span>
               </div>
               {selectedSeat && (
@@ -431,7 +475,7 @@ export const SeatSelection = () => {
               )}
               <div className="flex justify-between">
                 <span className="text-gray-500">Hạng ghế</span>
-                <span className="text-gray-900 font-bold">{selectedClassConfig.label}</span>
+                <span className="text-gray-900 font-bold">{getSeatClassLabel(selectedSeatClass)}</span>
               </div>
             </div>
 

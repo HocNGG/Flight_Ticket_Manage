@@ -3,9 +3,7 @@
 
 import { useEffect, useMemo, useState } from 'react';
 import type { Seat, SeatStatus } from '../components/customer/booking/Seat';
-import type { SeatClassCode } from '../data/flightSeat';
-import type { SeatItem } from '../api/types';
-import { mapApiSeatClass } from '../data/flightSeat';
+import type { SeatItem, SeatClassRange } from '../api/types';
 
 type SeatRow = {
   rowNumber: number;
@@ -19,7 +17,7 @@ const apiSeatToSeat = (s: SeatItem): Seat => {
     id: s.seatNumber,
     status,
     price: s.price,
-    seatClass: mapApiSeatClass(s.seatClass),
+    seatClass: s.seatClass.toLowerCase(),
     occupied: status === 'booked',
     flightSeatId: s.flightSeatId,
   };
@@ -27,7 +25,6 @@ const apiSeatToSeat = (s: SeatItem): Seat => {
 
 // Nhóm ghế API vào rows để render sơ đồ máy bay
 const buildRowsFromApiSeats = (apiSeats: SeatItem[]): SeatRow[] => {
-  // Nhóm theo rowNumber (số đầu của seatNumber: "20F" → row 20)
   const rowMap = new Map<number, Seat[]>();
 
   for (const s of apiSeats) {
@@ -37,38 +34,37 @@ const buildRowsFromApiSeats = (apiSeats: SeatItem[]): SeatRow[] => {
     rowMap.get(rowNum)!.push(apiSeatToSeat(s));
   }
 
-  // Sắp xếp theo row số
   const sortedRows = [...rowMap.entries()].sort(([a], [b]) => a - b);
 
   return sortedRows.map(([rowNumber, seats]) => {
-    // Sắp xếp ghế trong hàng theo chữ cái (A, B, C, D, E, F)
-    const sorted = seats.sort((a, b) => {
-      const aLetter = a.id.replace(/^\d+/, '');
-      const bLetter = b.id.replace(/^\d+/, '');
-      return aLetter.localeCompare(bLetter);
+    const seatMap: Record<string, Seat | null> = {
+      A: null, B: null, C: null, D: null, E: null, F: null
+    };
+
+    seats.forEach(s => {
+      const letter = s.id.replace(/^\d+/, '').toUpperCase();
+      seatMap[letter] = s;
     });
 
-    // Build với aisle null nếu có cả 2 nhóm ABC và DEF
-    const letters = sorted.map((s) => s.id.replace(/^\d+/, ''));
-    const hasLeft = letters.some((l) => ['A', 'B', 'C'].includes(l));
-    const hasRight = letters.some((l) => ['D', 'E', 'F'].includes(l));
-    const needsAisle = hasLeft && hasRight;
-
-    const leftSeats = sorted.filter((s) => ['A', 'B', 'C'].includes(s.id.replace(/^\d+/, '')));
-    const rightSeats = sorted.filter((s) => ['D', 'E', 'F'].includes(s.id.replace(/^\d+/, '')));
-
-    const rowSeats: Array<Seat | null> = needsAisle
-      ? [...leftSeats, null, ...rightSeats]
-      : sorted;
+    const rowSeats = [
+      seatMap.A,
+      seatMap.B,
+      seatMap.C,
+      null,
+      seatMap.D,
+      seatMap.E,
+      seatMap.F
+    ];
 
     return { rowNumber, seats: rowSeats };
   });
 };
 
 export const useSeatSelection = (
-  selectedSeatClass: SeatClassCode,
+  selectedSeatClass: string,
   _flightBasePrice = 0,           // kept for API compat, price now comes from API
   apiSeats: SeatItem[] = [],
+  seatClassRanges: SeatClassRange[] = [],
 ) => {
   const [selectedSeat, setSelectedSeat] = useState<string>('');
   const [selectedSeatId, setSelectedSeatId] = useState<number | null>(null);
@@ -79,25 +75,50 @@ export const useSeatSelection = (
     setSelectedSeatId(null);
   }, [selectedSeatClass]);
 
-  // Build rows từ API seats, lọc theo hạng được chọn
+  // Build rows từ API seats, lọc theo dải hàng của hạng ghế được chọn
   const seatRows = useMemo(() => {
     if (apiSeats.length === 0) return [];
-    const filtered = apiSeats.filter(
-      (s) => mapApiSeatClass(s.seatClass) === selectedSeatClass,
+
+    const currentRange = seatClassRanges.find(
+      (r) => r.className.toLowerCase() === selectedSeatClass.toLowerCase()
     );
-    return buildRowsFromApiSeats(filtered);
-  }, [apiSeats, selectedSeatClass]);
+
+    let filteredSeats = apiSeats;
+    if (currentRange) {
+      filteredSeats = apiSeats.filter((s) => {
+        const match = s.seatNumber.match(/^(\d+)/);
+        const rowNum = match ? parseInt(match[1], 10) : 0;
+        return rowNum >= currentRange.rowStart && rowNum <= currentRange.rowEnd;
+      });
+    } else {
+      filteredSeats = apiSeats.filter(
+        (s) => s.seatClass.toLowerCase() === selectedSeatClass.toLowerCase()
+      );
+    }
+
+    return buildRowsFromApiSeats(filteredSeats);
+  }, [apiSeats, selectedSeatClass, seatClassRanges]);
 
   const handleSelectSeat = (seat: Seat) => {
-    if (seat.seatClass !== selectedSeatClass) return;
+    if (seat.seatClass.toLowerCase() !== selectedSeatClass.toLowerCase()) return;
     if (seat.status !== 'available') return;
     setSelectedSeat(seat.id);
     setSelectedSeatId((seat as any).flightSeatId ?? null);
   };
 
+  const getSeatClassLabel = (sc: string) => {
+    const map: Record<string, string> = {
+      economy: 'Phổ thông',
+      business: 'Thương gia',
+      first: 'Hạng Nhất',
+      premium_economy: 'Phổ thông đặc biệt',
+    };
+    return map[sc.toLowerCase()] ?? sc;
+  };
+
   const seatStatusLabel = selectedSeat
-    ? `Ghế đã chọn: ${selectedSeat} (${selectedSeatClass})`
-    : `Chọn ghế hạng ${selectedSeatClass}`;
+    ? `Ghế đã chọn: ${selectedSeat} (${getSeatClassLabel(selectedSeatClass)})`
+    : `Chọn ghế hạng ${getSeatClassLabel(selectedSeatClass)}`;
 
   return {
     selectedSeat,

@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
-  Plane, BookOpen, Building2, MapPin, Cpu, Route, Armchair, TrendingUp, Wrench, FileText,
+  Plane, BookOpen, Building2, MapPin, Cpu, Route, Armchair, Wrench, FileText,
   ArrowRight, CheckCircle2, Clock, XCircle, DollarSign, Users,
 } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
@@ -24,7 +24,6 @@ const QUICK_LINKS = [
   { label: 'Máy bay', path: '/admin/aircrafts', icon: Cpu, color: 'text-indigo-600', bg: 'bg-indigo-50' },
   { label: 'Tuyến bay', path: '/admin/routes', icon: Route, color: 'text-teal-600', bg: 'bg-teal-50' },
   { label: 'Ghế ngồi', path: '/admin/seats', icon: Armchair, color: 'text-pink-600', bg: 'bg-pink-50' },
-  { label: 'Bảng giá', path: '/admin/pricing', icon: TrendingUp, color: 'text-red', bg: 'bg-red/10' },
   { label: 'Dịch vụ', path: '/admin/services', icon: Wrench, color: 'text-amber-600', bg: 'bg-amber-50' },
   { label: 'Chính sách', path: '/admin/policies', icon: FileText, color: 'text-slate-600', bg: 'bg-slate-100' },
 ];

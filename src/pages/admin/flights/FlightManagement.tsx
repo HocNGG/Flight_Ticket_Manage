@@ -1,19 +1,17 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import api from '../../../api/axiosInstance';
 import { Plane, Plus, Search, Bell, Settings, X } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
-import { seatClasses, type SeatClassCode } from '../../../data/flightSeat';
 
 type FlightSeatClassRange = {
-  code: SeatClassCode;
+  code: string;
   label: string;
   rowStart: number;
   rowEnd: number;
   priceMultiplier: number;  // Hệ số nhân: giá ghế = flight.basePrice × priceMultiplier
 };
 
-// API response type: GET /api/flights/all
 type FlightRecord = {
   id: string;           // flightId (internal UI key)
   flightCode: string;   // API: flightNumber
@@ -34,30 +32,109 @@ type FlightRecord = {
   seatClassRanges: FlightSeatClassRange[];
 };
 
-const buildDefaultSeatRanges = (): FlightSeatClassRange[] =>
-  seatClasses.map((item) => ({
-    code: item.code,
-    label: item.label,
-    rowStart: item.rowStart,
-    rowEnd: item.rowEnd,
-    priceMultiplier: item.priceMultiplier,
-  }));
+const buildDefaultSeatRangesForCapacity = (capacity: number, seatClassesList: any[]): FlightSeatClassRange[] => {
+  const totalRows = Math.ceil(capacity / 6);
+  if (seatClassesList.length === 0) return [];
+  
+  const ranges: FlightSeatClassRange[] = [];
+  let currentRowStart = 1;
+  const numClasses = seatClassesList.length;
+  const rowsPerClass = Math.max(1, Math.floor(totalRows / numClasses));
+  
+  seatClassesList.forEach((sc, index) => {
+    const isLast = index === numClasses - 1;
+    const rowStart = totalRows > 0 ? currentRowStart : 0;
+    let rowEnd = totalRows > 0 ? (currentRowStart + rowsPerClass - 1) : 0;
+    if (isLast && totalRows > 0) {
+      rowEnd = totalRows;
+    }
+    
+    if (rowEnd > totalRows) rowEnd = totalRows;
+    
+    ranges.push({
+      code: sc.className.toLowerCase(),
+      label: sc.description || sc.className,
+      rowStart: rowStart > 0 && rowStart <= totalRows ? rowStart : 0,
+      rowEnd: rowEnd > 0 && rowEnd <= totalRows ? rowEnd : 0,
+      priceMultiplier: sc.priceMultiplier
+    });
+    
+    if (rowStart > 0 && rowEnd >= rowStart) {
+      currentRowStart = rowEnd + 1;
+    }
+  });
+  
+  return ranges;
+};
 
 const normalizeSeatClassRanges = (ranges: FlightSeatClassRange[], maxCapacity?: number): FlightSeatClassRange[] => {
   const totalRows = maxCapacity ? Math.ceil(maxCapacity / 6) : 0;
-  return ranges.reduce<FlightSeatClassRange[]>((acc, current, index) => {
-    const safeStart = index === 0 ? Math.max(1, current.rowStart) : acc[index - 1].rowEnd + 1;
-    let safeEnd = Math.max(safeStart, current.rowEnd);
+  const result: FlightSeatClassRange[] = [];
+  let prevRowEnd = 0;
+  
+  for (let i = 0; i < ranges.length; i++) {
+    const current = ranges[i];
+    const isLast = i === ranges.length - 1;
     
-    // Ép hạng ghế cuối cùng phải lấy hết số hàng còn lại
-    if (index === ranges.length - 1 && totalRows > 0) {
-      safeEnd = Math.max(safeStart, totalRows);
+    let rowStart = i === 0 ? 1 : prevRowEnd + 1;
+    let rowEnd = current.rowEnd;
+    
+    if (rowStart > totalRows) {
+      rowStart = 0;
+      rowEnd = 0;
+    } else {
+      if (isLast) {
+        rowEnd = totalRows;
+      } else {
+        if (rowEnd < rowStart) {
+          rowEnd = rowStart;
+        }
+        const remainingClasses = ranges.length - 1 - i;
+        const maxAllowedRowEnd = totalRows - remainingClasses;
+        if (rowEnd > maxAllowedRowEnd) {
+          rowEnd = Math.max(rowStart, maxAllowedRowEnd);
+        }
+      }
     }
     
-    acc.push({ ...current, rowStart: safeStart, rowEnd: safeEnd });
-    return acc;
-  }, []);
+    result.push({
+      ...current,
+      rowStart: rowStart > 0 ? rowStart : 0,
+      rowEnd: rowEnd > 0 ? rowEnd : 0
+    });
+    
+    if (rowStart > 0) {
+      prevRowEnd = rowEnd;
+    }
+  }
+  
+  return result;
 };
+
+export function computeSeatsPerRange(maxCapacity: number, ranges: FlightSeatClassRange[]): Record<string, number> {
+  const result: Record<string, number> = {};
+  ranges.forEach(r => {
+    result[r.code] = 0;
+  });
+  
+  if (maxCapacity <= 0 || ranges.length === 0) return result;
+  
+  const totalRows = Math.ceil(maxCapacity / 6);
+  let currentGeneratedSeats = 0;
+  
+  for (let row = 1; row <= totalRows; row++) {
+    const activeRange = ranges.find(r => row >= r.rowStart && row <= r.rowEnd);
+    if (!activeRange) continue;
+    
+    for (let col = 0; col < 6; col++) {
+      if (currentGeneratedSeats >= maxCapacity) break;
+      result[activeRange.code]++;
+      currentGeneratedSeats++;
+    }
+  }
+  
+  return result;
+}
 
 export interface SeatPayload {
   aircraftId: number;
@@ -68,29 +145,21 @@ export interface SeatPayload {
 export function generateSeatsPayload(
   aircraftId: number, 
   totalSeats: number, 
-  ranges: FlightSeatClassRange[]
+  ranges: FlightSeatClassRange[],
+  apiSeatClasses: any[]
 ): SeatPayload[] {
-  // Mặc định luôn là tối đa 6 ghế 1 hàng
   const letters = ['A', 'B', 'C', 'D', 'E', 'F']; 
   const payloads: SeatPayload[] = [];
   
   let currentGeneratedSeats = 0;
-  const totalRows = Math.ceil(totalSeats / 6); // Làm tròn lên số hàng
+  const totalRows = Math.ceil(totalSeats / 6);
 
-  // Quét từ hàng số 1 đến hàng cuối cùng
   for (let row = 1; row <= totalRows; row++) {
-    // Tìm hạng ghế (Class) tương ứng với số hàng hiện tại
     const activeRange = ranges.find(r => row >= r.rowStart && row <= r.rowEnd);
-    
-    // Map internal code to Backend seatClassId
-    let classId = 1; // Default to Economy
-    if (activeRange?.code === 'business') classId = 2;
-    if (activeRange?.code === 'first') classId = 3;
+    const foundClass = apiSeatClasses?.find(sc => sc.className.toLowerCase() === activeRange?.code.toLowerCase());
+    const classId = foundClass ? foundClass.seatClassId : 1;
 
-    // Mỗi hàng lặp qua 6 cột A,B,C,D,E,F
     for (let col = 0; col < 6; col++) {
-      // LOGIC CHẶN CHÍNH: Nếu tổng số ghế sinh ra đã ĐỦ BẰNG tổng số ghế quy định thì DỪNG
-      // Giúp xử lý tốt trường hợp hàng cuối cùng bị lẻ (Ví dụ có 5 ghế thay vì 6)
       if (currentGeneratedSeats >= totalSeats) break;
       
       const seatNumber = `${row}${letters[col]}`; 
@@ -111,6 +180,24 @@ export function generateSeatsPayload(
 // Removed initialFlights
 
 export const FlightManagement = () => {
+  const { data: apiSeatClasses } = useQuery<any[]>({
+    queryKey: ['seatClasses'],
+    queryFn: async () => {
+      try {
+        const res = await api.get('/api/seat-classes');
+        return res.data.data;
+      } catch (e) {
+        console.error('Lỗi khi fetch seat classes:', e);
+        return [];
+      }
+    }
+  });
+
+  const sortedSeatClasses = useMemo(() => {
+    if (!apiSeatClasses || !Array.isArray(apiSeatClasses)) return [];
+    return [...apiSeatClasses].sort((a, b) => b.priceMultiplier - a.priceMultiplier);
+  }, [apiSeatClasses]);
+
   const { data: rawFlights, refetch: refetchFlights } = useQuery({ 
     queryKey: ['adminFlights'], 
     queryFn: async () => {
@@ -127,11 +214,7 @@ export const FlightManagement = () => {
   const flights: FlightRecord[] = useMemo(() => {
     if (!rawFlights || !Array.isArray(rawFlights)) return [];
     return rawFlights.map((f: any) => {
-      // seatsByClass có thể rỗng {} — chỉ dùng để hiển thị giá theo hạng nếu có
       const seatsByClass: Record<string, { availableSeats: number; price: number }> = f.seats?.seatsByClass ?? {};
-
-      // basePrice lấy trực tiếp từ root (f.basePrice từ DB)
-      // Fallback: nếu không có thì thử lấy từ seatsByClass
       const seatPrices = Object.values(seatsByClass).map((s: any) => s.price).filter(Boolean);
       const basePrice: number = f.basePrice ?? (seatPrices.length > 0 ? Math.min(...seatPrices) : 0);
 
@@ -152,20 +235,20 @@ export const FlightManagement = () => {
         basePrice,
         status: (f.seats?.availableSeats === 0) ? 'sold_out' : 'available',
         seatsByClass,
-        seatClassRanges: buildDefaultSeatRanges(),
+        seatClassRanges: buildDefaultSeatRangesForCapacity(f.seats?.totalSeats ?? 0, sortedSeatClasses),
       };
     });
-  }, [rawFlights]);
+  }, [rawFlights, sortedSeatClasses]);
 
   const [searchQuery, setSearchQuery] = useState('');
 
   const [selectedFlightId, setSelectedFlightId] = useState('');
   const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+  const [isCreating, setIsCreating] = useState(false);
 
-  // Lọc theo search query, giới hạn 5 nếu không có keyword
   const displayedFlights = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
-    if (!q) return flights.slice(0, 5); // Chỉ 5 flights đầu khi không search
+    if (!q) return flights.slice(0, 5);
     return flights.filter((f) =>
       f.flightCode.toLowerCase().includes(q) ||
       f.origin.toLowerCase().includes(q) ||
@@ -185,40 +268,59 @@ export const FlightManagement = () => {
   const [createForm, setCreateForm] = useState<FlightRecord & { airlineId?: number, routeId?: number, aircraftId?: number }>({
     id: '',
     flightCode: '',
+    airline: '',
     origin: '',
     originCode: '',
     dest: '',
     destCode: '',
     departureTime: '',
     arrivalTime: '',
+    duration: '',
     scheduleType: 'Hàng ngày',
     capacity: 0,
     maxCapacity: 0,
     basePrice: 0,
     status: 'available',
-    seatClassRanges: normalizeSeatClassRanges(buildDefaultSeatRanges(), 0),
+    seatsByClass: {},
+    seatClassRanges: [],
   });
+
+  const [hasInitializedSeatRanges, setHasInitializedSeatRanges] = useState(false);
+
+  useEffect(() => {
+    if (sortedSeatClasses.length > 0 && !hasInitializedSeatRanges) {
+      setCreateForm(prev => ({
+        ...prev,
+        seatClassRanges: buildDefaultSeatRangesForCapacity(prev.maxCapacity, sortedSeatClasses)
+      }));
+      setHasInitializedSeatRanges(true);
+    }
+  }, [sortedSeatClasses, hasInitializedSeatRanges]);
 
   const resetCreateForm = () => {
     setCreateForm({
       id: '',
       flightCode: '',
+      airline: '',
       origin: '',
       originCode: '',
       dest: '',
       destCode: '',
       departureTime: '',
       arrivalTime: '',
+      duration: '',
       scheduleType: 'Hàng ngày',
       capacity: 0,
       maxCapacity: 0,
       basePrice: 0,
       status: 'available',
-      seatClassRanges: normalizeSeatClassRanges(buildDefaultSeatRanges(), 0),
+      seatsByClass: {},
+      seatClassRanges: buildDefaultSeatRangesForCapacity(0, sortedSeatClasses),
       airlineId: undefined,
       routeId: undefined,
       aircraftId: undefined,
     });
+    setHasInitializedSeatRanges(false);
   };
 
   const { data: airlines } = useQuery({ queryKey: ['airlines'], queryFn: async () => (await api.get('/api/airlines')).data.data });
@@ -246,7 +348,7 @@ export const FlightManagement = () => {
     setCreateForm((prev) => {
       const updated = { ...prev, [field]: value };
       if (field === 'maxCapacity') {
-        updated.seatClassRanges = normalizeSeatClassRanges(updated.seatClassRanges, Number(value));
+        updated.seatClassRanges = buildDefaultSeatRangesForCapacity(Number(value), sortedSeatClasses);
       }
       return updated;
     });
@@ -254,7 +356,7 @@ export const FlightManagement = () => {
 
   const updateSeatRange = (
     target: 'edit' | 'create',
-    code: SeatClassCode,
+    code: string,
     field: 'rowStart' | 'rowEnd' | 'priceMultiplier',
     value: number,
   ) => {
@@ -291,63 +393,63 @@ export const FlightManagement = () => {
     if (!editForm) return;
     const normalizedForm = { ...editForm, seatClassRanges: normalizeSeatClassRanges(editForm.seatClassRanges, editForm.maxCapacity) };
     setEditForm(normalizedForm);
-    // setFlights((prev) => prev.map((flight) => (flight.id === selectedFlightId ? normalizedForm : flight)));
-    // Ghi chú: Cần bắn API PUT /api/flights/{id} ở đây
   };
 
   const createFlight = async () => {
+    if (isCreating) return;
     if (!createForm.flightCode || !createForm.airlineId || !createForm.routeId || !createForm.aircraftId) {
       alert("Vui lòng điền đủ thông tin bắt buộc!");
       return;
     }
-    const id = String(Date.now());
-    const normalizedForm = { ...createForm, id, seatClassRanges: normalizeSeatClassRanges(createForm.seatClassRanges, createForm.maxCapacity) };
-    
-    // DEMO LOGIC BULK CREATE & FLIGHT CREATE:
-    
-    // 1. Dữ liệu chuyến bay (Payload cho POST /api/flights)
-    const flightPayload = {
-      flightNumber: normalizedForm.flightCode,
-      airlineId: normalizedForm.airlineId,
-      routeId: normalizedForm.routeId,
-      aircraftId: normalizedForm.aircraftId,
-      basePrice: normalizedForm.basePrice,
-      departureTime: normalizedForm.departureTime, // Format: YYYY-MM-DDTHH:mm:ss
-      arrivalTime: normalizedForm.arrivalTime,     // Format: YYYY-MM-DDTHH:mm:ss
-      status: "SCHEDULED"
-    };
-
-    // 2. Dữ liệu cấu hình sơ đồ ghế (Payload cho POST /api/seats/bulk)
-    const seatPayloads = generateSeatsPayload(
-      flightPayload.aircraftId!, 
-      normalizedForm.maxCapacity, 
-      normalizedForm.seatClassRanges
-    );
-    
-    // console.log("=== THÔNG TIN GỌI API THÊM CHUYẾN BAY ===");
-    // console.log("[1] Request POST /api/flights :", flightPayload);
-    // console.log(`[2] Request POST /api/seats/bulk : Đã sinh ra mảng ${seatPayloads.length} ghế!`);
-    
+    setIsCreating(true);
     try {
+      const id = String(Date.now());
+      const normalizedForm = { ...createForm, id, seatClassRanges: normalizeSeatClassRanges(createForm.seatClassRanges, createForm.maxCapacity) };
+      
+      const flightPayload = {
+        flightNumber: normalizedForm.flightCode,
+        airlineId: normalizedForm.airlineId,
+        routeId: normalizedForm.routeId,
+        aircraftId: normalizedForm.aircraftId,
+        basePrice: normalizedForm.basePrice,
+        departureTime: normalizedForm.departureTime,
+        arrivalTime: normalizedForm.arrivalTime,
+        status: "SCHEDULED"
+      };
+
+      const seatPayloads = generateSeatsPayload(
+        flightPayload.aircraftId!, 
+        normalizedForm.maxCapacity, 
+        normalizedForm.seatClassRanges,
+        sortedSeatClasses
+      );
+      
       await api.post('/api/seats/bulk', seatPayloads); 
       await api.post('/api/flights', flightPayload); 
       alert('Lưu chuyến bay và sơ đồ ghế thành công!');
       refetchFlights();
+      setIsCreateModalOpen(false);
+      resetCreateForm();
     } catch (e: any) {
       alert('Lỗi khi gọi API: ' + e.message);
       console.error(e);
-      return;
+    } finally {
+      setIsCreating(false);
     }
-
-    setIsCreateModalOpen(false);
-    resetCreateForm();
   };
 
-  const seatsPerRow = 6;
-  const seatClassSummary = editForm ? editForm.seatClassRanges.map((item) => {
-    const totalRows = Math.max(item.rowEnd - item.rowStart + 1, 0);
-    return { ...item, totalSeats: totalRows * seatsPerRow };
-  }) : [];
+  const seatClassSummary = useMemo(() => {
+    if (!editForm) return [];
+    const seatsMap = computeSeatsPerRange(editForm.maxCapacity, editForm.seatClassRanges);
+    return editForm.seatClassRanges.map((item) => {
+      const totalRows = item.rowEnd >= item.rowStart && item.rowStart > 0 ? item.rowEnd - item.rowStart + 1 : 0;
+      return { 
+        ...item, 
+        totalSeats: seatsMap[item.code] ?? 0, 
+        rowCount: totalRows 
+      };
+    });
+  }, [editForm]);
 
   return (
     <AdminLayout>
@@ -523,7 +625,7 @@ export const FlightManagement = () => {
                       <div className="text-right">
                         <div className="text-sm font-semibold text-red">
                           {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-                            editForm.basePrice * item.priceMultiplier,
+                            (editForm?.basePrice ?? 0) * item.priceMultiplier,
                           )}
                         </div>
                         <div className="text-[10px] text-gray-400">×{item.priceMultiplier}</div>
@@ -822,15 +924,25 @@ export const FlightManagement = () => {
               <button
                 type="button"
                 onClick={() => {
+                  if (isCreating) return;
                   setIsCreateModalOpen(false);
                   resetCreateForm();
                 }}
-                className="rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50"
+                disabled={isCreating}
+                className="rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Cancel
               </button>
-              <button type="button" onClick={createFlight} className="rounded-full bg-red px-6 py-3 text-sm font-semibold text-white hover:bg-reddark">
-                Create Flight
+              <button 
+                type="button" 
+                onClick={createFlight} 
+                disabled={isCreating}
+                className="rounded-full bg-red px-6 py-3 text-sm font-semibold text-white hover:bg-reddark disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+              >
+                {isCreating && (
+                  <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                )}
+                {isCreating ? 'Creating...' : 'Create Flight'}
               </button>
             </div>
           </div>

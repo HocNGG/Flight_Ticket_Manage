@@ -8,7 +8,6 @@ import {
   Cpu,
   Route,
   Armchair,
-  TrendingUp,
   Wrench,
   FileText,
   LogOut,
@@ -28,7 +27,6 @@ const navigation = [
   { label: 'Aircrafts',   icon: Cpu,              path: '/admin/aircrafts' },
   { label: 'Routes',      icon: Route,            path: '/admin/routes' },
   { label: 'Seats',       icon: Armchair,         path: '/admin/seats' },
-  { label: 'Pricing',     icon: TrendingUp,       path: '/admin/pricing' },
   { label: 'Services',    icon: Wrench,           path: '/admin/services' },
   { label: 'Policies',    icon: FileText,         path: '/admin/policies' },
 ];
