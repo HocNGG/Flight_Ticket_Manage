@@ -69,6 +69,23 @@ export type SeatItem = {
     price: number;
 };
 
+export interface SeatClassRange {
+    className: string;
+    label: string;
+    rowStart: number;
+    rowEnd: number;
+    price: number;
+    totalSeats: number;
+    availableSeats: number;
+}
+
+export interface FlightSeatsMapResponse {
+    flightId: number;
+    aircraft: string;
+    seatClassRanges: SeatClassRange[];
+    seats: SeatItem[];
+}
+
 // Kết quả POST /api/bookings
 export type BookingCreated = {
     bookingId: number;

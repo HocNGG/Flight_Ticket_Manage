@@ -26,7 +26,6 @@ import { AirportManagement } from '../pages/admin/airports/AirportManagement';
 import { AircraftManagement } from '../pages/admin/aircrafts/AircraftManagement';
 import { RouteManagement } from '../pages/admin/routes/RouteManagement';
 import { SeatManagement } from '../pages/admin/seats/SeatManagement';
-import { PricingDashboard } from '../pages/admin/pricing/PricingDashboard';
 import { ServicesManagement } from '../pages/admin/services/ServicesManagement';
 import { PolicyManagement } from '../pages/admin/policies/PolicyManagement';
 
@@ -89,7 +88,6 @@ const AppRoutes = () => {
       <Route path="/admin/aircrafts" element={<ProtectedRoute allowedRoles={['admin']}><AircraftManagement /></ProtectedRoute>} />
       <Route path="/admin/routes" element={<ProtectedRoute allowedRoles={['admin']}><RouteManagement /></ProtectedRoute>} />
       <Route path="/admin/seats" element={<ProtectedRoute allowedRoles={['admin']}><SeatManagement /></ProtectedRoute>} />
-      <Route path="/admin/pricing" element={<ProtectedRoute allowedRoles={['admin']}><PricingDashboard /></ProtectedRoute>} />
       <Route path="/admin/services" element={<ProtectedRoute allowedRoles={['admin']}><ServicesManagement /></ProtectedRoute>} />
       <Route path="/admin/policies" element={<ProtectedRoute allowedRoles={['admin']}><PolicyManagement /></ProtectedRoute>} />
 

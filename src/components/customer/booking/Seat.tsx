@@ -1,5 +1,5 @@
 export type SeatStatus = 'available' | 'booked' | 'occupied';
-export type SeatClassCode = 'economy' | 'business' | 'first';
+export type SeatClassCode = string;
 
 export type Seat = {
   id: string;

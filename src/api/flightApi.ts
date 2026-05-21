@@ -1,5 +1,5 @@
 import api from './axiosInstance';
-import type { ApiResponse, FlightResult, Airport, FlightSearchParams, SeatClass, SeatItem } from './types';
+import type { ApiResponse, FlightResult, Airport, FlightSearchParams, SeatClass, SeatItem, FlightSeatsMapResponse, SeatClassRange } from './types';
 
 type AirlineSummary = {
     airlineId: number;
@@ -155,11 +155,12 @@ export const flightApi = {
     getSeatClasses: () =>
         api.get<ApiResponse<SeatClass[]>>('/api/seat-classes'),
 
-    // Sơ đồ ghế theo chuyến bay — trả về flat array SeatItem[]
-    getFlightSeats: async (flightId: number): Promise<SeatItem[]> => {
+    // Sơ đồ ghế theo chuyến bay — trả về FlightSeatsMapResponse
+    getFlightSeats: async (flightId: number): Promise<FlightSeatsMapResponse> => {
         const response = await api.get<ApiResponse<{
             flightId: number;
             aircraft: string;
+            seatClassRanges: SeatClassRange[];
             rows: Array<{
                 rowNumber: number;
                 seats: Array<{
@@ -173,8 +174,7 @@ export const flightApi = {
         }>>(`/api/flights/${flightId}/seats`);
 
         const data = response.data.data;
-        // Flatten rows[] → SeatItem[]
-        return (data.rows ?? []).flatMap((row) =>
+        const seats = (data.rows ?? []).flatMap((row) =>
             (row.seats ?? []).map((s) => ({
                 flightSeatId: s.flightSeatId,
                 seatNumber: s.seatNumber,
@@ -183,5 +183,12 @@ export const flightApi = {
                 price: s.price,
             }))
         );
+
+        return {
+            flightId: data.flightId,
+            aircraft: data.aircraft,
+            seatClassRanges: data.seatClassRanges ?? [],
+            seats,
+        };
     },
 };
