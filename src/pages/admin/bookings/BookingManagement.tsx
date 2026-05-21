@@ -1,60 +1,81 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Search, Eye, CheckCircle2, XCircle, Clock, ChevronDown, X, Loader2 } from 'lucide-react';
 import { AdminLayout } from '../../../layouts/AdminLayout';
+import type { BookingAdmin, BookingDetails, BookingStatus } from '../../../api/types';
+import { bookingApi } from '../../../api/bookingApi';
 
-// GET /api/bookings (admin — all bookings)
-// GET /api/bookings/{id}/detail
-// PUT /api/bookings/{id}/cancel/approve
 
-type Booking = {
-  bookingId: number;
-  bookingCode: string;
-  flightId: number;
-  totalPrice: number;
-  status: string;
-  bookingDate: string;
-  passengerName?: string;
-};
+const BOOKING_STATUS: BookingStatus[] = [
+  'PENDING',
+  'CONFIRMED',
+  'PAID',
+  'CANCEL_PENDING',
+  'CANCELLED',
+  'COMPLETED',
+  'REFUND_PENDING',
+  'REFUNDED',
+];
+const STATUS_OPTIONS: ('ALL' | BookingStatus)[] = ['ALL',...BOOKING_STATUS,];
+const statusCfg: Record<BookingStatus,{label: string;color: string;Icon: React.FC<{ className?: string }>;}> = {
+  PENDING: {label: 'Chờ xác nhận',
+    color: 'bg-yellow-100 text-yellow-700',
+    Icon: Clock,
+  },
 
-type BookingDetail = {
-  bookingId: number;
-  bookingCode: string;
-  flight?: { flightCode: string; departureTime: string; arrivalTime: string };
-  passengers?: Array<{ passengerCode: string; fullName: string; seatNumber: string; status?: string }>;
-  totalPrice: number;
-  status: string;
-};
+  CONFIRMED: {
+    label: 'Đã xác nhận',
+    color: 'bg-blue-100 text-blue-700',
+    Icon: CheckCircle2,
+  },
 
-const STATUS_OPTIONS = ['ALL', 'PAID', 'PENDING_PAYMENT', 'CANCELLED', 'CANCEL_REQUESTED'];
-const statusCfg: Record<string, { label: string; color: string; Icon: React.FC<{ className?: string }> }> = {
-  PAID: { label: 'Đã thanh toán', color: 'bg-green-100 text-green-700', Icon: CheckCircle2 },
-  PENDING_PAYMENT: { label: 'Chờ thanh toán', color: 'bg-yellow-100 text-yellow-700', Icon: Clock },
-  CANCELLED: { label: 'Đã hủy', color: 'bg-red-100 text-red-700', Icon: XCircle },
-  CANCEL_REQUESTED: { label: 'Chờ duyệt hủy', color: 'bg-orange-100 text-orange-700', Icon: Clock },
+  PAID: {
+    label: 'Đã thanh toán',
+    color: 'bg-green-100 text-green-700',
+    Icon: CheckCircle2,
+  },
+
+  CANCEL_PENDING: {
+    label: 'Chờ hủy',
+    color: 'bg-orange-100 text-orange-700',
+    Icon: Clock,
+  },
+
+  CANCELLED: {
+    label: 'Đã hủy',
+    color: 'bg-red-100 text-red-700',
+    Icon: XCircle,
+  },
+
+  COMPLETED: {
+    label: 'Hoàn thành',
+    color: 'bg-emerald-100 text-emerald-700',
+    Icon: CheckCircle2,
+  },
+
+  REFUND_PENDING: {
+    label: 'Chờ hoàn tiền',
+    color: 'bg-purple-100 text-purple-700',
+    Icon: Clock,
+  },
+
+  REFUNDED: {
+    label: 'Đã hoàn tiền',
+    color: 'bg-indigo-100 text-indigo-700',
+    Icon: CheckCircle2,
+  },
 };
 
 const formatPrice = (p: number) => new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(p);
 const formatDate = (d: string) => d ? new Date(d).toLocaleDateString('vi-VN') : '---';
 
-const token = () => localStorage.getItem('accessToken') ?? '';
-const authH = () => ({ Authorization: `Bearer ${token()}`, 'Content-Type': 'application/json' });
-
-// Mock data fallback
-const MOCK: Booking[] = [
-  { bookingId: 1, bookingCode: 'BK123456', flightId: 1, totalPrice: 2500000, status: 'PAID', bookingDate: '2024-03-15T10:30:00', passengerName: 'Nguyễn Văn A' },
-  { bookingId: 2, bookingCode: 'BK123457', flightId: 2, totalPrice: 5200000, status: 'PENDING_PAYMENT', bookingDate: '2024-03-16T08:00:00', passengerName: 'Trần Thị B' },
-  { bookingId: 3, bookingCode: 'BK123458', flightId: 1, totalPrice: 1800000, status: 'CANCEL_REQUESTED', bookingDate: '2024-03-17T14:00:00', passengerName: 'Lê Văn C' },
-  { bookingId: 4, bookingCode: 'BK123459', flightId: 3, totalPrice: 3100000, status: 'CANCELLED', bookingDate: '2024-03-18T09:00:00', passengerName: 'Phạm Thị D' },
-];
 
 export const BookingManagement = () => {
-  const [bookings, setBookings] = useState<Booking[]>(MOCK);
+  const [bookings, setBookings] = useState<BookingAdmin[]>([]);
   const [loading, setLoading] = useState(false);
   const [search, setSearch] = useState('');
-  const [statusFilter, setStatusFilter] = useState('ALL');
-  const [detail, setDetail] = useState<BookingDetail | null>(null);
+  const [statusFilter, setStatusFilter] = useState<'ALL' | BookingStatus>('ALL');
+  const [detail, setDetail] = useState<BookingDetails | null>(null);
   const [detailLoading, setDetailLoading] = useState(false);
-  const [approving, setApproving] = useState<number | null>(null);
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' } | null>(null);
 
   const showToast = (msg: string, type: 'success' | 'error') => {
@@ -65,11 +86,17 @@ export const BookingManagement = () => {
   const fetchBookings = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await fetch('/api/bookings', { headers: authH() });
-      const json = await res.json();
-      if (json.success && json.data) setBookings(json.data);
-    } catch { /* use mock */ }
-    setLoading(false);
+      const res = await bookingApi.getAllForAdmin();
+      if (res.data.success && res.data.data) {
+        setBookings(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+
+      showToast('Không thể tải danh sách booking','error');
+    } finally {
+      setLoading(false);
+    }
   }, []);
 
   useEffect(() => { fetchBookings(); }, [fetchBookings]);
@@ -77,33 +104,25 @@ export const BookingManagement = () => {
   const fetchDetail = async (id: number) => {
     setDetailLoading(true);
     try {
-      const res = await fetch(`/api/bookings/${id}/detail`, { headers: authH() });
-      const json = await res.json();
-      if (json.success) setDetail(json.data);
-    } catch {
-      const m = bookings.find(b => b.bookingId === id);
-      if (m) setDetail({ bookingId: m.bookingId, bookingCode: m.bookingCode, totalPrice: m.totalPrice, status: m.status });
+      const res = await bookingApi.getDetail(id);
+
+      if (res.data.success && res.data.data) {
+        setDetail(res.data.data);
+      }
+    } catch (error) {
+      console.error(error);
+
+      showToast('Không thể tải chi tiết booking','error');
+    } finally {
+      setDetailLoading(false);
     }
-    setDetailLoading(false);
   };
 
-  const approveCancel = async (id: number) => {
-    setApproving(id);
-    try {
-      const res = await fetch(`/api/bookings/${id}/cancel/approve`, { method: 'PUT', headers: authH() });
-      const json = await res.json();
-      if (json.success) {
-        showToast('Đã duyệt hủy booking thành công', 'success');
-        setDetail(null);
-        fetchBookings();
-      } else showToast(json.message || 'Lỗi', 'error');
-    } catch { showToast('Lỗi kết nối', 'error'); }
-    setApproving(null);
-  };
+
 
   const filtered = bookings.filter(b => {
-    const matchSearch = b.bookingCode.toLowerCase().includes(search.toLowerCase()) ||
-      (b.passengerName ?? '').toLowerCase().includes(search.toLowerCase());
+    const matchSearch = (b.bookingCode??'').toLowerCase().includes(search.toLowerCase()) ||
+      (b.contactName ?? '').toLowerCase().includes(search.toLowerCase());
     const matchStatus = statusFilter === 'ALL' || b.status === statusFilter;
     return matchSearch && matchStatus;
   });
@@ -130,13 +149,13 @@ export const BookingManagement = () => {
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <input
               value={search} onChange={e => setSearch(e.target.value)}
-              placeholder="Tìm theo mã booking hoặc tên hành khách..."
+              placeholder="Tìm theo mã booking hoặc tên người liên hệ..."
               className="w-full pl-9 pr-4 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-red/30"
             />
           </div>
           <div className="relative">
             <select
-              value={statusFilter} onChange={e => setStatusFilter(e.target.value)}
+              value={statusFilter} onChange={e => setStatusFilter(e.target.value as 'ALL' | BookingStatus)}
               className="appearance-none bg-white border border-gray-200 rounded-xl px-4 py-2.5 pr-8 text-sm font-medium focus:outline-none focus:ring-2 focus:ring-red/30"
             >
               {STATUS_OPTIONS.map(s => (
@@ -158,7 +177,7 @@ export const BookingManagement = () => {
               <table className="w-full text-sm">
                 <thead>
                   <tr className="border-b border-gray-100 bg-gray-50">
-                    {['Mã booking', 'Hành khách', 'Chuyến bay', 'Ngày đặt', 'Tổng tiền', 'Trạng thái', 'Hành động'].map(h => (
+                    {['Mã booking', 'Người liên hệ', 'Chuyến bay', 'Ngày đặt', 'Tổng tiền', 'Trạng thái', 'Hành động'].map(h => (
                       <th key={h} className="text-left px-4 py-3 text-[10px] font-bold text-gray-400 uppercase tracking-widest whitespace-nowrap">{h}</th>
                     ))}
                   </tr>
@@ -171,9 +190,9 @@ export const BookingManagement = () => {
                     const { Icon: SIcon } = cfg;
                     return (
                       <tr key={b.bookingId} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                        <td className="px-4 py-3 font-black text-gray-800 text-xs tracking-wider">{b.bookingCode}</td>
-                        <td className="px-4 py-3 text-xs text-gray-600">{b.passengerName ?? `#${b.bookingId}`}</td>
-                        <td className="px-4 py-3 text-xs text-gray-500">ID: {b.flightId}</td>
+                        <td className="px-4 py-3 font-black text-gray-800 text-xs tracking-wider">{b.bookingId}</td>
+                        <td className="px-4 py-3 text-xs text-gray-600">{b.contactName}</td>
+                        <td className="px-4 py-3 text-xs text-gray-500">{b.flightNumber}</td>
                         <td className="px-4 py-3 text-xs text-gray-500 whitespace-nowrap">{formatDate(b.bookingDate)}</td>
                         <td className="px-4 py-3 text-xs font-semibold text-gray-700 whitespace-nowrap">{formatPrice(b.totalPrice)}</td>
                         <td className="px-4 py-3">
@@ -189,7 +208,7 @@ export const BookingManagement = () => {
                             >
                               <Eye className="w-3 h-3" /> Chi tiết
                             </button>
-                            {b.status === 'CANCEL_REQUESTED' && (
+                            {/* {b.status === 'CANCEL_PENDING' && (
                               <button
                                 onClick={() => approveCancel(b.bookingId)}
                                 disabled={approving === b.bookingId}
@@ -198,7 +217,7 @@ export const BookingManagement = () => {
                                 {approving === b.bookingId ? <Loader2 className="w-3 h-3 animate-spin" /> : <CheckCircle2 className="w-3 h-3" />}
                                 Duyệt hủy
                               </button>
-                            )}
+                            )} */}
                           </div>
                         </td>
                       </tr>
@@ -215,7 +234,7 @@ export const BookingManagement = () => {
           <div className="fixed inset-0 bg-black/50 z-50 flex items-center justify-center p-4">
             <div className="bg-white rounded-2xl shadow-xl w-full max-w-lg overflow-hidden">
               <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
-                <h3 className="font-bold text-gray-900">Chi tiết đặt chỗ {detail?.bookingCode}</h3>
+                <h3 className="font-bold text-gray-900">Chi tiết đặt chỗ {detail?.bookingId}</h3>
                 <button onClick={() => setDetail(null)} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
               </div>
               {detailLoading ? (
@@ -224,9 +243,9 @@ export const BookingManagement = () => {
                 <div className="p-6 space-y-4">
                   <div className="grid grid-cols-2 gap-3">
                     {[
-                      { l: 'Mã booking', v: detail.bookingCode },
-                      { l: 'Trạng thái', v: statusCfg[detail.status]?.label ?? detail.status },
-                      { l: 'Chuyến bay', v: detail.flight?.flightCode ?? '---' },
+                      { l: 'Booking Code', v: detail.bookingCode  },
+                      { l: 'Trạng thái', v: statusCfg[detail.bookingStatus]?.label ?? detail.bookingStatus },
+                      { l: 'Chuyến bay', v: detail.flight?.flightNumber ?? '---' },
                       { l: 'Tổng tiền', v: formatPrice(detail.totalPrice) },
                     ].map(({ l, v }) => (
                       <div key={l} className="bg-gray-50 rounded-xl p-3">
@@ -240,24 +259,16 @@ export const BookingManagement = () => {
                       <p className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Hành khách</p>
                       <div className="space-y-2">
                         {detail.passengers.map(p => (
-                          <div key={p.passengerCode} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5">
+                          <div key={p.passportNumber} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5">
                             <div>
                               <p className="text-sm font-bold text-gray-800">{p.fullName}</p>
-                              <p className="text-[10px] text-gray-400">{p.passengerCode}</p>
+                              <p className="text-[10px] text-gray-400">{p.passportNumber}</p>
                             </div>
                             <span className="text-xs font-black text-gray-600 bg-white border border-gray-100 px-3 py-1 rounded-lg">Ghế {p.seatNumber}</span>
                           </div>
                         ))}
                       </div>
                     </div>
-                  )}
-                  {detail.status === 'CANCEL_REQUESTED' && (
-                    <button
-                      onClick={() => { approveCancel(detail.bookingId); setDetail(null); }}
-                      className="w-full bg-green-600 hover:bg-green-700 text-white font-bold py-3 rounded-xl transition-colors flex items-center justify-center gap-2"
-                    >
-                      <CheckCircle2 className="w-4 h-4" /> Duyệt hủy đặt chỗ
-                    </button>
                   )}
                 </div>
               ) : null}

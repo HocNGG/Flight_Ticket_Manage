@@ -255,3 +255,60 @@ export type Seat = {
 
 export type CreateSeatPayload = Omit<Seat,|'seatId'| 'aircraftModel'| 'seatClassName'>;
 export type UpdateSeatPayload = CreateSeatPayload;
+
+export type BookingStatus =| 'PENDING'| 'CONFIRMED'| 'PAID'| 'CANCEL_PENDING'| 'CANCELLED'| 'COMPLETED'| 'REFUND_PENDING'| 'REFUNDED';
+export type BookingAdmin = {
+  bookingId: number;
+  bookingCode: string;
+  contactName: string;
+  flightNumber: string;
+  bookingDate: string;
+  totalPrice: number;
+  status: BookingStatus;
+};
+
+
+export type BookingPassenger = {
+  fullName: string;
+
+  passportNumber: string;
+
+  seatNumber: string;
+
+  seatClass: string;
+};
+
+export type BookingDetails = {
+
+  bookingId: number;
+
+  bookingCode: string;
+
+  bookingStatus: BookingStatus;
+
+  bookingDate: string;
+
+  contactName: string;
+
+  contactEmail: string;
+
+  contactPhone: string;
+
+  totalPrice: number;
+
+  paymentDeadline: string;
+
+  flight?: {
+    flightNumber: string;
+
+    departureAirport: string;
+
+    arrivalAirport: string;
+
+    departureTime: string;
+
+    arrivalTime: string;
+  };
+
+  passengers: BookingPassenger[];
+};
