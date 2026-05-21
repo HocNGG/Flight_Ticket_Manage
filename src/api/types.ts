@@ -103,7 +103,14 @@ export type Booking = {
   };
   passengers: any[];
   refund?: {
+    refundId: number;
+    penaltyAmount: number;
+    refundAmount: number;
+    refundDate: string;
     status: string;
+    reason?: string;
+    refundAccountNumber?: string;
+    refundBankName?: string;
   };
 };
 
@@ -241,3 +248,12 @@ export type PolicyRulePayload = Omit<
   'policyRuleId'
 >;
 
+export type SeatClassRange = {
+  className: string;
+  label: string;
+  rowStart: number;
+  rowEnd: number;
+  price: number;
+  totalSeats: number;
+  availableSeats: number;
+}

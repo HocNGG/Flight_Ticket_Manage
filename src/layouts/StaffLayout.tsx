@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { BookOpen, ClipboardList, Plane, LogOut, Menu, X } from 'lucide-react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import api from '../api/axiosInstance';
 
 const navigation = [
   { label: 'Booking Requests', icon: ClipboardList, path: '/staff/cancel-requests', badge: true },
@@ -12,6 +13,21 @@ export const StaffLayout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const location = useLocation();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profile, setProfile] = useState<{ fullName: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get('/api/users/me');
+        if (res.data.success && res.data.data) {
+          setProfile(res.data.data);
+        }
+      } catch (e) {
+        console.error('Failed to fetch staff profile', e);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -66,13 +82,13 @@ export const StaffLayout = ({ children }: { children: React.ReactNode }) => {
       <div className="px-3 pb-4 border-t border-white/10 pt-4 space-y-2">
         <div className="flex items-center gap-3 px-2 py-2">
           <img
-            src="https://ui-avatars.com/api/?name=Staff&background=f59e0b&color=fff&size=32"
+            src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.fullName || 'Staff')}&background=f59e0b&color=fff&size=32`}
             alt="Staff avatar"
             className="w-8 h-8 rounded-full flex-shrink-0"
           />
           <div className="min-w-0">
-            <p className="text-white text-xs font-bold truncate">Staff</p>
-            <p className="text-slate-400 text-[10px] truncate">Nhân viên hỗ trợ</p>
+            <p className="text-white text-xs font-bold truncate">{profile?.fullName || 'Staff'}</p>
+            <p className="text-slate-400 text-[10px] truncate">{profile?.email || 'Nhân viên hỗ trợ'}</p>
           </div>
         </div>
         <button
@@ -122,10 +138,14 @@ export const StaffLayout = ({ children }: { children: React.ReactNode }) => {
           </div>
           <div className="ml-auto flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-gray-800">Staff</p>
-              <p className="text-[10px] text-gray-400">Nhân viên hỗ trợ</p>
+              <p className="text-xs font-bold text-gray-800">{profile?.fullName || 'Staff'}</p>
+              <p className="text-[10px] text-gray-400">{profile?.email || 'Nhân viên hỗ trợ'}</p>
             </div>
-            <img src="https://ui-avatars.com/api/?name=Staff&background=f59e0b&color=fff&size=32" alt="Staff" className="w-8 h-8 rounded-full" />
+            <img 
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.fullName || 'Staff')}&background=f59e0b&color=fff&size=32`} 
+              alt="Staff" 
+              className="w-8 h-8 rounded-full" 
+            />
           </div>
         </header>
 
@@ -135,7 +155,5 @@ export const StaffLayout = ({ children }: { children: React.ReactNode }) => {
         </main>
       </div>
     </div>
-  );
-};
   );
 };

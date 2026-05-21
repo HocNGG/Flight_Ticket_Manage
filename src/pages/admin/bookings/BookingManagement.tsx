@@ -162,7 +162,9 @@ export const BookingManagement = () => {
     try {
       const res = await api.get(`/api/bookings/${id}/detail`);
       if (res.data.success && res.data.data) {
-        setDetail({ ...res.data.data, bookingId: id });
+        const reqItem = bookings.find(b => b.bookingId === id);
+        const refundData = res.data.data.refund || reqItem?.refund;
+        setDetail({ ...res.data.data, bookingId: id, refund: refundData });
       }
     } catch (e: any) {
       console.error(e);
@@ -284,6 +286,17 @@ export const BookingManagement = () => {
                           {b.contactName}
                           {passengersNames && (
                             <span className="text-gray-400 font-normal block text-[10px] mt-0.5">Đi: {passengersNames}</span>
+                          )}
+                          {resolvedStatus === 'CANCELLATION_PENDING' && b.refund && (
+                            <div className="mt-1.5 p-2 bg-orange-50 border border-orange-100 rounded-lg max-w-[220px]">
+                              <p className="text-[9px] text-orange-850 font-black uppercase tracking-wider">Lý do hủy:</p>
+                              <p className="text-[10px] text-gray-700 italic mt-0.5 font-medium whitespace-pre-wrap">{b.refund.reason ?? '---'}</p>
+                              {(b.refund.refundBankName || b.refund.refundAccountNumber) && (
+                                <p className="text-[9px] text-gray-500 mt-1 font-bold">
+                                  🏦 {b.refund.refundBankName}: {b.refund.refundAccountNumber}
+                                </p>
+                              )}
+                            </div>
                           )}
                         </td>
                         <td className="px-4 py-3 text-xs text-gray-500">

@@ -25,7 +25,6 @@ import { AirportManagement } from '../pages/admin/airports/AirportManagement';
 import { AircraftManagement } from '../pages/admin/aircrafts/AircraftManagement';
 import { RouteManagement } from '../pages/admin/routes/RouteManagement';
 import { SeatManagement } from '../pages/admin/seats/SeatManagement';
-import { PricingDashboard } from '../pages/admin/pricing/PricingDashboard';
 import { ServicesManagement } from '../pages/admin/services/ServicesManagement';
 import { PolicyManagement } from '../pages/admin/policies/PolicyManagement';
 
@@ -34,6 +33,7 @@ import { CancelRequests } from '../pages/staff/CancelRequests';
 import { StaffAllBookings } from '../pages/staff/StaffAllBookings';
 import { StaffFlights } from '../pages/staff/StaffFlights';
 
+import { ProtectedRoute } from './ProtectedRoute';
 
 const AppRoutes = () => {
   return (
@@ -66,39 +66,25 @@ const AppRoutes = () => {
         <Route path="/bookings" element={<MyBookings />} />
       </Route>
 
-      {/* Admin — mỗi trang tự wrap AdminLayout bên trong */}
+      {/* Admin — mỗi trang tự wrap AdminLayout bên trong, chỉ role 'admin' mới vào được */}
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin/dashboard" element={<AdminDashboard />} />
-      <Route path="/admin/flights" element={<FlightManagement />} />
-      <Route path="/admin/bookings" element={<BookingManagement />} />
-      <Route path="/admin/airlines" element={<AirlineManagement />} />
-      <Route path="/admin/airports" element={<AirportManagement />} />
-      <Route path="/admin/aircrafts" element={<AircraftManagement />} />
-      <Route path="/admin/routes" element={<RouteManagement />} />
-      <Route path="/admin/seats" element={<SeatManagement />} />
-      <Route path="/admin/pricing" element={<PricingDashboard />} />
-      <Route path="/admin/services" element={<ServicesManagement />} />
-      <Route path="/admin/policies" element={<PolicyManagement />} />
-
-      {/* Staff — tự wrap StaffLayout bên trong */}
-      <Route path="/staff" element={<Navigate to="/staff/cancel-requests" replace />} />
-      <Route path="/staff/cancel-requests" element={<CancelRequests />} />
-      <Route path="/staff/bookings" element={<StaffAllBookings />} />
-      <Route path="/staff/flights" element={<StaffFlights />} />
-    </Routes>
-  );
-};
-
-export default AppRoutes;
+      <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
+      <Route path="/admin/flights" element={<ProtectedRoute allowedRoles={['admin']}><FlightManagement /></ProtectedRoute>} />
+      <Route path="/admin/bookings" element={<ProtectedRoute allowedRoles={['admin']}><BookingManagement /></ProtectedRoute>} />
+      <Route path="/admin/airlines" element={<ProtectedRoute allowedRoles={['admin']}><AirlineManagement /></ProtectedRoute>} />
+      <Route path="/admin/airports" element={<ProtectedRoute allowedRoles={['admin']}><AirportManagement /></ProtectedRoute>} />
+      <Route path="/admin/aircrafts" element={<ProtectedRoute allowedRoles={['admin']}><AircraftManagement /></ProtectedRoute>} />
+      <Route path="/admin/routes" element={<ProtectedRoute allowedRoles={['admin']}><RouteManagement /></ProtectedRoute>} />
+      <Route path="/admin/seats" element={<ProtectedRoute allowedRoles={['admin']}><SeatManagement /></ProtectedRoute>} />
       <Route path="/admin/services" element={<ProtectedRoute allowedRoles={['admin']}><ServicesManagement /></ProtectedRoute>} />
       <Route path="/admin/policies" element={<ProtectedRoute allowedRoles={['admin']}><PolicyManagement /></ProtectedRoute>} />
 
-{/* Staff — chỉ role 'staff' và 'admin' mới vào được */ }
+      {/* Staff — chỉ role 'staff' và 'admin' mới vào được, tự wrap StaffLayout bên trong */}
       <Route path="/staff" element={<Navigate to="/staff/cancel-requests" replace />} />
       <Route path="/staff/cancel-requests" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><CancelRequests /></ProtectedRoute>} />
       <Route path="/staff/bookings" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffAllBookings /></ProtectedRoute>} />
       <Route path="/staff/flights" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffFlights /></ProtectedRoute>} />
-    </Routes >
+    </Routes>
   );
 };
 

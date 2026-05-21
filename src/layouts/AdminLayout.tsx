@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import {
   LayoutDashboard,
   Plane,
@@ -18,6 +18,7 @@ import {
   X,
 } from 'lucide-react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
+import api from '../api/axiosInstance';
 
 const navigation = [
   { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
@@ -38,6 +39,21 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
   const location = useLocation();
   const [collapsed, setCollapsed] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [profile, setProfile] = useState<{ fullName: string; email: string } | null>(null);
+
+  useEffect(() => {
+    const fetchProfile = async () => {
+      try {
+        const res = await api.get('/api/users/me');
+        if (res.data.success && res.data.data) {
+          setProfile(res.data.data);
+        }
+      } catch (e) {
+        console.error('Failed to fetch admin profile', e);
+      }
+    };
+    fetchProfile();
+  }, []);
 
   const handleLogout = () => {
     localStorage.removeItem('accessToken');
@@ -93,13 +109,13 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
         {!collapsed && (
           <div className="flex items-center gap-3 px-2 py-2">
             <img
-              src="https://ui-avatars.com/api/?name=Admin&background=dc2626&color=fff&size=32"
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.fullName || 'Admin')}&background=dc2626&color=fff&size=32`}
               alt="Admin avatar"
               className="w-8 h-8 rounded-full flex-shrink-0"
             />
             <div className="min-w-0">
-              <p className="text-white text-xs font-bold truncate">Admin</p>
-              <p className="text-slate-400 text-[10px] truncate">admin@aviation.com</p>
+              <p className="text-white text-xs font-bold truncate">{profile?.fullName || 'Admin'}</p>
+              <p className="text-slate-400 text-[10px] truncate">{profile?.email || 'admin@aviation.com'}</p>
             </div>
           </div>
         )}
@@ -171,11 +187,11 @@ export const AdminLayout = ({ children }: { children: React.ReactNode }) => {
           {/* Right */}
           <div className="ml-auto flex items-center gap-3">
             <div className="text-right hidden sm:block">
-              <p className="text-xs font-bold text-gray-800">Admin</p>
-              <p className="text-[10px] text-gray-400">Quản trị viên</p>
+              <p className="text-xs font-bold text-gray-800">{profile?.fullName || 'Admin'}</p>
+              <p className="text-[10px] text-gray-400">{profile?.email || 'admin@aviation.com'}</p>
             </div>
             <img
-              src="https://ui-avatars.com/api/?name=Admin&background=dc2626&color=fff&size=32"
+              src={`https://ui-avatars.com/api/?name=${encodeURIComponent(profile?.fullName || 'Admin')}&background=dc2626&color=fff&size=32`}
               alt="Admin"
               className="w-8 h-8 rounded-full"
             />
