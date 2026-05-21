@@ -177,6 +177,44 @@ export function generateSeatsPayload(
   return payloads;
 }
 
+const parseDurationToMinutes = (durationStr: string): number => {
+  if (!durationStr) return 0;
+  
+  // Dạng HH:mm:ss hoặc HH:mm
+  const hhmmssMatch = durationStr.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
+  if (hhmmssMatch) {
+    const hours = parseInt(hhmmssMatch[1], 10);
+    const minutes = parseInt(hhmmssMatch[2], 10);
+    return hours * 60 + minutes;
+  }
+  
+  // Dạng "2h 15m" hoặc "2h15m"
+  const hMatch = durationStr.match(/(\d+(?:\.\d+)?)\s*h/i);
+  const mMatch = durationStr.match(/(\d+)\s*m/i);
+  let totalMinutes = 0;
+  if (hMatch) {
+    totalMinutes += parseFloat(hMatch[1]) * 60;
+  }
+  if (mMatch) {
+    totalMinutes += parseInt(mMatch[1], 10);
+  }
+  if (totalMinutes > 0) return totalMinutes;
+  
+  // Dạng "2 giờ" hoặc "2.5 giờ"
+  const gioMatch = durationStr.match(/(\d+(?:\.\d+)?)\s*(?:giờ|gio)/i);
+  if (gioMatch) {
+    return parseFloat(gioMatch[1]) * 60;
+  }
+
+  // Dạng số đơn thuần (ví dụ: 2.5)
+  const num = parseFloat(durationStr);
+  if (!isNaN(num)) {
+    return num * 60;
+  }
+  
+  return 0;
+};
+
 // Removed initialFlights
 
 export const FlightManagement = () => {
@@ -341,7 +379,34 @@ export const FlightManagement = () => {
   }, [selectedFlight, editForm]);
 
   const updateEditField = (field: keyof FlightRecord, value: string | number) => {
-    setEditForm((prev) => prev ? ({ ...prev, [field]: value } as FlightRecord) : null);
+    setEditForm((prev) => {
+      if (!prev) return null;
+      const updated = { ...prev, [field]: value } as FlightRecord;
+      
+      if (field === 'departureTime') {
+        const departureTime = updated.departureTime;
+        const durationStr = updated.duration;
+        
+        if (departureTime && durationStr) {
+          const durationMin = parseDurationToMinutes(durationStr);
+          if (durationMin > 0) {
+            const depDate = new Date(departureTime);
+            if (!isNaN(depDate.getTime())) {
+              const arrDate = new Date(depDate.getTime() + durationMin * 60000);
+              
+              const year = arrDate.getFullYear();
+              const month = String(arrDate.getMonth() + 1).padStart(2, '0');
+              const day = String(arrDate.getDate()).padStart(2, '0');
+              const hours = String(arrDate.getHours()).padStart(2, '0');
+              const minutes = String(arrDate.getMinutes()).padStart(2, '0');
+              
+              updated.arrivalTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+            }
+          }
+        }
+      }
+      return updated;
+    });
   };
 
   const updateCreateField = (field: string, value: string | number) => {
@@ -349,6 +414,34 @@ export const FlightManagement = () => {
       const updated = { ...prev, [field]: value };
       if (field === 'maxCapacity') {
         updated.seatClassRanges = buildDefaultSeatRangesForCapacity(Number(value), sortedSeatClasses);
+      }
+      
+      // Tự động tính toán arrivalTime
+      if (field === 'routeId' || field === 'departureTime') {
+        const routeId = updated.routeId;
+        const departureTime = updated.departureTime;
+        
+        if (routeId && departureTime) {
+          const selectedRoute = routes?.find((r: any) => r.routeId === Number(routeId));
+          const durationStr = selectedRoute?.duration || selectedRoute?.flightDuration || '';
+          if (durationStr) {
+            const durationMin = parseDurationToMinutes(durationStr);
+            if (durationMin > 0) {
+              const depDate = new Date(departureTime);
+              if (!isNaN(depDate.getTime())) {
+                const arrDate = new Date(depDate.getTime() + durationMin * 60000);
+                
+                const year = arrDate.getFullYear();
+                const month = String(arrDate.getMonth() + 1).padStart(2, '0');
+                const day = String(arrDate.getDate()).padStart(2, '0');
+                const hours = String(arrDate.getHours()).padStart(2, '0');
+                const minutes = String(arrDate.getMinutes()).padStart(2, '0');
+                
+                updated.arrivalTime = `${year}-${month}-${day}T${hours}:${minutes}`;
+              }
+            }
+          }
+        }
       }
       return updated;
     });
@@ -414,7 +507,7 @@ export const FlightManagement = () => {
         basePrice: normalizedForm.basePrice,
         departureTime: normalizedForm.departureTime,
         arrivalTime: normalizedForm.arrivalTime,
-        status: "SCHEDULED"
+        status: "ACTIVE"
       };
 
       const seatPayloads = generateSeatsPayload(
