@@ -433,3 +433,122 @@ export const CancelRequests = () => {
     </StaffLayout>
   );
 };
+                    </div >
+                  )}
+
+{/* Grid info */ }
+<div className="grid grid-cols-2 gap-3">
+  {[
+    { label: 'Mã booking', value: detail.bookingCode, Icon: Ticket },
+    { label: 'Tổng tiền vé', value: typeof detail.totalPrice === 'number' ? formatPrice(detail.totalPrice) : detail.totalPrice, Icon: DollarSign },
+    { label: 'Người đặt', value: detail.contactName ?? '---', Icon: User },
+    { label: 'Email', value: detail.contactEmail ?? '---', Icon: User },
+  ].map(({ label, value, Icon }) => (
+    <div key={label} className="bg-gray-50 rounded-xl p-3">
+      <div className="flex items-center gap-1.5 mb-1">
+        <Icon className="w-3 h-3 text-gray-400" />
+        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{label}</p>
+      </div>
+      <p className="text-sm font-bold text-gray-800 truncate">{value}</p>
+    </div>
+  ))}
+</div>
+
+{/* Cancel reason */ }
+{
+  detail.refund && (
+    <div className="bg-orange-50 border border-orange-100 rounded-2xl p-4 space-y-2.5">
+      <p className="text-orange-800 font-black text-xs uppercase tracking-widest">Yêu Cầu Hoàn Tiền</p>
+
+      {detail.refund.reason && (
+        <div className="text-xs text-gray-700 bg-white/60 p-2.5 rounded-lg border border-orange-100/50">
+          <p className="text-gray-400 font-bold text-[9px] uppercase tracking-wider">Lý do hủy vé</p>
+          <p className="mt-0.5 font-medium italic">"{detail.refund.reason}"</p>
+        </div>
+      )}
+
+      <div className="grid grid-cols-2 gap-4 text-xs font-semibold">
+        <div>
+          <p className="text-gray-500">Phí phạt hủy vé</p>
+          <p className="text-red font-black text-sm mt-0.5">{formatPrice(detail.refund.penaltyAmount)}</p>
+        </div>
+        <div>
+          <p className="text-gray-500">Số tiền hoàn trả</p>
+          <p className="text-green-700 font-black text-sm mt-0.5">{formatPrice(detail.refund.refundAmount)}</p>
+        </div>
+      </div>
+
+      {(detail.refund.refundBankName || detail.refund.refundAccountNumber) && (
+        <div className="text-xs text-gray-700 bg-white/60 p-2.5 rounded-lg border border-orange-100/50 space-y-1">
+          <p className="text-gray-400 font-bold text-[9px] uppercase tracking-wider">Thông tin nhận tiền hoàn</p>
+          <p className="font-semibold text-gray-800">
+            Ngân hàng: <span className="font-bold text-gray-900">{detail.refund.refundBankName || '---'}</span>
+          </p>
+          <p className="font-semibold text-gray-800">
+            Số tài khoản: <span className="font-bold text-gray-900 tracking-wider">{detail.refund.refundAccountNumber || '---'}</span>
+          </p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+{/* Passengers */ }
+{
+  detail.passengers && detail.passengers.length > 0 && (
+    <div>
+      <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mb-2">Hành khách</p>
+      <div className="space-y-2">
+        {detail.passengers.map((p, idx) => (
+          <div key={idx} className="flex items-center justify-between bg-gray-50 rounded-xl px-4 py-2.5">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-8 rounded-full bg-amber-100 flex items-center justify-center">
+                <User className="w-4 h-4 text-amber-600" />
+              </div>
+              <div>
+                <p className="text-sm font-bold text-gray-800">{p.fullName}</p>
+                <p className="text-[10px] text-gray-400">Passport: {p.passportNumber}</p>
+              </div>
+            </div>
+            <span className="text-xs font-black text-gray-600 bg-white border border-gray-100 px-3 py-1 rounded-lg">
+              Ghế {p.seatNumber} ({p.seatClass})
+            </span>
+          </div>
+        ))}
+      </div>
+    </div>
+  )
+}
+
+{/* CTA */ }
+{
+  resolveBookingStatus(detail.bookingStatus, detail.refund) === 'CANCELLATION_PENDING' && (
+    <div className="flex gap-3 mt-4 pt-2 border-t border-gray-100 flex-shrink-0">
+      <button
+        onClick={() => { approveCancel(detail.bookingId!); }}
+        disabled={processingId === detail.bookingId}
+        className="flex-1 bg-green-600 hover:bg-green-700 text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+      >
+        {processingId === detail.bookingId ? <Loader2 className="w-4 h-4 animate-spin" /> : <CheckCircle2 className="w-4 h-4" />}
+        Duyệt hủy
+      </button>
+      <button
+        onClick={() => { rejectCancel(detail.bookingId!); }}
+        disabled={processingId === detail.bookingId}
+        className="flex-1 bg-red hover:bg-reddark text-white font-bold py-3.5 rounded-xl transition-colors flex items-center justify-center gap-2 disabled:opacity-50"
+      >
+        {processingId === detail.bookingId ? <Loader2 className="w-4 h-4 animate-spin" /> : <XCircle className="w-4 h-4" />}
+        Từ chối
+      </button>
+    </div>
+  )
+}
+                </div >
+              ) : null}
+            </div >
+          </div >
+        )}
+      </div >
+    </StaffLayout >
+  );
+};

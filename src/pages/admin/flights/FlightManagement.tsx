@@ -35,12 +35,12 @@ type FlightRecord = {
 const buildDefaultSeatRangesForCapacity = (capacity: number, seatClassesList: any[]): FlightSeatClassRange[] => {
   const totalRows = Math.ceil(capacity / 6);
   if (seatClassesList.length === 0) return [];
-  
+
   const ranges: FlightSeatClassRange[] = [];
   let currentRowStart = 1;
   const numClasses = seatClassesList.length;
   const rowsPerClass = Math.max(1, Math.floor(totalRows / numClasses));
-  
+
   seatClassesList.forEach((sc, index) => {
     const isLast = index === numClasses - 1;
     const rowStart = totalRows > 0 ? currentRowStart : 0;
@@ -48,9 +48,9 @@ const buildDefaultSeatRangesForCapacity = (capacity: number, seatClassesList: an
     if (isLast && totalRows > 0) {
       rowEnd = totalRows;
     }
-    
+
     if (rowEnd > totalRows) rowEnd = totalRows;
-    
+
     ranges.push({
       code: sc.className.toLowerCase(),
       label: sc.description || sc.className,
@@ -58,12 +58,12 @@ const buildDefaultSeatRangesForCapacity = (capacity: number, seatClassesList: an
       rowEnd: rowEnd > 0 && rowEnd <= totalRows ? rowEnd : 0,
       priceMultiplier: sc.priceMultiplier
     });
-    
+
     if (rowStart > 0 && rowEnd >= rowStart) {
       currentRowStart = rowEnd + 1;
     }
   });
-  
+
   return ranges;
 };
 
@@ -71,14 +71,14 @@ const normalizeSeatClassRanges = (ranges: FlightSeatClassRange[], maxCapacity?: 
   const totalRows = maxCapacity ? Math.ceil(maxCapacity / 6) : 0;
   const result: FlightSeatClassRange[] = [];
   let prevRowEnd = 0;
-  
+
   for (let i = 0; i < ranges.length; i++) {
     const current = ranges[i];
     const isLast = i === ranges.length - 1;
-    
+
     let rowStart = i === 0 ? 1 : prevRowEnd + 1;
     let rowEnd = current.rowEnd;
-    
+
     if (rowStart > totalRows) {
       rowStart = 0;
       rowEnd = 0;
@@ -96,18 +96,18 @@ const normalizeSeatClassRanges = (ranges: FlightSeatClassRange[], maxCapacity?: 
         }
       }
     }
-    
+
     result.push({
       ...current,
       rowStart: rowStart > 0 ? rowStart : 0,
       rowEnd: rowEnd > 0 ? rowEnd : 0
     });
-    
+
     if (rowStart > 0) {
       prevRowEnd = rowEnd;
     }
   }
-  
+
   return result;
 };
 
@@ -116,23 +116,23 @@ export function computeSeatsPerRange(maxCapacity: number, ranges: FlightSeatClas
   ranges.forEach(r => {
     result[r.code] = 0;
   });
-  
+
   if (maxCapacity <= 0 || ranges.length === 0) return result;
-  
+
   const totalRows = Math.ceil(maxCapacity / 6);
   let currentGeneratedSeats = 0;
-  
+
   for (let row = 1; row <= totalRows; row++) {
     const activeRange = ranges.find(r => row >= r.rowStart && row <= r.rowEnd);
     if (!activeRange) continue;
-    
+
     for (let col = 0; col < 6; col++) {
       if (currentGeneratedSeats >= maxCapacity) break;
       result[activeRange.code]++;
       currentGeneratedSeats++;
     }
   }
-  
+
   return result;
 }
 
@@ -143,14 +143,14 @@ export interface SeatPayload {
 }
 
 export function generateSeatsPayload(
-  aircraftId: number, 
-  totalSeats: number, 
+  aircraftId: number,
+  totalSeats: number,
   ranges: FlightSeatClassRange[],
   apiSeatClasses: any[]
 ): SeatPayload[] {
-  const letters = ['A', 'B', 'C', 'D', 'E', 'F']; 
+  const letters = ['A', 'B', 'C', 'D', 'E', 'F'];
   const payloads: SeatPayload[] = [];
-  
+
   let currentGeneratedSeats = 0;
   const totalRows = Math.ceil(totalSeats / 6);
 
@@ -161,59 +161,21 @@ export function generateSeatsPayload(
 
     for (let col = 0; col < 6; col++) {
       if (currentGeneratedSeats >= totalSeats) break;
-      
-      const seatNumber = `${row}${letters[col]}`; 
-      
+
+      const seatNumber = `${row}${letters[col]}`;
+
       payloads.push({
         aircraftId: aircraftId,
         seatClassId: classId,
         seatNumber: seatNumber
       });
-      
+
       currentGeneratedSeats++;
     }
   }
-  
+
   return payloads;
 }
-
-const parseDurationToMinutes = (durationStr: string): number => {
-  if (!durationStr) return 0;
-  
-  // Dạng HH:mm:ss hoặc HH:mm
-  const hhmmssMatch = durationStr.match(/^(\d{2}):(\d{2})(?::(\d{2}))?$/);
-  if (hhmmssMatch) {
-    const hours = parseInt(hhmmssMatch[1], 10);
-    const minutes = parseInt(hhmmssMatch[2], 10);
-    return hours * 60 + minutes;
-  }
-  
-  // Dạng "2h 15m" hoặc "2h15m"
-  const hMatch = durationStr.match(/(\d+(?:\.\d+)?)\s*h/i);
-  const mMatch = durationStr.match(/(\d+)\s*m/i);
-  let totalMinutes = 0;
-  if (hMatch) {
-    totalMinutes += parseFloat(hMatch[1]) * 60;
-  }
-  if (mMatch) {
-    totalMinutes += parseInt(mMatch[1], 10);
-  }
-  if (totalMinutes > 0) return totalMinutes;
-  
-  // Dạng "2 giờ" hoặc "2.5 giờ"
-  const gioMatch = durationStr.match(/(\d+(?:\.\d+)?)\s*(?:giờ|gio)/i);
-  if (gioMatch) {
-    return parseFloat(gioMatch[1]) * 60;
-  }
-
-  // Dạng số đơn thuần (ví dụ: 2.5)
-  const num = parseFloat(durationStr);
-  if (!isNaN(num)) {
-    return num * 60;
-  }
-  
-  return 0;
-};
 
 // Removed initialFlights
 
@@ -236,8 +198,8 @@ export const FlightManagement = () => {
     return [...apiSeatClasses].sort((a, b) => b.priceMultiplier - a.priceMultiplier);
   }, [apiSeatClasses]);
 
-  const { data: rawFlights, refetch: refetchFlights } = useQuery({ 
-    queryKey: ['adminFlights'], 
+  const { data: rawFlights, refetch: refetchFlights } = useQuery({
+    queryKey: ['adminFlights'],
     queryFn: async () => {
       try {
         const res = await api.get('/api/flights/all');
@@ -246,7 +208,7 @@ export const FlightManagement = () => {
         console.error('Lỗi khi fetch flights:', e);
         return [];
       }
-    } 
+    }
   });
 
   const flights: FlightRecord[] = useMemo(() => {
@@ -379,34 +341,7 @@ export const FlightManagement = () => {
   }, [selectedFlight, editForm]);
 
   const updateEditField = (field: keyof FlightRecord, value: string | number) => {
-    setEditForm((prev) => {
-      if (!prev) return null;
-      const updated = { ...prev, [field]: value } as FlightRecord;
-      
-      if (field === 'departureTime') {
-        const departureTime = updated.departureTime;
-        const durationStr = updated.duration;
-        
-        if (departureTime && durationStr) {
-          const durationMin = parseDurationToMinutes(durationStr);
-          if (durationMin > 0) {
-            const depDate = new Date(departureTime);
-            if (!isNaN(depDate.getTime())) {
-              const arrDate = new Date(depDate.getTime() + durationMin * 60000);
-              
-              const year = arrDate.getFullYear();
-              const month = String(arrDate.getMonth() + 1).padStart(2, '0');
-              const day = String(arrDate.getDate()).padStart(2, '0');
-              const hours = String(arrDate.getHours()).padStart(2, '0');
-              const minutes = String(arrDate.getMinutes()).padStart(2, '0');
-              
-              updated.arrivalTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-            }
-          }
-        }
-      }
-      return updated;
-    });
+    setEditForm((prev) => prev ? ({ ...prev, [field]: value } as FlightRecord) : null);
   };
 
   const updateCreateField = (field: string, value: string | number) => {
@@ -414,34 +349,6 @@ export const FlightManagement = () => {
       const updated = { ...prev, [field]: value };
       if (field === 'maxCapacity') {
         updated.seatClassRanges = buildDefaultSeatRangesForCapacity(Number(value), sortedSeatClasses);
-      }
-      
-      // Tự động tính toán arrivalTime
-      if (field === 'routeId' || field === 'departureTime') {
-        const routeId = updated.routeId;
-        const departureTime = updated.departureTime;
-        
-        if (routeId && departureTime) {
-          const selectedRoute = routes?.find((r: any) => r.routeId === Number(routeId));
-          const durationStr = selectedRoute?.duration || selectedRoute?.flightDuration || '';
-          if (durationStr) {
-            const durationMin = parseDurationToMinutes(durationStr);
-            if (durationMin > 0) {
-              const depDate = new Date(departureTime);
-              if (!isNaN(depDate.getTime())) {
-                const arrDate = new Date(depDate.getTime() + durationMin * 60000);
-                
-                const year = arrDate.getFullYear();
-                const month = String(arrDate.getMonth() + 1).padStart(2, '0');
-                const day = String(arrDate.getDate()).padStart(2, '0');
-                const hours = String(arrDate.getHours()).padStart(2, '0');
-                const minutes = String(arrDate.getMinutes()).padStart(2, '0');
-                
-                updated.arrivalTime = `${year}-${month}-${day}T${hours}:${minutes}`;
-              }
-            }
-          }
-        }
       }
       return updated;
     });
@@ -498,7 +405,7 @@ export const FlightManagement = () => {
     try {
       const id = String(Date.now());
       const normalizedForm = { ...createForm, id, seatClassRanges: normalizeSeatClassRanges(createForm.seatClassRanges, createForm.maxCapacity) };
-      
+
       const flightPayload = {
         flightNumber: normalizedForm.flightCode,
         airlineId: normalizedForm.airlineId,
@@ -507,18 +414,18 @@ export const FlightManagement = () => {
         basePrice: normalizedForm.basePrice,
         departureTime: normalizedForm.departureTime,
         arrivalTime: normalizedForm.arrivalTime,
-        status: "ACTIVE"
+        status: "SCHEDULED"
       };
 
       const seatPayloads = generateSeatsPayload(
-        flightPayload.aircraftId!, 
-        normalizedForm.maxCapacity, 
+        flightPayload.aircraftId!,
+        normalizedForm.maxCapacity,
         normalizedForm.seatClassRanges,
         sortedSeatClasses
       );
-      
-      await api.post('/api/seats/bulk', seatPayloads); 
-      await api.post('/api/flights', flightPayload); 
+
+      await api.post('/api/seats/bulk', seatPayloads);
+      await api.post('/api/flights', flightPayload);
       alert('Lưu chuyến bay và sơ đồ ghế thành công!');
       refetchFlights();
       setIsCreateModalOpen(false);
@@ -536,10 +443,10 @@ export const FlightManagement = () => {
     const seatsMap = computeSeatsPerRange(editForm.maxCapacity, editForm.seatClassRanges);
     return editForm.seatClassRanges.map((item) => {
       const totalRows = item.rowEnd >= item.rowStart && item.rowStart > 0 ? item.rowEnd - item.rowStart + 1 : 0;
-      return { 
-        ...item, 
-        totalSeats: seatsMap[item.code] ?? 0, 
-        rowCount: totalRows 
+      return {
+        ...item,
+        totalSeats: seatsMap[item.code] ?? 0,
+        rowCount: totalRows
       };
     });
   }, [editForm]);
@@ -671,10 +578,9 @@ export const FlightManagement = () => {
                               ) : (
                                 Object.entries(flight.seatsByClass).map(([cls, info]) => (
                                   <div key={cls} className="flex items-center gap-1.5">
-                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${
-                                      cls === 'FIRST' ? 'bg-amber-100 text-amber-700' :
-                                      cls === 'BUSINESS' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
-                                    }`}>{cls}</span>
+                                    <span className={`text-[9px] font-bold px-1.5 py-0.5 rounded ${cls === 'FIRST' ? 'bg-amber-100 text-amber-700' :
+                                        cls === 'BUSINESS' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-600'
+                                      }`}>{cls}</span>
                                     <span className="text-xs text-gray-700 font-medium">{new Intl.NumberFormat('vi-VN').format(info.price)}đ</span>
                                   </div>
                                 ))
@@ -682,9 +588,8 @@ export const FlightManagement = () => {
                             </div>
                           </td>
                           <td className="py-5">
-                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${
-                              flight.status === 'sold_out' ? 'bg-red/10 text-red' : 'bg-emerald-50 text-emerald-700'
-                            }`}>
+                            <span className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-[10px] font-bold ${flight.status === 'sold_out' ? 'bg-red/10 text-red' : 'bg-emerald-50 text-emerald-700'
+                              }`}>
                               {flight.status === 'sold_out' ? 'Hết chỗ' : 'Còn chỗ'}
                             </span>
                           </td>
@@ -747,177 +652,177 @@ export const FlightManagement = () => {
 
           {/* Right Column (Edit Sidebar) */}
           {editForm && editForm.id && (
-          <div className="rounded-[2rem] bg-white p-6 shadow-sm border border-gray-200 h-fit">
-            <div className="flex items-center gap-3 mb-8">
-              <div className="w-10 h-10 rounded-full bg-red text-white flex items-center justify-center">
-                <Plane className="w-5 h-5" />
-              </div>
-              <h3 className="text-xl font-bold text-gray-900">Update Flight<br />Details</h3>
-            </div>
-
-            <div className="space-y-5">
-              <div>
-                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Flight Code</label>
-                <input
-                  type="text"
-                  value={editForm.flightCode}
-                  onChange={(event) => updateEditField('flightCode', event.target.value.toUpperCase())}
-                  className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 font-medium outline-none focus:border-red"
-                />
+            <div className="rounded-[2rem] bg-white p-6 shadow-sm border border-gray-200 h-fit">
+              <div className="flex items-center gap-3 mb-8">
+                <div className="w-10 h-10 rounded-full bg-red text-white flex items-center justify-center">
+                  <Plane className="w-5 h-5" />
+                </div>
+                <h3 className="text-xl font-bold text-gray-900">Update Flight<br />Details</h3>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-5">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Departure</label>
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Flight Code</label>
                   <input
                     type="text"
-                    value={editForm.origin}
-                    onChange={(event) => updateEditField('origin', event.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
+                    value={editForm.flightCode}
+                    onChange={(event) => updateEditField('flightCode', event.target.value.toUpperCase())}
+                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 font-medium outline-none focus:border-red"
                   />
                 </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Departure</label>
+                    <input
+                      type="text"
+                      value={editForm.origin}
+                      onChange={(event) => updateEditField('origin', event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Destination</label>
+                    <input
+                      type="text"
+                      value={editForm.dest}
+                      onChange={(event) => updateEditField('dest', event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Dep. Time</label>
+                    <input
+                      type="text"
+                      value={editForm.departureTime}
+                      onChange={(event) => updateEditField('departureTime', event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Arr. Time</label>
+                    <input
+                      type="text"
+                      value={editForm.arrivalTime}
+                      onChange={(event) => updateEditField('arrivalTime', event.target.value)}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
+                    />
+                  </div>
+                </div>
+
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Destination</label>
-                  <input
-                    type="text"
-                    value={editForm.dest}
-                    onChange={(event) => updateEditField('dest', event.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
-                  />
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Seat Capacity</label>
+                  <div className="relative">
+                    <input
+                      type="number"
+                      value={editForm.maxCapacity}
+                      onChange={(event) => updateEditField('maxCapacity', Number(event.target.value))}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
+                    />
+                    <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">seats</span>
+                  </div>
                 </div>
-              </div>
 
-              <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Dep. Time</label>
-                  <input
-                    type="text"
-                    value={editForm.departureTime}
-                    onChange={(event) => updateEditField('departureTime', event.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
-                  />
+                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Base Price (VND)</label>
+                  <div className="relative">
+                    <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-900 font-bold">₫</span>
+                    <input
+                      type="number"
+                      value={editForm.basePrice}
+                      onChange={(event) => updateEditField('basePrice', Number(event.target.value))}
+                      className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-8 pr-4 py-3 text-sm text-red font-bold outline-none focus:border-red"
+                    />
+                  </div>
                 </div>
-                <div>
-                  <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Arr. Time</label>
-                  <input
-                    type="text"
-                    value={editForm.arrivalTime}
-                    onChange={(event) => updateEditField('arrivalTime', event.target.value)}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
-                  />
-                </div>
-              </div>
 
-              <div>
-                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Seat Capacity</label>
-                <div className="relative">
-                  <input
-                    type="number"
-                    value={editForm.maxCapacity}
-                    onChange={(event) => updateEditField('maxCapacity', Number(event.target.value))}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 px-4 py-3 text-sm text-gray-900 outline-none focus:border-red"
-                  />
-                  <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500">seats</span>
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Base Price (VND)</label>
-                <div className="relative">
-                  <span className="absolute left-4 top-1/2 -translate-y-1/2 text-sm text-gray-900 font-bold">₫</span>
-                  <input
-                    type="number"
-                    value={editForm.basePrice}
-                    onChange={(event) => updateEditField('basePrice', Number(event.target.value))}
-                    className="w-full rounded-xl border border-gray-200 bg-gray-50 pl-8 pr-4 py-3 text-sm text-red font-bold outline-none focus:border-red"
-                  />
-                </div>
-              </div>
-
-              <div className="pt-6 border-t border-gray-100">
-                <h4 className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Seat Class By Row Ranges</h4>
-                <p className="text-[11px] text-gray-500 mb-4">Rule: hạng sau tự bắt đầu từ hàng kết thúc của hạng trước + 1.</p>
-                <div className="space-y-4">
-                  {editForm.seatClassRanges.map((range) => (
-                    <div key={range.code} className="p-4 border border-gray-200 rounded-2xl bg-gray-50">
-                      <p className="text-sm font-bold text-gray-900 mb-3">{range.label}</p>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">From Row</label>
-                          <input
-                            type="number"
-                            value={range.rowStart}
-                            onChange={(event) => updateSeatRange('edit', range.code, 'rowStart', Number(event.target.value))}
-                            readOnly={range.code !== editForm.seatClassRanges[0].code}
-                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none ${range.code !== editForm.seatClassRanges[0].code ? 'bg-gray-100 cursor-not-allowed' : 'bg-white focus:border-red'
-                              }`}
-                          />
+                <div className="pt-6 border-t border-gray-100">
+                  <h4 className="block text-xs font-bold text-gray-600 uppercase tracking-wider mb-2">Seat Class By Row Ranges</h4>
+                  <p className="text-[11px] text-gray-500 mb-4">Rule: hạng sau tự bắt đầu từ hàng kết thúc của hạng trước + 1.</p>
+                  <div className="space-y-4">
+                    {editForm.seatClassRanges.map((range) => (
+                      <div key={range.code} className="p-4 border border-gray-200 rounded-2xl bg-gray-50">
+                        <p className="text-sm font-bold text-gray-900 mb-3">{range.label}</p>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">From Row</label>
+                            <input
+                              type="number"
+                              value={range.rowStart}
+                              onChange={(event) => updateSeatRange('edit', range.code, 'rowStart', Number(event.target.value))}
+                              readOnly={range.code !== editForm.seatClassRanges[0].code}
+                              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none ${range.code !== editForm.seatClassRanges[0].code ? 'bg-gray-100 cursor-not-allowed' : 'bg-white focus:border-red'
+                                }`}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">To Row</label>
+                            <input
+                              type="number"
+                              value={range.rowEnd}
+                              onChange={(event) => updateSeatRange('edit', range.code, 'rowEnd', Number(event.target.value))}
+                              disabled={range.code === editForm.seatClassRanges[editForm.seatClassRanges.length - 1].code}
+                              className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none ${range.code === editForm.seatClassRanges[editForm.seatClassRanges.length - 1].code ? 'bg-gray-100 cursor-not-allowed' : 'bg-white focus:border-red'}`}
+                            />
+                          </div>
+                          <div>
+                            <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
+                              Multiplier
+                            </label>
+                            <input
+                              type="number"
+                              step="0.1"
+                              value={range.priceMultiplier}
+                              onChange={(event) => updateSeatRange('edit', range.code, 'priceMultiplier', Number(event.target.value))}
+                              className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 outline-none focus:border-red"
+                            />
+                          </div>
                         </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">To Row</label>
-                          <input
-                            type="number"
-                            value={range.rowEnd}
-                            onChange={(event) => updateSeatRange('edit', range.code, 'rowEnd', Number(event.target.value))}
-                            disabled={range.code === editForm.seatClassRanges[editForm.seatClassRanges.length - 1].code}
-                            className={`w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 outline-none ${range.code === editForm.seatClassRanges[editForm.seatClassRanges.length - 1].code ? 'bg-gray-100 cursor-not-allowed' : 'bg-white focus:border-red'}`}
-                          />
-                        </div>
-                        <div>
-                          <label className="block text-[10px] font-bold text-gray-500 uppercase mb-1">
-                            Multiplier
-                          </label>
-                          <input
-                            type="number"
-                            step="0.1"
-                            value={range.priceMultiplier}
-                            onChange={(event) => updateSeatRange('edit', range.code, 'priceMultiplier', Number(event.target.value))}
-                            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-sm bg-white text-gray-900 outline-none focus:border-red"
-                          />
-                        </div>
+                        <p className="text-[10px] text-gray-400 mt-2">
+                          Giá dự kiến:{ }
+                          <span className="font-semibold text-red">
+                            {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
+                              editForm.basePrice * range.priceMultiplier,
+                            )}
+                          </span>
+                          { }/ ghế
+                        </p>
                       </div>
-                      <p className="text-[10px] text-gray-400 mt-2">
-                        Giá dự kiến:{ }
-                        <span className="font-semibold text-red">
-                          {new Intl.NumberFormat('vi-VN', { style: 'currency', currency: 'VND' }).format(
-                            editForm.basePrice * range.priceMultiplier,
-                          )}
-                        </span>
-                        { }/ ghế
-                      </p>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-3 pt-4">
-                <button
-                  type="button"
-                  onClick={() => setEditForm(selectedFlight as FlightRecord)}
-                  className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition"
-                >
-                  Discard
-                </button>
-                <button
-                  type="button"
-                  onClick={saveFlightChanges}
-                  className="flex-1 rounded-full bg-red px-4 py-3 text-sm font-semibold text-white hover:bg-reddark transition shadow-sm"
-                >
-                  Save Changes
-                </button>
-              </div>
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setEditForm(selectedFlight as FlightRecord)}
+                    className="flex-1 rounded-full border border-gray-200 bg-gray-50 px-4 py-3 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition"
+                  >
+                    Discard
+                  </button>
+                  <button
+                    type="button"
+                    onClick={saveFlightChanges}
+                    className="flex-1 rounded-full bg-red px-4 py-3 text-sm font-semibold text-white hover:bg-reddark transition shadow-sm"
+                  >
+                    Save Changes
+                  </button>
+                </div>
 
-              <div className="pt-6 border-t border-gray-100">
-                <div className="flex items-center justify-between mb-3">
-                  <p className="text-xs font-bold uppercase tracking-wider text-gray-600">Real-Time Routing</p>
-                  <Settings className="w-4 h-4 text-gray-400" />
-                </div>
-                <div className="h-24 w-full rounded-2xl bg-gray-200 overflow-hidden relative">
-                  {/* Placeholder for map */}
-                  <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80" alt="Map" className="w-full h-full object-cover opacity-60 grayscale" />
+                <div className="pt-6 border-t border-gray-100">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs font-bold uppercase tracking-wider text-gray-600">Real-Time Routing</p>
+                    <Settings className="w-4 h-4 text-gray-400" />
+                  </div>
+                  <div className="h-24 w-full rounded-2xl bg-gray-200 overflow-hidden relative">
+                    {/* Placeholder for map */}
+                    <img src="https://images.unsplash.com/photo-1524661135-423995f22d0b?auto=format&fit=crop&q=80" alt="Map" className="w-full h-full object-cover opacity-60 grayscale" />
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
           )}
         </div>
       </div>
@@ -943,17 +848,17 @@ export const FlightManagement = () => {
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <input value={createForm.flightCode} onChange={(e) => updateCreateField('flightCode', e.target.value.toUpperCase())} placeholder="Mã chuyến bay (VN001)" className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red" />
-              
+
               <select value={createForm.airlineId || ''} onChange={(e) => updateCreateField('airlineId', Number(e.target.value))} className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red text-gray-900">
                 <option value="" disabled>Chọn Hãng bay</option>
                 {airlines?.map((a: any) => <option key={a.airlineId} value={a.airlineId}>{a.name}</option>)}
               </select>
-              
+
               <select value={createForm.routeId || ''} onChange={(e) => updateCreateField('routeId', Number(e.target.value))} className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red">
                 <option value="" disabled>Chọn Tuyến bay</option>
                 {routes?.map((r: any) => <option key={r.routeId} value={r.routeId}>{r.departureAirportCode} ➔ {r.arrivalAirportCode}</option>)}
               </select>
-              
+
               <select value={createForm.aircraftId || ''} onChange={(e) => {
                 const id = Number(e.target.value);
                 updateCreateField('aircraftId', id);
@@ -966,7 +871,7 @@ export const FlightManagement = () => {
 
               <input type="datetime-local" value={createForm.departureTime} onChange={(e) => updateCreateField('departureTime', e.target.value)} placeholder="Giờ khởi hành" className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red" />
               <input type="datetime-local" value={createForm.arrivalTime} onChange={(e) => updateCreateField('arrivalTime', e.target.value)} placeholder="Giờ đến" className="rounded-xl border border-gray-200 px-4 py-3 outline-none focus:border-red" />
-              
+
               <div className="relative">
                 <input type="number" disabled value={createForm.maxCapacity || ''} placeholder="Tổng số ghế (Tự động)" className="w-full rounded-xl border border-gray-200 px-4 py-3 bg-gray-100 outline-none" />
                 <span className="absolute right-4 top-1/2 -translate-y-1/2 text-sm text-gray-500 font-semibold">Tự động điền theo máy bay</span>
@@ -989,11 +894,11 @@ export const FlightManagement = () => {
                     className={`rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none ${range.code !== createForm.seatClassRanges[0].code ? 'bg-gray-100 cursor-not-allowed' : 'focus:border-red'
                       }`}
                   />
-                  <input type="number" value={range.rowEnd} 
-                    onChange={(e) => updateSeatRange('create', range.code, 'rowEnd', Number(e.target.value))} 
-                    placeholder="To row" 
+                  <input type="number" value={range.rowEnd}
+                    onChange={(e) => updateSeatRange('create', range.code, 'rowEnd', Number(e.target.value))}
+                    placeholder="To row"
                     disabled={range.code === createForm.seatClassRanges[createForm.seatClassRanges.length - 1].code}
-                    className={`rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none ${range.code === createForm.seatClassRanges[createForm.seatClassRanges.length - 1].code ? 'bg-gray-100 cursor-not-allowed' : 'focus:border-red'}`} 
+                    className={`rounded-lg border border-gray-300 px-3 py-2 text-sm outline-none ${range.code === createForm.seatClassRanges[createForm.seatClassRanges.length - 1].code ? 'bg-gray-100 cursor-not-allowed' : 'focus:border-red'}`}
                   />
                   <div>
                     <input
@@ -1026,9 +931,9 @@ export const FlightManagement = () => {
               >
                 Cancel
               </button>
-              <button 
-                type="button" 
-                onClick={createFlight} 
+              <button
+                type="button"
+                onClick={createFlight}
                 disabled={isCreating}
                 className="rounded-full bg-red px-6 py-3 text-sm font-semibold text-white hover:bg-reddark disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
               >

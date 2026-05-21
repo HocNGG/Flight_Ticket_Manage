@@ -8,6 +8,7 @@ import {
   Cpu,
   Route,
   Armchair,
+  TrendingUp,
   Wrench,
   FileText,
   LogOut,
@@ -19,16 +20,17 @@ import {
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 
 const navigation = [
-  { label: 'Dashboard',   icon: LayoutDashboard, path: '/admin/dashboard' },
-  { label: 'Flights',     icon: Plane,            path: '/admin/flights' },
-  { label: 'Bookings',    icon: BookOpen,         path: '/admin/bookings' },
-  { label: 'Airlines',    icon: Building2,        path: '/admin/airlines' },
-  { label: 'Airports',    icon: MapPin,           path: '/admin/airports' },
-  { label: 'Aircrafts',   icon: Cpu,              path: '/admin/aircrafts' },
-  { label: 'Routes',      icon: Route,            path: '/admin/routes' },
-  { label: 'Seats',       icon: Armchair,         path: '/admin/seats' },
-  { label: 'Services',    icon: Wrench,           path: '/admin/services' },
-  { label: 'Policies',    icon: FileText,         path: '/admin/policies' },
+  { label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' },
+  { label: 'Flights', icon: Plane, path: '/admin/flights' },
+  { label: 'Bookings', icon: BookOpen, path: '/admin/bookings' },
+  { label: 'Airlines', icon: Building2, path: '/admin/airlines' },
+  { label: 'Airports', icon: MapPin, path: '/admin/airports' },
+  { label: 'Aircrafts', icon: Cpu, path: '/admin/aircrafts' },
+  { label: 'Routes', icon: Route, path: '/admin/routes' },
+  { label: 'Seats', icon: Armchair, path: '/admin/seats' },
+  { label: 'Pricing', icon: TrendingUp, path: '/admin/pricing' },
+  { label: 'Services', icon: Wrench, path: '/admin/services' },
+  { label: 'Policies', icon: FileText, path: '/admin/policies' },
 ];
 
 export const AdminLayout = ({ children }: { children: React.ReactNode }) => {

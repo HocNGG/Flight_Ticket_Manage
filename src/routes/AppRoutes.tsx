@@ -1,5 +1,4 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { ProtectedRoute } from './ProtectedRoute';
 import MainLayout from '../layouts/MainLayout';
 
 // Auth
@@ -26,6 +25,7 @@ import { AirportManagement } from '../pages/admin/airports/AirportManagement';
 import { AircraftManagement } from '../pages/admin/aircrafts/AircraftManagement';
 import { RouteManagement } from '../pages/admin/routes/RouteManagement';
 import { SeatManagement } from '../pages/admin/seats/SeatManagement';
+import { PricingDashboard } from '../pages/admin/pricing/PricingDashboard';
 import { ServicesManagement } from '../pages/admin/services/ServicesManagement';
 import { PolicyManagement } from '../pages/admin/policies/PolicyManagement';
 
@@ -55,48 +55,50 @@ const AppRoutes = () => {
         {/* /detail/:id — dùng flightId thực từ API */}
         <Route path="/detail/:id" element={<FlightDetail />} />
 
-        {/* Booking Journey — Cần đăng nhập (passenger/admin/staff) */}
-        <Route path="/booking/seat" element={
-          <ProtectedRoute allowedRoles={['passenger', 'admin', 'staff']}>
-            <SeatSelection />
-          </ProtectedRoute>
-        } />
-        <Route path="/booking/payment" element={
-          <ProtectedRoute allowedRoles={['passenger', 'admin', 'staff']}>
-            <Payment />
-          </ProtectedRoute>
-        } />
+        {/* Booking Journey */}
+        <Route path="/booking/seat" element={<SeatSelection />} />
+        <Route path="/booking/payment" element={<Payment />} />
         {/* ZaloPay redirect về đây sau khi thanh toán: ?status=1&apptransid=... */}
         <Route path="/payment-result" element={<PaymentResult />} />
         <Route path="/booking/payment-result" element={<Navigate to="/payment-result" replace />} />
 
         {/* My Bookings — Passenger quản lý đặt chỗ */}
-        <Route path="/bookings" element={
-          <ProtectedRoute allowedRoles={['passenger', 'admin', 'staff']}>
-            <MyBookings />
-          </ProtectedRoute>
-        } />
+        <Route path="/bookings" element={<MyBookings />} />
       </Route>
 
-      {/* Admin — chỉ role 'admin' mới vào được */}
+      {/* Admin — mỗi trang tự wrap AdminLayout bên trong */}
       <Route path="/admin" element={<Navigate to="/admin/dashboard" replace />} />
-      <Route path="/admin/dashboard" element={<ProtectedRoute allowedRoles={['admin']}><AdminDashboard /></ProtectedRoute>} />
-      <Route path="/admin/flights" element={<ProtectedRoute allowedRoles={['admin']}><FlightManagement /></ProtectedRoute>} />
-      <Route path="/admin/bookings" element={<ProtectedRoute allowedRoles={['admin']}><BookingManagement /></ProtectedRoute>} />
-      <Route path="/admin/airlines" element={<ProtectedRoute allowedRoles={['admin']}><AirlineManagement /></ProtectedRoute>} />
-      <Route path="/admin/airports" element={<ProtectedRoute allowedRoles={['admin']}><AirportManagement /></ProtectedRoute>} />
-      <Route path="/admin/aircrafts" element={<ProtectedRoute allowedRoles={['admin']}><AircraftManagement /></ProtectedRoute>} />
-      <Route path="/admin/routes" element={<ProtectedRoute allowedRoles={['admin']}><RouteManagement /></ProtectedRoute>} />
-      <Route path="/admin/seats" element={<ProtectedRoute allowedRoles={['admin']}><SeatManagement /></ProtectedRoute>} />
+      <Route path="/admin/dashboard" element={<AdminDashboard />} />
+      <Route path="/admin/flights" element={<FlightManagement />} />
+      <Route path="/admin/bookings" element={<BookingManagement />} />
+      <Route path="/admin/airlines" element={<AirlineManagement />} />
+      <Route path="/admin/airports" element={<AirportManagement />} />
+      <Route path="/admin/aircrafts" element={<AircraftManagement />} />
+      <Route path="/admin/routes" element={<RouteManagement />} />
+      <Route path="/admin/seats" element={<SeatManagement />} />
+      <Route path="/admin/pricing" element={<PricingDashboard />} />
+      <Route path="/admin/services" element={<ServicesManagement />} />
+      <Route path="/admin/policies" element={<PolicyManagement />} />
+
+      {/* Staff — tự wrap StaffLayout bên trong */}
+      <Route path="/staff" element={<Navigate to="/staff/cancel-requests" replace />} />
+      <Route path="/staff/cancel-requests" element={<CancelRequests />} />
+      <Route path="/staff/bookings" element={<StaffAllBookings />} />
+      <Route path="/staff/flights" element={<StaffFlights />} />
+    </Routes>
+  );
+};
+
+export default AppRoutes;
       <Route path="/admin/services" element={<ProtectedRoute allowedRoles={['admin']}><ServicesManagement /></ProtectedRoute>} />
       <Route path="/admin/policies" element={<ProtectedRoute allowedRoles={['admin']}><PolicyManagement /></ProtectedRoute>} />
 
-      {/* Staff — chỉ role 'staff' và 'admin' mới vào được */}
+{/* Staff — chỉ role 'staff' và 'admin' mới vào được */ }
       <Route path="/staff" element={<Navigate to="/staff/cancel-requests" replace />} />
       <Route path="/staff/cancel-requests" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><CancelRequests /></ProtectedRoute>} />
       <Route path="/staff/bookings" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffAllBookings /></ProtectedRoute>} />
       <Route path="/staff/flights" element={<ProtectedRoute allowedRoles={['staff', 'admin']}><StaffFlights /></ProtectedRoute>} />
-    </Routes>
+    </Routes >
   );
 };
 

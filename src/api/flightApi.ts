@@ -1,5 +1,5 @@
 import api from './axiosInstance';
-import type { ApiResponse, FlightResult, Airport, FlightSearchParams, SeatClass, SeatItem, FlightSeatsMapResponse, SeatClassRange } from './types';
+import type { ApiResponse, FlightResult, Airport, FlightSearchParams, SeatClass, SeatItem } from './types';
 
 type AirlineSummary = {
     airlineId: number;
@@ -146,8 +146,7 @@ export const flightApi = {
         const response = await api.get<ApiResponse<RawFlight>>(`/api/flights/${id}`);
         return normalizeFlight(response.data.data, 'ECONOMY');
     },
-    getAllFlight: async () => 
-    {
+    getAllFlight: async () => {
         const res = await api.get<ApiResponse<FlightResult[]>>('/api/flights/all');
         return res.data;
     },
@@ -155,12 +154,11 @@ export const flightApi = {
     getSeatClasses: () =>
         api.get<ApiResponse<SeatClass[]>>('/api/seat-classes'),
 
-    // Sơ đồ ghế theo chuyến bay — trả về FlightSeatsMapResponse
-    getFlightSeats: async (flightId: number): Promise<FlightSeatsMapResponse> => {
+    // Sơ đồ ghế theo chuyến bay — trả về flat array SeatItem[]
+    getFlightSeats: async (flightId: number): Promise<SeatItem[]> => {
         const response = await api.get<ApiResponse<{
             flightId: number;
             aircraft: string;
-            seatClassRanges: SeatClassRange[];
             rows: Array<{
                 rowNumber: number;
                 seats: Array<{
@@ -174,7 +172,8 @@ export const flightApi = {
         }>>(`/api/flights/${flightId}/seats`);
 
         const data = response.data.data;
-        const seats = (data.rows ?? []).flatMap((row) =>
+        // Flatten rows[] → SeatItem[]
+        return (data.rows ?? []).flatMap((row) =>
             (row.seats ?? []).map((s) => ({
                 flightSeatId: s.flightSeatId,
                 seatNumber: s.seatNumber,
@@ -183,12 +182,5 @@ export const flightApi = {
                 price: s.price,
             }))
         );
-
-        return {
-            flightId: data.flightId,
-            aircraft: data.aircraft,
-            seatClassRanges: data.seatClassRanges ?? [],
-            seats,
-        };
     },
 };

@@ -87,13 +87,11 @@ export const SeatSelection = () => {
   };
 
   // Fetch sơ đồ ghế từ API — chỉ chạy khi có flightId
-  const { data: flightSeatsData, isLoading: isLoadingSeats } = useFlightSeats(bookingState?.flightId);
-  const apiSeats = flightSeatsData?.seats ?? [];
-  const seatClassRanges = flightSeatsData?.seatClassRanges ?? [];
+  const { data: apiSeats = [], isLoading: isLoadingSeats } = useFlightSeats(bookingState?.flightId);
 
   // Hook chọn ghế — nhận API seats thật
   const { selectedSeat, selectedSeatId, seatRows, handleSelectSeat, seatStatusLabel } =
-    useSeatSelection(selectedSeatClass, bookingState?.basePrice ?? 0, apiSeats, seatClassRanges);
+    useSeatSelection(selectedSeatClass, bookingState?.basePrice ?? 0, apiSeats);
 
   // Tạo booking mutation
   const createBooking = useCreateBooking();
@@ -113,8 +111,8 @@ export const SeatSelection = () => {
 
   // Tính giá theo hạng ghế đang chọn từ apiSeats thực tế hoặc basePrice
   const classSeats = apiSeats.filter((s) => s.seatClass.toLowerCase() === selectedSeatClass);
-  const ticketPrice = selectedSeatObj 
-    ? selectedSeatObj.price 
+  const ticketPrice = selectedSeatObj
+    ? selectedSeatObj.price
     : (classSeats.length > 0 ? classSeats[0].price : (bookingState?.basePrice ?? 0));
 
   const handleProceedToPayment = () => {
@@ -219,36 +217,6 @@ export const SeatSelection = () => {
               </div>
             </div>
 
-            {/* Cấu trúc hạng ghế của chuyến bay */}
-            {seatClassRanges.length > 0 && (
-              <div className="mb-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-4 p-4 bg-[#fbfbfb] rounded-2xl border border-gray-100">
-                {seatClassRanges.map((range) => {
-                  const isActive = range.className.toLowerCase() === selectedSeatClass;
-                  return (
-                    <div 
-                      key={range.className} 
-                      className={`p-4 rounded-xl transition-all duration-200 ${
-                        isActive 
-                          ? 'bg-white border-2 border-red shadow-sm' 
-                          : 'bg-white/50 border border-gray-100 opacity-60'
-                      }`}
-                    >
-                      <p className="text-xs font-bold text-gray-800">{getSeatClassLabel(range.className)}</p>
-                      <p className="text-[10px] text-gray-400 mt-1 font-semibold">
-                        Hàng: {range.rowStart} - {range.rowEnd}
-                      </p>
-                      <p className="text-xs font-black text-red mt-2">
-                        {formatPrice(range.price)}
-                      </p>
-                      <p className="text-[9px] text-gray-500 mt-1 font-medium">
-                        Còn {range.availableSeats} / {range.totalSeats} ghế
-                      </p>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-
             {/* Seat Map */}
             <div className="bg-[#fcfcfc] rounded-3xl p-8 border border-gray-100 w-full max-w-lg mx-auto overflow-x-auto min-h-[250px]">
               {isLoadingSeats ? (
@@ -284,7 +252,7 @@ export const SeatSelection = () => {
           {/* PASSENGER DETAILS */}
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Thông tin hành khách</p>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đi</h2>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đặt vé</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* fullName */}
@@ -368,15 +336,15 @@ export const SeatSelection = () => {
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <div className="flex items-center gap-3 mb-1">
               <Plane className="w-4 h-4 text-red" />
-              <p className="text-red text-[10px] font-bold uppercase tracking-widest">Thông tin người đặt vé</p>
+              <p className="text-red text-[10px] font-bold uppercase tracking-widest">Thông tin liên hệ</p>
             </div>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Thông tin người đặt vé</h2>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Người liên hệ</h2>
             <p className="text-sm text-gray-500 mb-6">Vé điện tử sẽ được gửi đến email này.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="md:col-span-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
-                  Họ và tên người đặt vé <span className="text-red">*</span>
+                  Tên liên hệ <span className="text-red">*</span>
                 </label>
                 <input
                   type="text"
