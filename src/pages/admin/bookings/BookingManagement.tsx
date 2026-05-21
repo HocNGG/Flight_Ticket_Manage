@@ -100,6 +100,13 @@ const formatDate = (d: string) => {
   }
 };
 
+const resolveBookingStatus = (status: string, refund?: { status: string }) => {
+  if (refund && refund.status === 'PENDING') {
+    return 'CANCELLATION_PENDING';
+  }
+  return status;
+};
+
 export const BookingManagement = () => {
   const [bookings, setBookings] = useState<Booking[]>([]);
   const [loading, setLoading] = useState(false);
@@ -264,7 +271,8 @@ export const BookingManagement = () => {
                   {bookings.length === 0 ? (
                     <tr><td colSpan={7} className="text-center py-12 text-gray-400 text-sm">Không có dữ liệu</td></tr>
                   ) : bookings.map((b) => {
-                    const cfg = statusCfg[b.status] ?? { label: b.status, color: 'bg-gray-100 text-gray-600', Icon: Clock };
+                    const resolvedStatus = resolveBookingStatus(b.status, b.refund);
+                    const cfg = statusCfg[resolvedStatus] ?? { label: b.status, color: 'bg-gray-100 text-gray-600', Icon: Clock };
                     const { Icon: SIcon } = cfg;
                     const passengersNames = b.passengers && b.passengers.length > 0 
                       ? b.passengers.map(p => p.passenger.fullName).join(', ') 
@@ -296,7 +304,7 @@ export const BookingManagement = () => {
                             >
                               <Eye className="w-3 h-3" /> Chi tiết
                             </button>
-                            {b.status === 'CANCELLATION_PENDING' && (
+                            {resolvedStatus === 'CANCELLATION_PENDING' && (
                               <>
                                 <button
                                   onClick={() => approveCancel(b.bookingId)}
@@ -343,7 +351,7 @@ export const BookingManagement = () => {
                   <div className="grid grid-cols-2 gap-3">
                     {[
                       { l: 'Mã booking', v: detail.bookingCode },
-                      { l: 'Trạng thái', v: statusCfg[detail.bookingStatus]?.label ?? detail.bookingStatus },
+                      { l: 'Trạng thái', v: statusCfg[resolveBookingStatus(detail.bookingStatus, detail.refund)]?.label ?? resolveBookingStatus(detail.bookingStatus, detail.refund) },
                       { l: 'Chuyến bay', v: detail.flight?.flightNumber ?? '---' },
                       { l: 'Tổng tiền', v: typeof detail.totalPrice === 'number' ? formatPrice(detail.totalPrice) : detail.totalPrice },
                     ].map(({ l, v }) => (
@@ -437,7 +445,7 @@ export const BookingManagement = () => {
                   )}
 
                   {/* Action Buttons for CANCELLATION_PENDING status */}
-                  {detail.bookingStatus === 'CANCELLATION_PENDING' && (
+                  {resolveBookingStatus(detail.bookingStatus, detail.refund) === 'CANCELLATION_PENDING' && (
                     <div className="flex gap-3 mt-4 pt-2 border-t border-gray-100 flex-shrink-0">
                       <button
                         onClick={() => { approveCancel(detail.bookingId!); }}
