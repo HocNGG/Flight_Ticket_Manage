@@ -284,7 +284,7 @@ export const SeatSelection = () => {
           {/* PASSENGER DETAILS */}
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <p className="text-red text-[10px] font-bold uppercase tracking-widest mb-1">Thông tin hành khách</p>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đặt vé</h2>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-6">Thông tin người đi</h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               {/* fullName */}
@@ -368,15 +368,15 @@ export const SeatSelection = () => {
           <div className="bg-white rounded-[2rem] p-8 border border-gray-100 shadow-sm mb-8">
             <div className="flex items-center gap-3 mb-1">
               <Plane className="w-4 h-4 text-red" />
-              <p className="text-red text-[10px] font-bold uppercase tracking-widest">Thông tin liên hệ</p>
+              <p className="text-red text-[10px] font-bold uppercase tracking-widest">Thông tin người đặt vé</p>
             </div>
-            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Người liên hệ</h2>
+            <h2 className="text-2xl font-black text-gray-900 tracking-tight mb-2">Thông tin người đặt vé</h2>
             <p className="text-sm text-gray-500 mb-6">Vé điện tử sẽ được gửi đến email này.</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
               <div className="md:col-span-2">
                 <label className="text-[10px] font-bold text-gray-400 uppercase tracking-widest block mb-2 px-1">
-                  Tên liên hệ <span className="text-red">*</span>
+                  Họ và tên người đặt vé <span className="text-red">*</span>
                 </label>
                 <input
                   type="text"
